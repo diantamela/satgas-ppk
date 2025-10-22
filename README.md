@@ -1,34 +1,106 @@
-# Codeguide Starter Fullstack
+# Sistem Informasi Pengendalian Pencemaran dan Kerusakan Lingkungan Hidup (SATGAS PPKLH)
 
-A modern web application starter template built with Next.js 15, featuring authentication, database integration, and dark mode support.
+<div align="center">
 
-## Tech Stack
+<!-- prettier-ignore -->
+[comment]: <div> ( <!-- prettier-ignore --> )
+[![Version](https://img.shields.io/github/package-json/v/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=github)](https://github.com/Code-With-Us/codeguide-starter-fullstack)
+[![License](https://img.shields.io/github/license/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=opensourceinitiative&labelColor=2D333B)](https://github.com/Code-With-Us/codeguide-starter-fullstack/blob/main/LICENSE)
+[![Stars](https://img.shields.io/github/stars/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=github&label=Stars&labelColor=2D333B)](https://github.com/Code-With-Us/codeguide-starter-fullstack)
+[![Forks](https://img.shields.io/github/forks/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=github&label=Forks&labelColor=2D333B)](https://github.com/Code-With-Us/codeguide-starter-fullstack)
 
-- **Framework:** [Next.js 15](https://nextjs.org/) (App Router with Turbopack)
-- **Language:** TypeScript
-- **Authentication:** [Better Auth](https://better-auth.com/)
-- **Database:** [Drizzle ORM](https://orm.drizzle.team/) with PostgreSQL
-- **Styling:** [Tailwind CSS v4](https://tailwindcss.com/)
-- **UI Components:** [shadcn/ui](https://ui.shadcn.com/) (New York style)
-- **Theme System:** [next-themes](https://github.com/pacocoursey/next-themes)
-- **Icons:** [Lucide React](https://lucide.dev/)
+</div>
 
-## Prerequisites
+<div align="center">
+  <img src="codeguide-backdrop.svg" width="100%" />
+</div>
 
-Before you begin, ensure you have the following:
-- Node.js 18+ installed
-- Docker and Docker Compose (for database setup)
-- Generated project documents from [CodeGuide](https://codeguide.dev/) for best development experience
+<br />
 
-## Getting Started
+<div align="center">
+  <h3>Full-stack Next.js Starter | TypeScript | Prisma ORM | MySQL | Auth.js | Shadcn UI</h3>
+</div>
+
+<div align="center">
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Code-With-Us/codeguide-starter-fullstack&env=DATABASE_URL,BETTER_AUTH_SECRET&envDescription=Environment%20variables%20needed%20for%20deployment&envLink=link-to-env-variables-docs)
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Code-With-Us/codeguide-starter-fullstack)
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/your-template-url)
+
+</div>
+
+## 📋 Table of Contents
+
+- [Sistem Informasi Pengendalian Pencemaran dan Kerusakan Lingkungan Hidup (SATGAS PPKLH)](#-sistem-informasi-pengendalian-pencemaran-dan-kerusakan-lingkungan-hidup-satgas-ppklh)
+  - [📋 Table of Contents](#-table-of-contents)
+  - [🎯 About The Project](#-about-the-project)
+    - [✨ Built With](#-built-with)
+    - [🚀 Features](#-features)
+  - [⚙️ Getting Started](#️-getting-started)
+    - [📋 Prerequisites](#-prerequisites)
+    - [💻 Installation](#-installation)
+    - [🐳 Docker Setup](#-docker-setup)
+    - [🔌 Database Setup (MySQL)](#-database-setup-mysql)
+  - [🧪 Running Tests](#-running-tests)
+  - [🎨 UI Framework](#-ui-framework)
+  - [🔐 Authentication](#-authentication)
+  - [📦 Database Schema](#-database-schema)
+  - [📱 Deployment](#-deployment)
+  - [💻 Contributing](#-contributing)
+  - [📄 License](#-license)
+  - [🙏 Acknowledgements](#-acknowledgements)
+
+## 🎯 About The Project
+
+Sistem Informasi Pengendalian Pencemaran dan Kerusakan Lingkungan Hidup (SATGAS PPKLH) merupakan sebuah platform digital untuk pengelolaan informasi terkait pengendalian pencemaran dan kerusakan lingkungan hidup. Sistem ini dirancang untuk mendukung proses pelaporan, monitoring, dan tindak lanjut terhadap kasus pencemaran dan kerusakan lingkungan.
+
+### ✨ Built With
+
+This full-stack application is built using modern web technologies:
+
+- [Next.js](https://nextjs.org) - Frontend framework with server-side rendering
+- [TypeScript](https://www.typescriptlang.org) - Type-safe JavaScript
+- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
+- [Shadcn UI](https://ui.shadcn.com) - Re-usable components
+- [Prisma ORM](https://www.prisma.io) - Next-generation Node.js and TypeScript ORM
+- [MySQL](https://www.mysql.com) - Relational database management system
+- [Better Auth](https://better-auth.com) - Authentication library
+- [Zod](https://zod.dev) - Schema validation
+- [Lucide React](https://lucide.dev) - Icon library
+
+### 🚀 Features
+
+- ⚡ **Fast and Responsive**: Built with Next.js 15 and TypeScript for optimal performance
+- 🔐 **Authentication**: Secure authentication with Better Auth
+- 📊 **Database**: MySQL database with Prisma ORM for type-safe queries
+- 🎨 **UI Components**: Ready-to-use Shadcn UI components with Tailwind CSS
+- 📱 **Responsive Design**: Works seamlessly on all device sizes
+- 🔄 **Real-time Updates**: Support for real-time data updates
+- 🛡️ **Security**: Built-in security features and best practices
+- 🚀 **Deployment Ready**: Optimized for deployment on Vercel, Netlify, and other platforms
+
+## ⚙️ Getting Started
+
+### 📋 Prerequisites
+
+Make sure you have the following installed on your system:
+
+- [Node.js](https://nodejs.org/en/download/) (v18.17 or higher)
+- [npm](https://www.npmjs.com/get-npm) (v9.6.7 or higher) or [Yarn](https://yarnpkg.com/getting-started/install)
+- [MySQL](https://dev.mysql.com/downloads/mysql/) or [Docker](https://www.docker.com/products/docker-desktop/) for containerized database
+- [Git](https://git-scm.com/downloads)
+
+### 💻 Installation
 
 1. **Clone the repository**
+
    ```bash
-   git clone <repository-url>
-   cd codeguide-starter-fullstack
+   git clone https://github.com/YourUsername/satgas-ppk.git
+   cd satgas-ppk
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    # or
@@ -37,14 +109,34 @@ Before you begin, ensure you have the following:
    pnpm install
    ```
 
-3. **Environment Variables Setup**
-   - Copy the `.env.example` file to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - The default values work with Docker setup, modify as needed
+3. **Set up environment variables**
 
-4. **Start the development server**
+   Create a `.env` file in the root directory and add the required environment variables:
+
+   ```env
+   DATABASE_URL=mysql://mysqluser:mysqlpassword@localhost:3307/satgas_ppk_dev
+   MYSQL_DB=satgas_ppk_dev
+   MYSQL_USER=mysqluser
+   MYSQL_PASSWORD=mysqlpassword
+   BETTER_AUTH_SECRET=your_super_secret_key_here
+   BETTER_AUTH_URL=http://localhost:3000
+   NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
+   ```
+
+4. **Generate Prisma client**
+
+   ```bash
+   npx prisma generate
+   ```
+
+5. **Run database migrations**
+
+   ```bash
+   npx prisma db push
+   ```
+
+6. **Run the development server**
+
    ```bash
    npm run dev
    # or
@@ -53,277 +145,152 @@ Before you begin, ensure you have the following:
    pnpm dev
    ```
 
-5. **Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.**
+7. **Open your browser**
 
-## Configuration
+   Visit [http://localhost:3000](http://localhost:3000) to see the application.
 
-### Option 1: Docker Setup (Recommended)
-1. **Start PostgreSQL with Docker:**
+### 🐳 Docker Setup
+
+This project includes Docker support for easy setup:
+
+1. **Start the MySQL database using Docker**
+
    ```bash
-   npm run db:up
+   npm run db:dev
    ```
-   This starts PostgreSQL in a Docker container with default credentials.
 
-2. **Push database schema:**
+2. **Verify the database is running**
+
    ```bash
+   npm run docker:logs
+   ```
+
+### 🔌 Database Setup (MySQL)
+
+This project uses MySQL as the database with Prisma ORM for database operations.
+
+1. **Database Migration**
+
+   To generate and apply database migrations:
+
+   ```bash
+   npm run db:generate
    npm run db:push
    ```
 
-### Option 2: Local Database Setup
-1. Create a PostgreSQL database locally
-2. Update your environment variables in `.env`:
-   ```env
-   DATABASE_URL=postgresql://username:password@localhost:5432/database_name
-   POSTGRES_DB=your_database_name
-   POSTGRES_USER=your_username
-   POSTGRES_PASSWORD=your_password
-   ```
-3. Run database migrations:
+2. **Database Studio**
+
+   To explore your database schema and data:
+
    ```bash
-   npm run db:push
+   npm run db:studio
    ```
 
-## Environment Variables
+3. **Connection String Format**
 
-Create a `.env` file in the root directory with the following variables:
+   The application uses the following MySQL connection string format:
 
-```env
-# Database Configuration (defaults work with Docker)
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres
-POSTGRES_DB=postgres
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
+   ```
+   mysql://username:password@host:port/database
+   ```
 
-# Authentication
-BETTER_AUTH_SECRET=your_secret_key_here
-BETTER_AUTH_URL=http://localhost:3000
-NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
-```
+   Example:
+   ```
+   DATABASE_URL=mysql://mysqluser:mysqlpassword@localhost:3307/satgas_ppk_dev
+   ```
 
-## Features
+## 🧪 Running Tests
 
-- 🔐 Authentication with Better Auth (email/password)
-- 🗄️ PostgreSQL Database with Drizzle ORM
-- 🎨 40+ shadcn/ui components (New York style)
-- 🌙 Dark mode with system preference detection
-- 🚀 App Router with Server Components and Turbopack
-- 📱 Responsive design with TailwindCSS v4
-- 🎯 Type-safe database operations
-- 🔒 Modern authentication patterns
-- 🐳 Full Docker support with multi-stage builds
-- 🚀 Production-ready deployment configuration
+This project uses Jest for testing:
 
-## Project Structure
+1. **Run all tests**
 
-```
-codeguide-starter-fullstack/
-├── app/                        # Next.js app router pages
-│   ├── globals.css            # Global styles with dark mode
-│   ├── layout.tsx             # Root layout with providers
-│   └── page.tsx               # Main page
-├── components/                # React components
-│   └── ui/                    # shadcn/ui components (40+)
-├── db/                        # Database configuration
-│   ├── index.ts              # Database connection
-│   └── schema/               # Database schemas
-├── docker/                    # Docker configuration
-│   └── postgres/             # PostgreSQL initialization
-├── hooks/                     # Custom React hooks
-├── lib/                       # Utility functions
-│   ├── auth.ts               # Better Auth configuration
-│   └── utils.ts              # General utilities
-├── auth-schema.ts            # Authentication schema
-├── docker-compose.yml        # Docker services configuration
-├── Dockerfile                # Application container definition
-├── drizzle.config.ts         # Drizzle configuration
-└── components.json           # shadcn/ui configuration
-```
-
-## Database Integration
-
-This starter includes modern database integration:
-
-- **Drizzle ORM** for type-safe database operations
-- **PostgreSQL** as the database provider
-- **Better Auth** integration with Drizzle adapter
-- **Database migrations** with Drizzle Kit
-
-## Development Commands
-
-### Application
-- `npm run dev` - Start development server with Turbopack
-- `npm run build` - Build for production with Turbopack
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
-
-### Database
-- `npm run db:up` - Start PostgreSQL in Docker
-- `npm run db:down` - Stop PostgreSQL container
-- `npm run db:dev` - Start development PostgreSQL (port 5433)
-- `npm run db:dev-down` - Stop development PostgreSQL
-- `npm run db:push` - Push schema changes to database
-- `npm run db:generate` - Generate Drizzle migration files
-- `npm run db:studio` - Open Drizzle Studio (database GUI)
-- `npm run db:reset` - Reset database (drop all tables and recreate)
-
-### Styling with shadcn/ui
-- Pre-configured with 40+ shadcn/ui components in New York style
-- Components are fully customizable and use CSS variables for theming
-- Automatic dark mode support with next-themes integration
-- Add new components: `npx shadcn@latest add [component-name]`
-
-### Docker
-- `npm run docker:build` - Build application Docker image
-- `npm run docker:up` - Start full application stack (app + database)
-- `npm run docker:down` - Stop all containers
-- `npm run docker:logs` - View container logs
-- `npm run docker:clean` - Stop containers and clean up volumes
-
-## Docker Development
-
-### Quick Start with Docker
-```bash
-# Start the entire stack (recommended for new users)
-npm run docker:up
-
-# View logs
-npm run docker:logs
-
-# Stop everything
-npm run docker:down
-```
-
-### Development Workflow
-```bash
-# Option 1: Database only (develop app locally)
-npm run db:up          # Start PostgreSQL
-npm run dev            # Start Next.js development server
-
-# Option 2: Full Docker stack
-npm run docker:up      # Start both app and database
-```
-
-### Docker Services
-
-The `docker-compose.yml` includes:
-
-- **postgres**: Main PostgreSQL database (port 5432)
-- **postgres-dev**: Development database (port 5433) - use `--profile dev`
-- **app**: Next.js application container (port 3000)
-
-### Docker Profiles
-
-```bash
-# Start development database on port 5433
-docker-compose --profile dev up postgres-dev -d
-
-# Or use the npm script
-npm run db:dev
-```
-
-## Deployment
-
-### Production Deployment
-
-#### Option 1: Docker Compose (VPS/Server)
-
-1. **Clone and setup on your server:**
    ```bash
-   git clone <your-repo>
-   cd codeguide-starter-fullstack
-   cp .env.example .env
+   npm run test
    ```
 
-2. **Configure environment variables:**
+2. **Run tests in watch mode**
+
    ```bash
-   # Edit .env with production values
-   DATABASE_URL=postgresql://postgres:your_secure_password@postgres:5432/postgres
-   POSTGRES_DB=postgres
-   POSTGRES_USER=postgres
-   POSTGRES_PASSWORD=your_secure_password
-   BETTER_AUTH_SECRET=your-very-secure-secret-key
-   BETTER_AUTH_URL=https://yourdomain.com
-   NEXT_PUBLIC_BETTER_AUTH_URL=https://yourdomain.com
+   npm run test:watch
    ```
 
-3. **Deploy:**
+## 🎨 UI Framework
+
+This project utilizes:
+
+- [Tailwind CSS](https://tailwindcss.com) - A utility-first CSS framework
+- [Shadcn UI](https://ui.shadcn.com) - Re-usable components built using Radix UI and Tailwind CSS
+- [Lucide React](https://lucide.dev) - Beautifully simple, pixel-perfect icons
+
+## 🔐 Authentication
+
+Authentication is powered by [Better Auth](https://better-auth.com). Key features:
+
+- Secure authentication flow
+- Social login support
+- Session management
+- Role-based access control
+
+## 📦 Database Schema
+
+The project uses Prisma ORM with MySQL for database operations. The schema file is located at `prisma/schema.prisma`:
+
+- Defines User, Account, Session, Verification models for authentication
+- Defines Report model for environmental violation reports
+- Defines InvestigationDocument model for investigation documents and files
+- Defines Notification model for notification system
+
+## 📱 Deployment
+
+### Vercel
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Code-With-Us/codeguide-starter-fullstack&env=DATABASE_URL,BETTER_AUTH_SECRET&envDescription=Environment%20variables%20needed%20for%20deployment&envLink=link-to-env-variables-docs)
+
+### Netlify
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Code-With-Us/codeguide-starter-fullstack)
+
+### Railway
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/your-template-url)
+
+For manual deployment:
+
+1. Build the application:
+
    ```bash
-   npm run docker:up
+   npm run build
    ```
 
-#### Option 2: Container Registry (AWS/GCP/Azure)
+2. Start the production server:
 
-1. **Build and push image:**
    ```bash
-   # Build the image
-   docker build -t your-registry/codeguide-starter-fullstack:latest .
-   
-   # Push to registry
-   docker push your-registry/codeguide-starter-fullstack:latest
+   npm start
    ```
 
-2. **Deploy using your cloud provider's container service**
+## 💻 Contributing
 
-#### Option 3: Vercel + External Database
+We welcome contributions to this project! Here's how you can get involved:
 
-1. **Deploy to Vercel:**
-   ```bash
-   npm i -g vercel
-   vercel
-   ```
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Commit your changes (`git commit -m 'Add some amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
 
-2. **Add environment variables in Vercel dashboard:**
-   - `DATABASE_URL`: Your managed PostgreSQL connection string
-   - `BETTER_AUTH_SECRET`: Generate a secure secret
-   - `BETTER_AUTH_URL`: Your Vercel deployment URL
+## 📄 License
 
-3. **Setup database:**
-   ```bash
-   # Push schema to your managed database
-   npm run db:push
-   ```
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Environment Variables for Production
+## 🙏 Acknowledgements
 
-```env
-# Required for production
-DATABASE_URL=postgresql://user:password@host:port/database
-BETTER_AUTH_SECRET=generate-a-very-secure-32-character-key
-BETTER_AUTH_URL=https://yourdomain.com
-
-# Optional optimizations
-NODE_ENV=production
-```
-
-### Production Considerations
-
-- **Database**: Use managed PostgreSQL (AWS RDS, Google Cloud SQL, etc.)
-- **Security**: Generate strong secrets, use HTTPS
-- **Performance**: Enable Next.js output: 'standalone' for smaller containers
-- **Monitoring**: Add logging and health checks
-- **Backup**: Regular database backups
-- **SSL**: Terminate SSL at load balancer or reverse proxy
-
-### Health Checks
-
-The application includes basic health checks. You can extend them:
-
-```dockerfile
-# In Dockerfile, add health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
-```
-
-## AI Coding Agent Integration
-
-This starter is optimized for AI coding agents:
-
-- **Clear file structure** and naming conventions
-- **TypeScript integration** with proper type definitions
-- **Modern authentication** patterns
-- **Database schema** examples
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-# codeguide-starter-fullstack
+- [Next.js](https://nextjs.org) - React framework
+- [TypeScript](https://www.typescriptlang.org) - Type-safe JavaScript
+- [Tailwind CSS](https://tailwindcss.com) - CSS framework
+- [Prisma ORM](https://www.prisma.io) - Next-generation Node.js and TypeScript ORM
+- [Better Auth](https://better-auth.com) - Authentication library
+- [Shadcn UI](https://ui.shadcn.com) - UI components
+- [Vercel](https://vercel.com) - Deployment platform
+- [MySQL](https://www.mysql.com) - Database

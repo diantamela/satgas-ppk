@@ -39,110 +39,94 @@ const staticData = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
-      title: "Lifecycle",
-      url: "#",
+      title: "Semua Laporan",
+      url: "/dashboard/laporan",
+      icon: IconReport,
+    },
+    {
+      title: "Investigasi",
+      url: "/dashboard/investigasi",
       icon: IconListDetails,
     },
     {
-      title: "Analytics",
-      url: "#",
-      icon: IconChartBar,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: IconCamera,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
+      title: "Rekomendasi",
+      url: "/dashboard/rekomendasi",
       icon: IconFileDescription,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: IconFileAi,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
     },
   ],
   navSecondary: [
     {
-      title: "Settings",
-      url: "#",
-      icon: IconSettings,
+      title: "Anggota Satgas",
+      url: "/dashboard/anggota",
+      icon: IconUsers,
     },
     {
-      title: "Get Help",
-      url: "#",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "#",
-      icon: IconSearch,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
+      title: "Dokumen",
+      url: "/dashboard/dokumen",
       icon: IconDatabase,
     },
     {
-      name: "Reports",
-      url: "#",
+      title: "Notifikasi",
+      url: "/dashboard/notifikasi",
+      icon: IconNotification,
+    },
+    {
+      title: "Pengaturan",
+      url: "/dashboard/settings",
+      icon: IconSettings,
+    },
+  ],
+  navRektor: [
+    {
+      title: "Dashboard Rektor",
+      url: "/dashboard/rektor",
+      icon: IconDashboard,
+    },
+    {
+      title: "Laporan Akhir",
+      url: "/dashboard/rektor/laporan-akhir",
       icon: IconReport,
     },
     {
-      name: "Word Assistant",
-      url: "#",
-      icon: IconFileWord,
+      title: "Rekomendasi",
+      url: "/dashboard/rektor/rekomendasi",
+      icon: IconFileDescription,
+    },
+  ],
+  navUser: [
+    {
+      title: "Beranda",
+      url: "/",
+      icon: IconDashboard,
+    },
+    {
+      title: "Laporkan Kasus",
+      url: "/laporkan-kasus",
+      icon: IconReport,
+    },
+    {
+      title: "Cek Status",
+      url: "/cek-status",
+      icon: IconSearch,
+    },
+    {
+      title: "Edukasi",
+      url: "/edukasi",
+      icon: IconFileAi,
+    },
+    {
+      title: "Tentang Kami",
+      url: "/tentang",
+      icon: IconFolder,
+    },
+    {
+      title: "Kontak",
+      url: "/kontak",
+      icon: IconHelp,
     },
   ],
 }
@@ -171,16 +155,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link href="/">
                 <Image src="/codeguide-logo.png" alt="CodeGuide" width={32} height={32} className="rounded-lg" />
-                <span className="text-base font-semibold font-parkinsans">CodeGuide</span>
+                <span className="text-base font-semibold font-parkinsans">Satgas PPK</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={staticData.navMain} />
-        <NavDocuments items={staticData.documents} />
-        <NavSecondary items={staticData.navSecondary} className="mt-auto" />
+        {/* Show different navigation based on user role */}
+        {session?.user?.role === 'rektor' ? (
+          <>
+            <NavMain items={staticData.navRektor} />
+          </>
+        ) : session?.user?.role === 'satgas' ? (
+          <>
+            <NavMain items={staticData.navMain} />
+            <NavSecondary items={staticData.navSecondary} className="mt-auto" />
+          </>
+        ) : (
+          <>
+            <NavMain items={staticData.navUser} />
+          </>
+        )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />

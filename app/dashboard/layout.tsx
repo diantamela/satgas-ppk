@@ -28,7 +28,7 @@ export default async function DashboardLayout({
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
-        <SiteHeader />
+        <SiteHeader title="Dashboard Satgas PPK" />
         <div className="flex flex-1 flex-col">{children}</div>
       </SidebarInset>
     </SidebarProvider>

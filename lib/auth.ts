@@ -1,19 +1,13 @@
 import { betterAuth } from "better-auth";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { db } from "@/db"; // your drizzle instance
-import { account, session, user, verification } from "@/db/schema/auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { prisma } from "@/lib/prisma";
 
 export const auth = betterAuth({
-    database: drizzleAdapter(db, {
-        provider: "pg", // or "mysql", "sqlite"
-        schema: {
-            user: user,
-            account: account,
-            session: session,
-            verification: verification,
-        }
+    database: prismaAdapter(prisma, {
+        provider: "postgresql" // Supabase uses PostgreSQL
     }),
     emailAndPassword: {
         enabled: true,
     },
+    baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
 });

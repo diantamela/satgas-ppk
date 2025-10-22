@@ -1,0 +1,153 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  role          String   @default("user") // user, satgas, rektor
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  accounts     Account[]
+  sessions     Session[]
+  reports      Report[]
+  investigations InvestigationDocument[]
+  notifications Notification[]
+
+  @@map("users") // Map to lowercase table name to match PostgreSQL convention
+}
+
+model Account {
+  id                    String   @id @default(uuid())
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?  // for email/password auth
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@map("accounts") // Map to lowercase table name to match PostgreSQL convention
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  expiresAt   DateTime
+  token       String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ipAddress   String?
+  userAgent   String?
+  userId      String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions") // Map to lowercase table name to match PostgreSQL convention
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([identifier, value])
+  @@map("verifications") // Map to lowercase table name to match PostgreSQL convention
+}
+
+model Report {
+  id                   Int      @id @default(autoincrement())
+  reportNumber         String   @unique
+  title                String
+  description          String
+  category             String   // Physical, Verbal, Sexual, etc.
+  severity             String   // Low, Medium, High
+  status               String   @default("pending") // pending, under_investigation, rejected, completed
+  isAnonymous          Boolean? @default(false)
+  reporterName         String?
+  reporterEmail        String?
+  reporterPhone        String?
+  reporterInstitution  String?
+  respondentName       String
+  respondentPosition   String?
+  incidentDate         DateTime?
+  incidentLocation     String?
+  evidenceFiles        String?  // JSON string of file paths
+  assignedUserId       String?  // ID of Satgas member assigned (was assignedTo - changed from Int to String to match User.id)
+  verificationNotes    String?
+  investigationNotes   String?
+  recommendation       String?
+  recommendationStatus String?  @default("pending") // pending, approved, rejected, revised
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  verifiedAt           DateTime?
+  completedAt          DateTime?
+
+  // Relations
+  assignedSatgas      User? @relation(fields: [assignedUserId], references: [id])
+  investigationDocs   InvestigationDocument[]
+  notifications       Notification[]
+
+  @@map("reports") // Map to lowercase table name to match PostgreSQL convention
+}
+
+model InvestigationDocument {
+  id          Int      @id @default(autoincrement())
+  reportId    Int
+  documentType String  // minutes, evidence, recommendation
+  title       String
+  content     String?
+  filePath    String?  // Path to uploaded document
+  uploadedBy  String?  // User ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [uploadedBy], references: [id])
+
+  @@map("investigation_documents") // Map to lowercase table name to match PostgreSQL convention
+}
+
+model Notification {
+  id             Int      @id @default(autoincrement())
+  reportId       Int
+  recipient      String   // email or phone number
+  notificationType String // email, whatsapp, sms
+  message        String
+  status         String   @default("pending") // pending, sent, failed
+  sentAt         DateTime?
+  response       String?
+  isRead         Boolean? @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         String?  // Optional reference to User if notification is for a registered user
+
+  // Relations
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull, map: "fk_user_notifications")
+
+  @@map("notifications") // Map to lowercase table name to match PostgreSQL convention
+}
