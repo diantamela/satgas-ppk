@@ -15,9 +15,11 @@ import {
   User,
   Shield,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  XCircle
 } from "lucide-react";
 import Link from "next/link";
+import { RektorRoleGuard } from "./role-guard";
 
 export default function RektorDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -91,20 +93,21 @@ export default function RektorDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard Rektor</h1>
-            <p className="text-gray-600 dark:text-gray-400">Tinjau dan setujui rekomendasi hasil investigasi</p>
+    <RektorRoleGuard>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard Rektor</h1>
+              <p className="text-gray-600 dark:text-gray-400">Tinjau dan setujui rekomendasi hasil investigasi</p>
+            </div>
+            <Button asChild className="mt-4 md:mt-0">
+              <Link href="/laporkan-kasus">
+                <FileText className="w-4 h-4 mr-2" />
+                Lihat Laporan Penuh
+              </Link>
+            </Button>
           </div>
-          <Button asChild className="mt-4 md:mt-0">
-            <Link href="/laporkan-kasus">
-              <FileText className="w-4 h-4 mr-2" />
-              Lihat Laporan Penuh
-            </Link>
-          </Button>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
@@ -298,6 +301,6 @@ export default function RektorDashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </RektorRoleGuard>
   );
 }

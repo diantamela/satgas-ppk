@@ -163,11 +163,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {/* Show different navigation based on user role */}
-        {session?.user?.role === 'rektor' ? (
+        {session?.user?.role === 'REKTOR' ? (
           <>
             <NavMain items={staticData.navRektor} />
           </>
-        ) : session?.user?.role === 'satgas' ? (
+        ) : session?.user?.role === 'SATGAS' ? (
           <>
             <NavMain items={staticData.navMain} />
             <NavSecondary items={staticData.navSecondary} className="mt-auto" />

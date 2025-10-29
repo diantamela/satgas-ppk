@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
+import { RoleGuard } from "./role-guard"
 
 import "@/app/dashboard/theme.css"
 
@@ -29,7 +30,9 @@ export default async function DashboardLayout({
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader title="Dashboard Satgas PPK" />
-        <div className="flex flex-1 flex-col">{children}</div>
+        <RoleGuard>
+          <div className="flex flex-1 flex-col">{children}</div>
+        </RoleGuard>
       </SidebarInset>
     </SidebarProvider>
   )

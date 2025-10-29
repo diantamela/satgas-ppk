@@ -18,6 +18,7 @@ import {
   Mail
 } from "lucide-react";
 import Link from "next/link";
+import { RoleGuard } from "../role-guard";
 
 export default function RecommendationPage() {
   const [activeTab, setActiveTab] = useState("pending");
@@ -71,18 +72,19 @@ export default function RecommendationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Rekomendasi</h1>
-            <p className="text-gray-600 dark:text-gray-400">Kelola rekomendasi hasil investigasi</p>
+    <RoleGuard>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Rekomendasi</h1>
+              <p className="text-gray-600 dark:text-gray-400">Kelola rekomendasi hasil investigasi</p>
+            </div>
+            <Button className="mt-4 md:mt-0">
+              <FilePlus className="w-4 h-4 mr-2" />
+              Buat Rekomendasi
+            </Button>
           </div>
-          <Button className="mt-4 md:mt-0">
-            <FilePlus className="w-4 h-4 mr-2" />
-            Buat Rekomendasi
-          </Button>
-        </div>
 
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -244,6 +246,6 @@ export default function RecommendationPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </RoleGuard>
   );
 }

@@ -31,23 +31,32 @@ export default function SignInPage() {
             const result = await signIn.email({
                 email,
                 password,
+                // Better Auth handles the callbackURL parameter for redirects
+                callbackURL: "/dashboard", // Redirect after successful sign in
             });
 
             console.log("Sign in result:", result);
 
-            if (result.error) {
+            if (result?.error) {
                 console.error("Sign in error:", result.error);
                 setError(result.error.message || "Gagal masuk. Periksa email dan password Anda.");
-            } else if (result.data) {
+            } else if (result?.data) {
                 console.log("Sign in successful, redirecting to dashboard");
+                
+                // Check the user's role to determine where to redirect
+                // Note: Role might not be directly available in the session response
+                // The role will be available when we fetch the session after sign-in
                 router.push("/dashboard");
             } else {
                 console.log("Unexpected result:", result);
                 setError("Terjadi kesalahan tak terduga. Silakan coba lagi.");
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error("Sign in exception:", err);
-            setError("Terjadi kesalahan tak terduga. Silakan coba lagi.");
+            
+            // Check if err has a message property
+            const errorMessage = err?.message || err?.error?.message || "Terjadi kesalahan tak terduga. Silakan coba lagi.";
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

@@ -1,14 +1,14 @@
 import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getSessionFromRequest, getUserRole } from '@/lib/auth-utils';
 
 export async function middleware(request: NextRequest) {
-  const session = await auth.api.getSession({
-    headers: request.headers,
-  });
-
-  // Cast session.user to include role property from database schema
-  const userWithRole = session?.user as any;
+  // Using Better Auth's built-in session handling via our utility function
+  const session = await getSessionFromRequest(request);
+  
+  // Get user role from session using our utility function
+  const userRole = getUserRole(session);
 
   // Public routes that don't require authentication
   const publicRoutes = ['/', '/sign-in', '/sign-up', '/laporkan-kasus', '/cek-status'];
@@ -22,9 +22,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/sign-in', request.url));
   }
 
-  // If user is authenticated and tries to access sign-in/sign-up, redirect to dashboard
+  // If user is authenticated and tries to access sign-in/sign-up, redirect to appropriate dashboard
   if (session && (request.nextUrl.pathname === '/sign-in' || request.nextUrl.pathname === '/sign-up')) {
-    if (userWithRole.role === 'satgas' || userWithRole.role === 'rektor') {
+    if (userRole === 'SATGAS' || userRole === 'REKTOR') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     } else {
       // Regular user goes to a different page or home
@@ -39,7 +39,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Only satgas and rektor can access dashboard
-    if (userWithRole.role !== 'satgas' && userWithRole.role !== 'rektor') {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
       // Regular users can't access dashboard - redirect to home
       return NextResponse.redirect(new URL('/', request.url));
     }
@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
 
   // Specific role requirements for different dashboard sections
   if (request.nextUrl.pathname.startsWith('/dashboard/rektor')) {
-    if (userWithRole?.role !== 'rektor') {
+    if (userRole !== 'REKTOR') {
       // Only rektor can access rektor dashboard sections
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
@@ -55,31 +55,31 @@ export async function middleware(request: NextRequest) {
 
   // Specific permissions for different dashboard sections
   if (request.nextUrl.pathname.startsWith('/dashboard/laporan')) {
-    if (userWithRole?.role !== 'satgas' && userWithRole?.role !== 'rektor') {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
   if (request.nextUrl.pathname.startsWith('/dashboard/investigasi')) {
-    if (userWithRole?.role !== 'satgas' && userWithRole?.role !== 'rektor') {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
   if (request.nextUrl.pathname.startsWith('/dashboard/rekomendasi')) {
-    if (userWithRole?.role !== 'satgas' && userWithRole?.role !== 'rektor') {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
   if (request.nextUrl.pathname.startsWith('/dashboard/anggota')) {
-    if (userWithRole?.role !== 'satgas' && userWithRole?.role !== 'rektor') {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
 
   if (request.nextUrl.pathname.startsWith('/dashboard/dokumen')) {
-    if (userWithRole?.role !== 'satgas' && userWithRole?.role !== 'rektor') {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
   }
@@ -90,7 +90,7 @@ export async function middleware(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (userWithRole.role !== 'satgas' && userWithRole.role !== 'rektor') {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
   }

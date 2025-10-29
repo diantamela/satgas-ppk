@@ -18,7 +18,7 @@
 <br />
 
 <div align="center">
-  <h3>Full-stack Next.js Starter | TypeScript | Prisma ORM | MySQL | Auth.js | Shadcn UI</h3>
+  <h3>Full-stack Next.js Starter | TypeScript | Prisma ORM | PostgreSQL | Auth.js | Shadcn UI</h3>
 </div>
 
 <div align="center">
@@ -63,7 +63,7 @@ This full-stack application is built using modern web technologies:
 - [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
 - [Shadcn UI](https://ui.shadcn.com) - Re-usable components
 - [Prisma ORM](https://www.prisma.io) - Next-generation Node.js and TypeScript ORM
-- [MySQL](https://www.mysql.com) - Relational database management system
+- [PostgreSQL](https://www.postgresql.org) - Relational database management system
 - [Better Auth](https://better-auth.com) - Authentication library
 - [Zod](https://zod.dev) - Schema validation
 - [Lucide React](https://lucide.dev) - Icon library
@@ -72,7 +72,7 @@ This full-stack application is built using modern web technologies:
 
 - ⚡ **Fast and Responsive**: Built with Next.js 15 and TypeScript for optimal performance
 - 🔐 **Authentication**: Secure authentication with Better Auth
-- 📊 **Database**: MySQL database with Prisma ORM for type-safe queries
+- 📊 **Database**: PostgreSQL database with Prisma ORM for type-safe queries
 - 🎨 **UI Components**: Ready-to-use Shadcn UI components with Tailwind CSS
 - 📱 **Responsive Design**: Works seamlessly on all device sizes
 - 🔄 **Real-time Updates**: Support for real-time data updates
@@ -87,7 +87,7 @@ Make sure you have the following installed on your system:
 
 - [Node.js](https://nodejs.org/en/download/) (v18.17 or higher)
 - [npm](https://www.npmjs.com/get-npm) (v9.6.7 or higher) or [Yarn](https://yarnpkg.com/getting-started/install)
-- [MySQL](https://dev.mysql.com/downloads/mysql/) or [Docker](https://www.docker.com/products/docker-desktop/) for containerized database
+- [PostgreSQL](https://www.postgresql.org/download/) or [Docker](https://www.docker.com/products/docker-desktop/) for containerized database
 - [Git](https://git-scm.com/downloads)
 
 ### 💻 Installation
@@ -153,7 +153,7 @@ Make sure you have the following installed on your system:
 
 This project includes Docker support for easy setup:
 
-1. **Start the MySQL database using Docker**
+1. **Start the PostgreSQL database using Docker**
 
    ```bash
    npm run db:dev
@@ -165,9 +165,9 @@ This project includes Docker support for easy setup:
    npm run docker:logs
    ```
 
-### 🔌 Database Setup (MySQL)
+### 🔌 Database Setup (PostgreSQL)
 
-This project uses MySQL as the database with Prisma ORM for database operations.
+This project uses PostgreSQL as the database with Prisma ORM for database operations.
 
 1. **Database Migration**
 
@@ -188,15 +188,15 @@ This project uses MySQL as the database with Prisma ORM for database operations.
 
 3. **Connection String Format**
 
-   The application uses the following MySQL connection string format:
+   The application uses the following PostgreSQL connection string format:
 
    ```
-   mysql://username:password@host:port/database
+   postgresql://username:password@host:port/database
    ```
 
    Example:
    ```
-   DATABASE_URL=mysql://mysqluser:mysqlpassword@localhost:3307/satgas_ppk_dev
+   DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/satgas_ppk_dev
    ```
 
 ## 🧪 Running Tests
@@ -234,9 +234,10 @@ Authentication is powered by [Better Auth](https://better-auth.com). Key feature
 
 ## 📦 Database Schema
 
-The project uses Prisma ORM with MySQL for database operations. The schema file is located at `prisma/schema.prisma`:
+The project uses Prisma ORM with PostgreSQL for database operations. The schema file is located at `prisma/schema.prisma`:
 
 - Defines User, Account, Session, Verification models for authentication
+- Defines Role enum for user permissions (USER, SATGAS, REKTOR)
 - Defines Report model for environmental violation reports
 - Defines InvestigationDocument model for investigation documents and files
 - Defines Notification model for notification system

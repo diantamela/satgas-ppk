@@ -17,6 +17,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { RoleGuard } from "../role-guard";
 
 export default function UserManagementPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,7 +31,7 @@ export default function UserManagementPage() {
       id: 1,
       name: "Siti Rahayu",
       email: "siti@universitas.ac.id",
-      role: "satgas",
+      role: "SATGAS",
       status: "active",
       joinDate: "2024-01-15",
       lastLogin: "2024-10-18",
@@ -39,7 +40,7 @@ export default function UserManagementPage() {
       id: 2,
       name: "Budi Santoso",
       email: "budi@universitas.ac.id",
-      role: "satgas",
+      role: "SATGAS",
       status: "active",
       joinDate: "2024-02-20",
       lastLogin: "2024-10-17",
@@ -48,7 +49,7 @@ export default function UserManagementPage() {
       id: 3,
       name: "Dr. Ahmad Kurniawan",
       email: "ahmad@universitas.ac.id",
-      role: "rektor",
+      role: "REKTOR",
       status: "active",
       joinDate: "2023-08-10",
       lastLogin: "2024-10-18",
@@ -57,7 +58,7 @@ export default function UserManagementPage() {
       id: 4,
       name: "Rina Wijaya",
       email: "rina@universitas.ac.id",
-      role: "user",
+      role: "USER",
       status: "active",
       joinDate: "2024-05-30",
       lastLogin: "2024-10-16",
@@ -66,11 +67,11 @@ export default function UserManagementPage() {
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case "user":
+      case "USER":
         return <Badge variant="outline">User</Badge>;
-      case "satgas":
+      case "SATGAS":
         return <Badge variant="default">Satgas</Badge>;
-      case "rektor":
+      case "REKTOR":
         return <Badge variant="secondary">Rektor</Badge>;
       default:
         return <Badge variant="outline">{role}</Badge>;
@@ -102,18 +103,19 @@ export default function UserManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Anggota Satgas</h1>
-            <p className="text-gray-600 dark:text-gray-400">Kelola anggota Satgas PPK dan pengguna sistem</p>
+    <RoleGuard>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Anggota Satgas</h1>
+              <p className="text-gray-600 dark:text-gray-400">Kelola anggota Satgas PPK dan pengguna sistem</p>
+            </div>
+            <Button className="mt-4 md:mt-0">
+              <Plus className="w-4 h-4 mr-2" />
+              Tambah Anggota
+            </Button>
           </div>
-          <Button className="mt-4 md:mt-0">
-            <Plus className="w-4 h-4 mr-2" />
-            Tambah Anggota
-          </Button>
-        </div>
 
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -132,9 +134,9 @@ export default function UserManagementPage() {
               <div>
                 <select className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800">
                   <option value="all">Semua Peran</option>
-                  <option value="satgas">Satgas</option>
-                  <option value="rektor">Rektor</option>
-                  <option value="user">User</option>
+                  <option value="SATGAS">Satgas</option>
+                  <option value="REKTOR">Rektor</option>
+                  <option value="USER">User</option>
                 </select>
               </div>
             </div>
@@ -266,9 +268,9 @@ export default function UserManagementPage() {
                     value={newRole}
                     onChange={(e) => setNewRole(e.target.value)}
                   >
-                    <option value="user">User</option>
-                    <option value="satgas">Satgas</option>
-                    <option value="rektor">Rektor</option>
+                    <option value="USER">User</option>
+                    <option value="SATGAS">Satgas</option>
+                    <option value="REKTOR">Rektor</option>
                   </select>
                 </div>
                 
@@ -292,6 +294,6 @@ export default function UserManagementPage() {
           </Card>
         </div>
       )}
-    </div>
+    </RoleGuard>
   );
 }

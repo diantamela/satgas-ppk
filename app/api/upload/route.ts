@@ -2,22 +2,25 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { processFileUpload } from '@/lib/file-upload';
 import { db } from '@/db';
+import { getNormalizedRoleFromSession } from '@/lib/auth-utils';
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
     // Verify user session
-    const session = await auth.$getSession({
-      headers: request.headers,
-    });
+    const session = await (auth as any)
+      .$get('session', { headers: request.headers })
+      .then((r: any) => r.json())
+      .catch((e: any) => null);
 
     if (!session) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check if user has permission to upload evidence
-    if (session.user.role !== 'satgas' && session.user.role !== 'user') {
+    // Check if user has permission to upload evidence (normalize role)
+    const role = getNormalizedRoleFromSession(session);
+    if (role !== 'SATGAS' && role !== 'USER') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -45,7 +48,7 @@ export async function POST(request: NextRequest) {
 
       // Only report creator or satgas can add evidence
       if (
-        session.user.role !== 'satgas' &&
+        getNormalizedRoleFromSession(session) !== 'SATGAS' &&
         session.user.email !== report.reporterEmail
       ) {
         return Response.json({ error: 'Forbidden' }, { status: 403 });

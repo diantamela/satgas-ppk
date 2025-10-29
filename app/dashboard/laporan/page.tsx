@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { reportService } from "@/lib/services/report-service";
+import { RoleGuard } from "../role-guard";
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<any[]>([]);
@@ -120,18 +121,19 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Laporan</h1>
-            <p className="text-gray-600 dark:text-gray-400">Kelola laporan kekerasan yang masuk</p>
+    <RoleGuard>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Laporan</h1>
+              <p className="text-gray-600 dark:text-gray-400">Kelola laporan kekerasan yang masuk</p>
+            </div>
+            <Button className="mt-4 md:mt-0">
+              <FileText className="w-4 h-4 mr-2" />
+              Ekspor Laporan
+            </Button>
           </div>
-          <Button className="mt-4 md:mt-0">
-            <FileText className="w-4 h-4 mr-2" />
-            Ekspor Laporan
-          </Button>
-        </div>
 
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -234,6 +236,6 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
-    </div>
+    </RoleGuard>
   );
 }
