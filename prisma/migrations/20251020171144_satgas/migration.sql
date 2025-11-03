@@ -1,3 +1,7 @@
+-- 1. Tambahkan Definisi ENUM Role
+-- Perlu didefinisikan agar dapat digunakan sebagai tipe kolom
+CREATE TYPE "Role" AS ENUM ('USER', 'SATGAS', 'REKTOR');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -5,7 +9,8 @@ CREATE TABLE "users" (
     "email" TEXT NOT NULL,
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
     "image" TEXT,
-    "role" TEXT NOT NULL DEFAULT 'user',
+    -- PERBAIKAN: Menggunakan tipe data ENUM "Role"
+    "role" "Role" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

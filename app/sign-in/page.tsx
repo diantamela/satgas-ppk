@@ -36,13 +36,33 @@ export default function SignInPage() {
             });
 
             console.log("Sign in result:", result);
+            console.log("Sign in result data:", result?.data);
+            console.log("Sign in result error:", result?.error);
 
             if (result?.error) {
-                console.error("Sign in error:", result.error);
-                setError(result.error.message || "Gagal masuk. Periksa email dan password Anda.");
+                // Safe error logging to avoid console errors
+                try {
+                    const safeErrorLog = JSON.stringify(result.error) || String(result.error) || 'Unknown error object';
+                    console.error("Sign in error:", safeErrorLog);
+                } catch (_) {
+                    console.error("Sign in error: [unable to display error object]");
+                }
+                // Use a more specific error message based on error status
+                let errorMessage = "Gagal masuk. Periksa email dan password Anda.";
+                if (result.error.status === 0) {
+                    errorMessage = "Tidak dapat terhubung ke server. Pastikan server berjalan dan koneksi internet Anda stabil.";
+                } else if (result.error.status === 401) {
+                    errorMessage = "Email atau password salah. Silakan coba lagi.";
+                } else if (result.error.status === 500) {
+                    errorMessage = "Terjadi kesalahan server. Silakan coba lagi nanti.";
+                } else if (result.error.message) {
+                    errorMessage = result.error.message;
+                }
+                setError(errorMessage);
             } else if (result?.data) {
                 console.log("Sign in successful, redirecting to dashboard");
-                
+                console.log("User data after sign in:", result.data);
+
                 // Check the user's role to determine where to redirect
                 // Note: Role might not be directly available in the session response
                 // The role will be available when we fetch the session after sign-in

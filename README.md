@@ -1,297 +1,91 @@
-# Sistem Informasi Pengendalian Pencemaran dan Kerusakan Lingkungan Hidup (SATGAS PPKLH)
+# 🛡️ Sistem Informasi SATGAS PPKLH  
+### (Satuan Tugas Pencegahan dan Penanganan Kekerasan Seksual)  
+**UIN Imam Bonjol Padang**
 
 <div align="center">
 
-<!-- prettier-ignore -->
-[comment]: <div> ( <!-- prettier-ignore --> )
-[![Version](https://img.shields.io/github/package-json/v/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=github)](https://github.com/Code-With-Us/codeguide-starter-fullstack)
-[![License](https://img.shields.io/github/license/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=opensourceinitiative&labelColor=2D333B)](https://github.com/Code-With-Us/codeguide-starter-fullstack/blob/main/LICENSE)
-[![Stars](https://img.shields.io/github/stars/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=github&label=Stars&labelColor=2D333B)](https://github.com/Code-With-Us/codeguide-starter-fullstack)
-[![Forks](https://img.shields.io/github/forks/Code-With-Us/codeguide-starter-fullstack?style=for-the-badge&logo=github&label=Forks&labelColor=2D333B)](https://github.com/Code-With-Us/codeguide-starter-fullstack)
+[![Version](https://img.shields.io/github/package-json/v/diantamela/satgas-ppk?style=for-the-badge&logo=github)](https://github.com/diantamela/satgas-ppk)
+[![License](https://img.shields.io/github/license/diantamela/satgas-ppk?style=for-the-badge&logo=opensourceinitiative&labelColor=2D333B)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/diantamela/satgas-ppk?style=for-the-badge&logo=github)](https://github.com/diantamela/satgas-ppk)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/diantamela/satgas-ppk)
 
 </div>
 
-<div align="center">
-  <img src="codeguide-backdrop.svg" width="100%" />
-</div>
+---
 
-<br />
+## 🎯 Tentang Proyek
 
-<div align="center">
-  <h3>Full-stack Next.js Starter | TypeScript | Prisma ORM | PostgreSQL | Auth.js | Shadcn UI</h3>
-</div>
+**Sistem Informasi SATGAS PPKLH (Satuan Tugas Pencegahan dan Penanganan Kekerasan Seksual)**  
+adalah platform digital internal kampus yang dikembangkan oleh **UIN Imam Bonjol Padang** untuk mendukung proses:
 
-<div align="center">
+- Pelaporan kasus kekerasan seksual secara aman dan rahasia  
+- Tindak lanjut oleh tim Satgas PPK  
+- Peninjauan dan keputusan akhir oleh pimpinan universitas  
+- Edukasi dan publikasi informasi pencegahan kekerasan seksual di lingkungan kampus  
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Code-With-Us/codeguide-starter-fullstack&env=DATABASE_URL,BETTER_AUTH_SECRET&envDescription=Environment%20variables%20needed%20for%20deployment&envLink=link-to-env-variables-docs)
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Code-With-Us/codeguide-starter-fullstack)
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/your-template-url)
+Aplikasi ini bertujuan menciptakan **lingkungan kampus yang aman, inklusif, dan bebas dari kekerasan**.
 
-</div>
+---
 
-## 📋 Table of Contents
+## 🧩 Arsitektur dan Teknologi
 
-- [Sistem Informasi Pengendalian Pencemaran dan Kerusakan Lingkungan Hidup (SATGAS PPKLH)](#-sistem-informasi-pengendalian-pencemaran-dan-kerusakan-lingkungan-hidup-satgas-ppklh)
-  - [📋 Table of Contents](#-table-of-contents)
-  - [🎯 About The Project](#-about-the-project)
-    - [✨ Built With](#-built-with)
-    - [🚀 Features](#-features)
-  - [⚙️ Getting Started](#️-getting-started)
-    - [📋 Prerequisites](#-prerequisites)
-    - [💻 Installation](#-installation)
-    - [🐳 Docker Setup](#-docker-setup)
-    - [🔌 Database Setup (MySQL)](#-database-setup-mysql)
-  - [🧪 Running Tests](#-running-tests)
-  - [🎨 UI Framework](#-ui-framework)
-  - [🔐 Authentication](#-authentication)
-  - [📦 Database Schema](#-database-schema)
-  - [📱 Deployment](#-deployment)
-  - [💻 Contributing](#-contributing)
-  - [📄 License](#-license)
-  - [🙏 Acknowledgements](#-acknowledgements)
+| Komponen | Teknologi |
+|-----------|------------|
+| **Frontend** | Next.js 15 (App Router) + TypeScript |
+| **Styling** | Tailwind CSS + Shadcn/UI |
+| **Backend** | Next.js API Routes |
+| **ORM** | Prisma ORM |
+| **Database** | PostgreSQL (via Supabase) |
+| **Autentikasi** | Better Auth (Email & Password + JWT) |
+| **Penyimpanan File** | Supabase Storage |
+| **Deployment** | Vercel |
+| **Version Control** | Git & GitHub |
 
-## 🎯 About The Project
+---
 
-Sistem Informasi Pengendalian Pencemaran dan Kerusakan Lingkungan Hidup (SATGAS PPKLH) merupakan sebuah platform digital untuk pengelolaan informasi terkait pengendalian pencemaran dan kerusakan lingkungan hidup. Sistem ini dirancang untuk mendukung proses pelaporan, monitoring, dan tindak lanjut terhadap kasus pencemaran dan kerusakan lingkungan.
+## 👥 Role Pengguna
 
-### ✨ Built With
+| Role | Deskripsi |
+|------|------------|
+| 🧍‍♀️ **Pelapor (User)** | Membuat laporan, mengunggah bukti, dan memantau status laporan |
+| 🛡️ **Satgas** | Melakukan verifikasi, tindak lanjut, membuat rekomendasi, dan mengelola konten edukatif |
+| 🎓 **Rektor** | Meninjau hasil laporan dan memberikan keputusan akhir terhadap kasus |
 
-This full-stack application is built using modern web technologies:
+---
 
-- [Next.js](https://nextjs.org) - Frontend framework with server-side rendering
-- [TypeScript](https://www.typescriptlang.org) - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com) - Utility-first CSS framework
-- [Shadcn UI](https://ui.shadcn.com) - Re-usable components
-- [Prisma ORM](https://www.prisma.io) - Next-generation Node.js and TypeScript ORM
-- [PostgreSQL](https://www.postgresql.org) - Relational database management system
-- [Better Auth](https://better-auth.com) - Authentication library
-- [Zod](https://zod.dev) - Schema validation
-- [Lucide React](https://lucide.dev) - Icon library
+## ⚡ Fitur Utama
 
-### 🚀 Features
+- 📢 **Pelaporan Aman & Rahasia**  
+  Laporan dapat dibuat secara anonim dan dilindungi dengan enkripsi AES-256  
+- 📂 **Manajemen Kasus oleh Satgas**  
+  Verifikasi laporan, unggah berita acara, surat pemanggilan, dan rekomendasi  
+- 🧾 **Keputusan Rektor Digital**  
+  Rekomendasi ditandatangani secara elektronik dan disimpan otomatis  
+- 📚 **Pusat Edukasi**  
+  Artikel, panduan, dan edukasi tentang pencegahan kekerasan seksual  
+- 🔔 **Notifikasi & Monitoring**  
+  Setiap perubahan status dikirim secara otomatis kepada pelapor dan Satgas  
+- 🧠 **Dashboard Interaktif**  
+  Statistik laporan berdasarkan status dan kategori kasus  
 
-- ⚡ **Fast and Responsive**: Built with Next.js 15 and TypeScript for optimal performance
-- 🔐 **Authentication**: Secure authentication with Better Auth
-- 📊 **Database**: PostgreSQL database with Prisma ORM for type-safe queries
-- 🎨 **UI Components**: Ready-to-use Shadcn UI components with Tailwind CSS
-- 📱 **Responsive Design**: Works seamlessly on all device sizes
-- 🔄 **Real-time Updates**: Support for real-time data updates
-- 🛡️ **Security**: Built-in security features and best practices
-- 🚀 **Deployment Ready**: Optimized for deployment on Vercel, Netlify, and other platforms
+---
 
-## ⚙️ Getting Started
+## ⚙️ Panduan Instalasi
 
-### 📋 Prerequisites
+### 📋 Prasyarat
 
-Make sure you have the following installed on your system:
+Pastikan sudah menginstal:
 
-- [Node.js](https://nodejs.org/en/download/) (v18.17 or higher)
-- [npm](https://www.npmjs.com/get-npm) (v9.6.7 or higher) or [Yarn](https://yarnpkg.com/getting-started/install)
-- [PostgreSQL](https://www.postgresql.org/download/) or [Docker](https://www.docker.com/products/docker-desktop/) for containerized database
-- [Git](https://git-scm.com/downloads)
+- [Node.js](https://nodejs.org/) v18 atau lebih baru  
+- [npm](https://www.npmjs.com/) / [Yarn](https://yarnpkg.com/)  
+- Akun [Supabase](https://supabase.com)  
+- [Git](https://git-scm.com/)  
 
-### 💻 Installation
+---
 
-1. **Clone the repository**
+### 💻 Instalasi Proyek
 
+1. **Clone Repositori**
    ```bash
-   git clone https://github.com/YourUsername/satgas-ppk.git
+   git clone https://github.com/diantamela/satgas-ppk.git
    cd satgas-ppk
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   # or
-   yarn install
-   # or
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-
-   Create a `.env` file in the root directory and add the required environment variables:
-
-   ```env
-   DATABASE_URL=mysql://mysqluser:mysqlpassword@localhost:3307/satgas_ppk_dev
-   MYSQL_DB=satgas_ppk_dev
-   MYSQL_USER=mysqluser
-   MYSQL_PASSWORD=mysqlpassword
-   BETTER_AUTH_SECRET=your_super_secret_key_here
-   BETTER_AUTH_URL=http://localhost:3000
-   NEXT_PUBLIC_BETTER_AUTH_URL=http://localhost:3000
-   ```
-
-4. **Generate Prisma client**
-
-   ```bash
-   npx prisma generate
-   ```
-
-5. **Run database migrations**
-
-   ```bash
-   npx prisma db push
-   ```
-
-6. **Run the development server**
-
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   # or
-   pnpm dev
-   ```
-
-7. **Open your browser**
-
-   Visit [http://localhost:3000](http://localhost:3000) to see the application.
-
-### 🐳 Docker Setup
-
-This project includes Docker support for easy setup:
-
-1. **Start the PostgreSQL database using Docker**
-
-   ```bash
-   npm run db:dev
-   ```
-
-2. **Verify the database is running**
-
-   ```bash
-   npm run docker:logs
-   ```
-
-### 🔌 Database Setup (PostgreSQL)
-
-This project uses PostgreSQL as the database with Prisma ORM for database operations.
-
-1. **Database Migration**
-
-   To generate and apply database migrations:
-
-   ```bash
-   npm run db:generate
-   npm run db:push
-   ```
-
-2. **Database Studio**
-
-   To explore your database schema and data:
-
-   ```bash
-   npm run db:studio
-   ```
-
-3. **Connection String Format**
-
-   The application uses the following PostgreSQL connection string format:
-
-   ```
-   postgresql://username:password@host:port/database
-   ```
-
-   Example:
-   ```
-   DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/satgas_ppk_dev
-   ```
-
-## 🧪 Running Tests
-
-This project uses Jest for testing:
-
-1. **Run all tests**
-
-   ```bash
-   npm run test
-   ```
-
-2. **Run tests in watch mode**
-
-   ```bash
-   npm run test:watch
-   ```
-
-## 🎨 UI Framework
-
-This project utilizes:
-
-- [Tailwind CSS](https://tailwindcss.com) - A utility-first CSS framework
-- [Shadcn UI](https://ui.shadcn.com) - Re-usable components built using Radix UI and Tailwind CSS
-- [Lucide React](https://lucide.dev) - Beautifully simple, pixel-perfect icons
-
-## 🔐 Authentication
-
-Authentication is powered by [Better Auth](https://better-auth.com). Key features:
-
-- Secure authentication flow
-- Social login support
-- Session management
-- Role-based access control
-
-## 📦 Database Schema
-
-The project uses Prisma ORM with PostgreSQL for database operations. The schema file is located at `prisma/schema.prisma`:
-
-- Defines User, Account, Session, Verification models for authentication
-- Defines Role enum for user permissions (USER, SATGAS, REKTOR)
-- Defines Report model for environmental violation reports
-- Defines InvestigationDocument model for investigation documents and files
-- Defines Notification model for notification system
-
-## 📱 Deployment
-
-### Vercel
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Code-With-Us/codeguide-starter-fullstack&env=DATABASE_URL,BETTER_AUTH_SECRET&envDescription=Environment%20variables%20needed%20for%20deployment&envLink=link-to-env-variables-docs)
-
-### Netlify
-
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Code-With-Us/codeguide-starter-fullstack)
-
-### Railway
-
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/your-template-url)
-
-For manual deployment:
-
-1. Build the application:
-
-   ```bash
-   npm run build
-   ```
-
-2. Start the production server:
-
-   ```bash
-   npm start
-   ```
-
-## 💻 Contributing
-
-We welcome contributions to this project! Here's how you can get involved:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Commit your changes (`git commit -m 'Add some amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgements
-
-- [Next.js](https://nextjs.org) - React framework
-- [TypeScript](https://www.typescriptlang.org) - Type-safe JavaScript
-- [Tailwind CSS](https://tailwindcss.com) - CSS framework
-- [Prisma ORM](https://www.prisma.io) - Next-generation Node.js and TypeScript ORM
-- [Better Auth](https://better-auth.com) - Authentication library
-- [Shadcn UI](https://ui.shadcn.com) - UI components
-- [Vercel](https://vercel.com) - Deployment platform
-- [MySQL](https://www.mysql.com) - Database

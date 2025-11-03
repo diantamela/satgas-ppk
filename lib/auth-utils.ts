@@ -1,6 +1,12 @@
 // Utility helpers to normalize role and extract role from various session shapes
 export function getNormalizedRoleFromSession(session: any): string | null {
-  if (!session) return null;
+  console.log('getNormalizedRoleFromSession - Input session:', session);
+
+  if (!session) {
+    console.log('getNormalizedRoleFromSession - No session provided');
+    return null;
+  }
+
   const raw =
     session?.user?.role ??
     session?.user?.data?.role ??
@@ -8,10 +14,20 @@ export function getNormalizedRoleFromSession(session: any): string | null {
     session?.role ??
     session?.user?.user?.role ??
     null;
-  if (!raw) return null;
+
+  console.log('getNormalizedRoleFromSession - Raw role value:', raw);
+
+  if (!raw) {
+    console.log('getNormalizedRoleFromSession - No raw role found');
+    return null;
+  }
+
   try {
-    return String(raw).toUpperCase();
+    const normalized = String(raw).toUpperCase();
+    console.log('getNormalizedRoleFromSession - Normalized role:', normalized);
+    return normalized;
   } catch (e) {
+    console.log('getNormalizedRoleFromSession - Error normalizing role:', e);
     return null;
   }
 }
@@ -30,16 +46,21 @@ import { auth } from './auth';
  */
 export async function getSessionFromRequest(request: Request) {
   try {
-    const response = await auth.$get('session', {
+    console.log('getSessionFromRequest - Attempting to get session');
+    const session = await auth.api.getSession({
       headers: request.headers,
     });
-    
-    // If the response is successful, parse the JSON
-    if (response.ok) {
-      return await response.json();
+
+    console.log('getSessionFromRequest - Session data:', session);
+
+    // The api.getSession returns the session data directly, not a Response object
+    if (session && session.user) {
+      console.log('getSessionFromRequest - Valid session found');
+      return session;
     }
-    
-    // If not successful, return null
+
+    // If no valid session, return null
+    console.log('getSessionFromRequest - No valid session found');
     return null;
   } catch (error) {
     console.error('Error getting session:', error);
