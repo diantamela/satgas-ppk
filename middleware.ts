@@ -1,115 +1,109 @@
-import { auth } from '@/lib/auth';
+// satgas-ppks/middleware.ts
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getSessionFromRequest, getUserRole } from '@/lib/auth-utils';
 
 export async function middleware(request: NextRequest) {
-  // Using Better Auth's built-in session handling via our utility function
-  const session = await getSessionFromRequest(request);
-  
-  // Get user role from session using our utility function
-  const userRole = getUserRole(session);
+  const { pathname } = request.nextUrl;
+  
+  // 1. Public Routes: Semua rute yang boleh diakses TANPA LOGIN
+  // Termasuk rute statis, sign-in/up, dan semua halaman informasi/edukasi
+  const publicRoutes = [
+    '/', 
+    '/sign-in', 
+    '/sign-up',
+    '/laporkan-kasus', // Form pelaporan harus bisa diakses publik
+    '/cek-status', 
+    '/edukasi', 
+    '/kontak', 
+    '/tentang',
+  ];
 
-  // Public routes that don't require authentication
-  const publicRoutes = ['/', '/sign-in', '/sign-up', '/laporkan-kasus', '/cek-status'];
-  const isPublicRoute = publicRoutes.some(route => 
-    request.nextUrl.pathname === route || 
-    request.nextUrl.pathname.startsWith(`${route}/`)
-  );
+  // Cek apakah path saat ini adalah rute publik (termasuk sub-path-nya)
+  // Misalnya, '/edukasi' mencakup '/edukasi' dan '/edukasi/definisi'
+  const isPublicRoute = publicRoutes.some(route => {
+    if (route === '/') {
+      return pathname === '/';
+    }
+    return pathname === route || pathname.startsWith(`${route}/`);
+  });
 
-  // If user is not authenticated and trying to access a protected route
-  if (!session && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/sign-in', request.url));
-  }
+  // --- Autentikasi dan Redirects ---
 
-  // If user is authenticated and tries to access sign-in/sign-up, redirect to appropriate dashboard
-  if (session && (request.nextUrl.pathname === '/sign-in' || request.nextUrl.pathname === '/sign-up')) {
-    if (userRole === 'SATGAS' || userRole === 'REKTOR') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    } else {
-      // Regular user goes to a different page or home
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-  }
+  const session = await getSessionFromRequest(request);
+  const userRole = getUserRole(session);
+  
+  // 2. Rute API Protection: Lindungi semua API kecuali yang diizinkan (misalnya, auth)
+  // Catatan: API Auth biasanya sudah di-handle oleh library Auth Anda
+  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/auth')) {
+    // Izinkan API untuk cek status (akses publik)
+    if (pathname.startsWith('/api/reports/check-status')) {
+      return NextResponse.next();
+    }
 
-  // Role-based access control for admin routes
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!session) {
-      return NextResponse.redirect(new URL('/sign-in', request.url));
-    }
+    // Lindungi API lainnya
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+  }
 
-    // Only satgas and rektor can access dashboard
-    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-      // Regular users can't access dashboard - redirect to home
-      return NextResponse.redirect(new URL('/', request.url));
-    }
-  }
+  // 3. Redirect ke Sign-In jika mencoba mengakses Rute Terlindungi tanpa sesi
+  if (!session && !isPublicRoute) {
+    return NextResponse.redirect(new URL('/sign-in', request.url));
+  }
+  
+  // --- Logika Role-Based Access Control (RBAC) ---
 
-  // Specific role requirements for different dashboard sections
-  if (request.nextUrl.pathname.startsWith('/dashboard/rektor')) {
-    if (userRole !== 'REKTOR') {
-      // Only rektor can access rektor dashboard sections
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-  }
+  // 4. Redirect Authenticated User dari Sign-in/Sign-up
+  if (session && (pathname === '/sign-in' || pathname === '/sign-up')) {
+    // Arahkan ke dashboard utama untuk SATGAS/REKTOR
+    if (userRole === 'SATGAS' || userRole === 'REKTOR') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    // Arahkan pengguna non-staf ke homepage atau rute lain (misalnya /cek-status)
+    return NextResponse.redirect(new URL('/', request.url));
+  }
 
-  // Specific permissions for different dashboard sections
-  if (request.nextUrl.pathname.startsWith('/dashboard/laporan')) {
-    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-  }
+  // 5. Dashboard Protection (Melindungi seluruh /dashboard)
+  if (pathname.startsWith('/dashboard')) {
+    // Check sudah dilakukan di step 3, tapi cek ulang untuk kejelasan
+    if (!session) { 
+      return NextResponse.redirect(new URL('/sign-in', request.url));
+    }
+    
+    // Semua rute /dashboard memerlukan peran SATGAS atau REKTOR
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
+      // Redirect pengguna biasa (misalnya MAHASISWA) yang entah bagaimana mengakses /dashboard
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
+  
+  // 6. Akses Khusus REKTOR (Menggunakan logika OR yang lebih bersih)
+  const rektorSpecificRoutes = ['/dashboard/rektor']; // Cek rute yang hanya untuk REKTOR
+  
+  if (rektorSpecificRoutes.some(route => pathname.startsWith(route))) {
+    if (userRole !== 'REKTOR') {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+  
+  // 7. API Role Protection yang lebih spesifik
+  // (Asumsi semua API dashboard hanya diakses oleh SATGAS/REKTOR)
+  if (pathname.startsWith('/api/admin') || pathname.startsWith('/api/documents') || pathname.startsWith('/api/notifications') || pathname.startsWith('/api/reports')) {
+    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
+      return NextResponse.json({ error: 'Forbidden. Role not authorized.' }, { status: 403 });
+    }
+  }
 
-  if (request.nextUrl.pathname.startsWith('/dashboard/investigasi')) {
-    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-  }
-
-  if (request.nextUrl.pathname.startsWith('/dashboard/rekomendasi')) {
-    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-  }
-
-  if (request.nextUrl.pathname.startsWith('/dashboard/anggota')) {
-    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-  }
-
-  if (request.nextUrl.pathname.startsWith('/dashboard/dokumen')) {
-    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
-    }
-  }
-
-  // API route protection
-  if (request.nextUrl.pathname.startsWith('/api/reports') &&
-      !request.nextUrl.pathname.includes('/check-status')) {
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-  }
-
-  return NextResponse.next();
+  return NextResponse.next();
 }
 
-// Specify which routes the middleware should run for
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
-  ],
-  // Force the middleware to run on the server, not edge runtime
-  runtime: 'nodejs',
+  // Pastikan ini menangkap SEMUA rute, sehingga middleware dapat memeriksa dan mengabaikan rute publik secara internal.
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+  // runtime: 'nodejs', // Opsi ini tidak diperlukan di Next.js 13+ default (Edge), 
+  // tapi jika Anda yakin butuh Node.js runtime, biarkan. Saya hapus agar default.
 };

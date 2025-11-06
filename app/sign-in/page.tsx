@@ -96,14 +96,6 @@ export default function SignInPage() {
                 <div className="flex items-center space-x-3 mb-20">
                     <div className="relative w-12 h-12">
                         {/* 👇 PERBAIKAN PATH DI SINI (Hapus /public) */}
-                        <Image 
-                            src="/images/icons/Logo_UIN_Imam_Bonjol.png" 
-                            alt="Logo UIN Imam Bonjol" 
-                            width={48} 
-                            height={48} 
-                            // Properti style yang lebih modern
-                            style={{ objectFit: 'contain' }}
-                        />
                     </div>
                     <div className="text-white">
                         <p className="text-sm font-light">UIN IMAM BONJOL</p>

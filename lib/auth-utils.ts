@@ -1,91 +1,89 @@
-// Utility helpers to normalize role and extract role from various session shapes
+// satgas-ppks/lib/auth-utils.ts
+
+import { auth } from './auth'; // Mengimpor instance auth utama
+
+// Hapus import { Session } from 'next-auth'; untuk mengatasi Error 2307, 
+// dan gunakan tipe 'any' atau buat tipe Session kustom Anda.
+
+// --- Helper Role Normalization ---
+
+/**
+ * Utility helpers to normalize role and extract role from various session shapes
+ */
 export function getNormalizedRoleFromSession(session: any): string | null {
-  console.log('getNormalizedRoleFromSession - Input session:', session);
-
-  if (!session) {
-    console.log('getNormalizedRoleFromSession - No session provided');
-    return null;
-  }
-
+  // Logika normalisasi role yang kompleks
   const raw =
     session?.user?.role ??
     session?.user?.data?.role ??
     session?.user?.metadata?.role ??
     session?.role ??
     session?.user?.user?.role ??
-    null;
+    "USER"; // Default role
 
-  console.log('getNormalizedRoleFromSession - Raw role value:', raw);
-
-  if (!raw) {
-    console.log('getNormalizedRoleFromSession - No raw role found');
-    return null;
-  }
+  if (!raw) return "USER"; // Default role jika tidak ditemukan
 
   try {
-    const normalized = String(raw).toUpperCase();
-    console.log('getNormalizedRoleFromSession - Normalized role:', normalized);
-    return normalized;
+    return String(raw).toUpperCase();
   } catch (e) {
-    console.log('getNormalizedRoleFromSession - Error normalizing role:', e);
-    return null;
+    console.error("Error normalizing role:", e);
+    return "USER"; // Default role jika error
   }
 }
 
-export function isRoleAllowed(session: any, allowedRoles: string[] = ['SATGAS', 'REKTOR']): boolean {
-  const role = getNormalizedRoleFromSession(session);
-  if (!role) return false;
-  return allowedRoles.map(r => r.toUpperCase()).includes(role);
-}
-// lib/auth-utils.ts
-import { auth } from './auth';
+// --- Fungsi untuk Middleware ---
 
 /**
- * Helper function to get session from request headers
- * This wraps the Better Auth API call to handle session retrieval properly
+ * Helper function to get session from request headers (Used by middleware)
  */
-export async function getSessionFromRequest(request: Request) {
+export async function getSessionFromRequest(request: Request): Promise<any | null> {
   try {
-    console.log('getSessionFromRequest - Attempting to get session');
-    const session = await auth.api.getSession({
+    // Menggunakan Type Assertion pada auth untuk mengakses properti api
+    const authInstance: any = auth;
+    const session = await authInstance.api.getSession({
       headers: request.headers,
     });
-
-    console.log('getSessionFromRequest - Session data:', session);
-
-    // The api.getSession returns the session data directly, not a Response object
     if (session && session.user) {
-      console.log('getSessionFromRequest - Valid session found');
       return session;
     }
-
-    // If no valid session, return null
-    console.log('getSessionFromRequest - No valid session found');
     return null;
   } catch (error) {
-    console.error('Error getting session:', error);
+    console.error('Error getting session from request:', error);
     return null;
   }
 }
+
+// --- Fungsi Baru untuk Route Handlers (API) dan Server Components ---
+
+/**
+ * Helper function to get the current session directly in Route Handlers or Server Components.
+ */
+export async function getSession(): Promise<any | null> {
+    try {
+        // Mendapatkan session dari instance auth
+        const authInstance: any = auth;
+        const session = await authInstance.api.getSession({
+            headers: new Headers(),
+        });
+        
+        if (session && session.user) {
+            return session;
+        }
+        return null;
+    } catch (error) {
+        console.error('Error getting session:', error);
+        return null;
+    }
+}
+
+// --- Helper Role Extraction dan Guards ---
 
 /**
  * Helper function to extract user role from session object
- * This ensures consistent access to user role across the application
  */
 export function getUserRole(session: any): string {
-  if (!session || !session.user) {
-    return 'USER'; // Default role if no session or user
-  }
-  
-  // Role is stored in session.user based on our auth configuration
-  return session.user.role || 'USER';
-}
-
-/**
- * Type guard to check if user has specific role
- */
-export function hasRole(session: any, role: string): boolean {
-  return getUserRole(session) === role;
+    // Menggunakan fungsi normalisasi untuk konsistensi
+    const normalizedRole = getNormalizedRoleFromSession(session);
+    return normalizedRole || 'USER'; // Default role
 }
 
 /**
@@ -94,4 +92,22 @@ export function hasRole(session: any, role: string): boolean {
 export function isAdmin(session: any): boolean {
   const userRole = getUserRole(session);
   return userRole === 'SATGAS' || userRole === 'REKTOR';
+}
+
+/**
+ * Type guard to check if user has specific role
+ */
+export function hasRole(session: any, role: string): boolean {
+    const userRole = getUserRole(session);
+    // Perbandingan harus UPPERCASE
+    return userRole === role.toUpperCase();
+}
+
+/**
+ * Check if the session role is included in the list of allowed roles.
+ */
+export function isRoleAllowed(session: any, allowedRoles: string[] = ['SATGAS', 'REKTOR']): boolean {
+  const role = getUserRole(session); 
+  if (!role || role === 'USER') return false; 
+  return allowedRoles.map(r => r.toUpperCase()).includes(role);
 }

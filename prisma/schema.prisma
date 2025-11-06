@@ -3,49 +3,24 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
-//
-// ENUMS
-//
-enum Role {
-  USER
-  SATGAS
-  REKTOR
-}
-
-enum ReportStatus {
-  PENDING
-  VERIFIED
-  IN_PROGRESS
-  COMPLETED
-  REJECTED
-}
-
-//
-// USER MANAGEMENT
-//
 model User {
-  id             String                  @id @default(uuid())
-  name           String
-  email          String                  @unique
-  emailVerified  Boolean                 @default(false)
-  image          String?
-  role           Role                    @default(USER)
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
-
-  accounts       Account[]
-  sessions       Session[]
-  reports        Report[]                @relation("ReporterReports")
-  assignedCases  Report[]                @relation("AssignedSatgas")
-  investigations InvestigationDocument[]
-  notifications  Notification[]
-
-  @@map("users")
+  id            String                  @id @default(uuid())
+  name          String
+  email         String                  @unique
+  emailVerified Boolean                 @default(false)
+  image         String?
+  role          String                  @default("USER")
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  accounts      Account[]
+  uploadedDocs  InvestigationDocument[] @relation("UploadedBy")
+  notifications Notification[]
+  reports       Report[]                @relation("AssignedUser")
+  sessions      Session[]
 }
 
 model Account {
@@ -62,11 +37,9 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([providerId, accountId])
-  @@map("accounts")
 }
 
 model Session {
@@ -79,8 +52,6 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("sessions")
 }
 
 model Verification {
@@ -92,12 +63,8 @@ model Verification {
   updatedAt  DateTime @updatedAt
 
   @@unique([identifier, value])
-  @@map("verifications")
 }
 
-//
-// REPORT MANAGEMENT
-//
 model Report {
   id                   Int                     @id @default(autoincrement())
   reportNumber         String                  @unique
@@ -105,10 +72,8 @@ model Report {
   description          String
   category             String
   severity             String
-  status               ReportStatus            @default(PENDING)
-  isAnonymous          Boolean                 @default(false)
-
-  reporterId           String?
+  status               String                  @default("pending")
+  isAnonymous          Boolean?                @default(false)
   reporterName         String?
   reporterEmail        String?
   reporterPhone        String?
@@ -118,24 +83,18 @@ model Report {
   incidentDate         DateTime?
   incidentLocation     String?
   evidenceFiles        String?
+  assignedUserId       String?
   verificationNotes    String?
   investigationNotes   String?
   recommendation       String?
   recommendationStatus String?                 @default("pending")
-  assignedUserId       String?
-
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
   verifiedAt           DateTime?
   completedAt          DateTime?
-
-  reporter             User?                   @relation("ReporterReports", fields: [reporterId], references: [id])
-  assignedSatgas       User?                   @relation("AssignedSatgas", fields: [assignedUserId], references: [id])
-
-  investigationDocs    InvestigationDocument[]
+  documents            InvestigationDocument[]
   notifications        Notification[]
-
-  @@map("reports")
+  assignedUser         User?                   @relation("AssignedUser", fields: [assignedUserId], references: [id])
 }
 
 model InvestigationDocument {
@@ -148,11 +107,8 @@ model InvestigationDocument {
   uploadedBy   String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
   report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  user         User?    @relation(fields: [uploadedBy], references: [id])
-
-  @@map("investigation_documents")
+  uploader     User?    @relation("UploadedBy", fields: [uploadedBy], references: [id])
 }
 
 model Notification {
@@ -164,13 +120,10 @@ model Notification {
   status           String    @default("pending")
   sentAt           DateTime?
   response         String?
-  isRead           Boolean   @default(false)
+  isRead           Boolean?  @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   userId           String?
-
-  user   User?  @relation(fields: [userId], references: [id])
-  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
-
-  @@map("notifications")
+  report           Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user             User?     @relation(fields: [userId], references: [id])
 }

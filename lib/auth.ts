@@ -4,10 +4,12 @@ import { prisma } from "@/lib/prisma";
 
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {
-        provider: "postgresql" // Supabase uses PostgreSQL
+        provider: "sqlite" // Changed to SQLite for local development
     }),
     emailAndPassword: {
         enabled: true,
+        // Enable auto sign up for development to allow direct user creation 
+        autoSignUp: true,
     },
     baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
 
@@ -36,8 +38,8 @@ export const auth = betterAuth({
         // Using additionalFields as it's the correct property in Better Auth
         additionalFields: {
             role: {
-                type: "string",
-                defaultValue: "user",
+                type: "string", // Changed back to "string" to avoid enum issues with Better Auth
+                defaultValue: "USER",
                 required: false,
             },
         },

@@ -19,10 +19,7 @@ import { Loader2, Eye, EyeOff } from "lucide-react";
 const signUpSchema = z.object({
     name: z.string().min(2, "Nama harus minimal 2 karakter"),
     email: z.string().email("Alamat email tidak valid"),
-    password: z
-        .string()
-        .min(8, "Password harus minimal 8 karakter")
-        .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password harus mengandung huruf besar, huruf kecil, dan angka"),
+    password: z.string().min(6, "Password harus minimal 6 karakter"),
     confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Password tidak cocok",
@@ -83,13 +80,6 @@ export default function SignUpPage() {
                 {/* Logo dan Nama Aplikasi */}
                 <div className="flex items-center space-x-3 mb-20">
                     <div className="relative w-12 h-12">
-                        <Image 
-                            src="/images/icons/Logo_UIN_Imam_Bonjol.png" 
-                            alt="Logo UIN Imam Bonjol" 
-                            width={48} 
-                            height={48} 
-                            style={{ objectFit: 'contain' }}
-                        />
                     </div>
                     <div className="text-white">
                         <p className="text-sm font-light">UIN IMAM BONJOL</p>
@@ -188,7 +178,7 @@ export default function SignUpPage() {
                                                 <div className="relative">
                                                     <Input
                                                         type={showPassword ? "text" : "password"}
-                                                        placeholder="Buat password yang kuat"
+                                                        placeholder="Buat password minimal 6 karakter"
                                                         {...field}
                                                         disabled={isLoading}
                                                         className="pr-10 h-11 border-gray-300 focus:border-red-700"
