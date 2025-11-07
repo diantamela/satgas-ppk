@@ -10,7 +10,7 @@ interface RoleGuardProps {
   requiredRoles?: string[];
 }
 
-export function RoleGuard({ children, requiredRoles = ['SATGAS', 'REKTOR'] }: RoleGuardProps) {
+export function RoleGuard({ children, requiredRoles = [] }: RoleGuardProps) {
   const { data: session, isPending } = useSession();
   const router = useRouter();
 
@@ -22,7 +22,7 @@ export function RoleGuard({ children, requiredRoles = ['SATGAS', 'REKTOR'] }: Ro
     if (!isPending && !session) {
       console.log('RoleGuard - Redirecting to sign-in: no session');
       router.push('/sign-in');
-    } else if (session && !requiredRoles.map(r => r.toUpperCase()).includes(getNormalizedRoleFromSession(session) || '')) {
+    } else if (session && requiredRoles.length > 0 && !requiredRoles.map(r => r.toUpperCase()).includes(getNormalizedRoleFromSession(session) || '')) {
       console.log('RoleGuard - Redirecting to home: insufficient role');
       router.push('/');
     } else if (session) {
@@ -56,7 +56,7 @@ export function RoleGuard({ children, requiredRoles = ['SATGAS', 'REKTOR'] }: Ro
   }
 
   const userRole = getNormalizedRoleFromSession(session) || '';
-  if (!requiredRoles.map(r => r.toUpperCase()).includes(userRole)) {
+  if (requiredRoles.length > 0 && !requiredRoles.map(r => r.toUpperCase()).includes(userRole)) {
     console.log('RoleGuard - Showing loading state: insufficient role');
     return (
       <div className="flex items-center justify-center min-h-screen">

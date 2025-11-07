@@ -3,127 +3,217 @@ generator client {
 }
 
 datasource db {
-  provider  = "sqlite"
-  url       = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")  // pakai pgbouncer:6543 untuk runtime
+  directUrl = env("DIRECT_URL")    // pakai port 5432 untuk migrate
+}
+
+enum Role {
+  USER
+  SATGAS
+  REKTOR
+}
+
+enum ReportStatus {
+  PENDING
+  VERIFIED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+enum NotificationType {
+  REPORT_STATUS_CHANGED
+  REPORT_ASSIGNED
+  NEW_RECOMMENDATION
+  DECISION_MADE
+  DOCUMENT_UPLOADED
+}
+
+enum DocumentType {
+  EVIDENCE
+  INVESTIGATION_REPORT
+  OFFICIAL_LETTER
+  PROCEEDINGS
+}
+
+enum ArticleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DecisionType {
+  APPROVED
+  REJECTED
+  FOLLOW_UP
+}
+
+enum Affiliation {
+  STUDENT
+  FACULTY
+  STAFF
+  GUEST
 }
 
 model User {
-  id            String                  @id @default(uuid())
-  name          String
+  id            String                  @id @default(cuid())
+  // Email diset ke unique case-insensitive (tanpa citext untuk kompatibilitas)
   email         String                  @unique
-  emailVerified Boolean                 @default(false)
-  image         String?
-  role          String                  @default("USER")
+  password      String
+  name          String
+  role          Role                    @default(USER)
+  affiliation   Affiliation             @default(STUDENT)
+  isActive      Boolean                 @default(true)
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
-  accounts      Account[]
-  uploadedDocs  InvestigationDocument[] @relation("UploadedBy")
-  notifications Notification[]
-  reports       Report[]                @relation("AssignedUser")
-  sessions      Session[]
-}
 
-model Account {
-  id                    String    @id @default(uuid())
-  accountId             String
-  providerId            String
-  userId                String
-  accessToken           String?
-  refreshToken          String?
-  idToken               String?
-  accessTokenExpiresAt  DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope                 String?
-  password              String?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Relations
+  reportsAsReporter     Report[]                @relation("ReportReporter")
+  reportsAsAssignee     Report[]                @relation("ReportAssignee")
+  sessions              Session[]               @relation(name: "UserSessions")
+  assignedNotifications Notification[]
+  createdArticles       Article[]
+  timelineEntries       ReportTimeline[]        @relation(name: "UserTimelineEntries")
+  uploadedDocuments     InvestigationDocument[] @relation(name: "UserDocuments")
+  activityLogs          ActivityLog[]
 
-  @@unique([providerId, accountId])
+  @@index([email])
 }
 
 model Session {
-  id        String   @id @default(uuid())
+  id        String   @id @default(cuid())
+  user      User     @relation(name: "UserSessions", fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  tokenHash String   @unique
+  userAgent String?
+  ip        String?
   expiresAt DateTime
-  token     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
 
-model Verification {
-  id         String   @id @default(uuid())
-  identifier String
-  value      String
-  expiresAt  DateTime
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([identifier, value])
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Report {
-  id                   Int                     @id @default(autoincrement())
-  reportNumber         String                  @unique
-  title                String
-  description          String
-  category             String
-  severity             String
-  status               String                  @default("pending")
-  isAnonymous          Boolean?                @default(false)
-  reporterName         String?
-  reporterEmail        String?
-  reporterPhone        String?
-  reporterInstitution  String?
-  respondentName       String
-  respondentPosition   String?
-  incidentDate         DateTime?
-  incidentLocation     String?
-  evidenceFiles        String?
-  assignedUserId       String?
-  verificationNotes    String?
-  investigationNotes   String?
-  recommendation       String?
-  recommendationStatus String?                 @default("pending")
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
-  verifiedAt           DateTime?
-  completedAt          DateTime?
-  documents            InvestigationDocument[]
-  notifications        Notification[]
-  assignedUser         User?                   @relation("AssignedUser", fields: [assignedUserId], references: [id])
+  id               String       @id @default(cuid())
+  reportNumber     String       @unique
+  title            String
+  description      String
+  incidentDate     DateTime?
+  incidentLocation String?
+  status           ReportStatus @default(PENDING)
+  finalDecision    DecisionType?
+  decisionNotes    String?
+  reporter         User         @relation(name: "ReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  reporterId       String
+  assignee         User?        @relation(name: "ReportAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeId       String?
+  recommendation   String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relations
+  timelines    ReportTimeline[]
+  documents    InvestigationDocument[]
+  activityLogs ActivityLog[] @relation(name: "ReportActivityLogs")
+
+  @@index([reporterId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([status, updatedAt])
+}
+
+model ReportTimeline {
+  id        String       @id @default(cuid())
+  report    Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId  String
+  status    ReportStatus
+  notes     String?
+  user      User?        @relation(name: "UserTimelineEntries", fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  timestamp DateTime     @default(now())
+
+  @@index([reportId])
+  @@index([userId])
+  @@index([timestamp])
 }
 
 model InvestigationDocument {
-  id           Int      @id @default(autoincrement())
-  reportId     Int
-  documentType String
-  title        String
-  content      String?
-  filePath     String?
-  uploadedBy   String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  uploader     User?    @relation("UploadedBy", fields: [uploadedBy], references: [id])
+  id           String       @id @default(cuid())
+  report       Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId     String
+  fileName     String
+  fileType     String
+  fileSize     Int
+  // Simpan path di storage, buat signed URL saat akses
+  storagePath  String
+  documentType DocumentType
+  uploadedBy   User?        @relation(name: "UserDocuments", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedById String?
+  description  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([reportId])
+  @@index([uploadedById])
 }
 
 model Notification {
-  id               Int       @id @default(autoincrement())
-  reportId         Int
-  recipient        String
-  notificationType String
-  message          String
-  status           String    @default("pending")
-  sentAt           DateTime?
-  response         String?
-  isRead           Boolean?  @default(false)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  userId           String?
-  report           Report    @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  user             User?     @relation(fields: [userId], references: [id])
+  id                String           @id @default(cuid())
+  user              User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId            String?
+  type              NotificationType
+  title             String
+  message           String
+  isRead            Boolean          @default(false)
+  relatedEntityId   String?
+  relatedEntityType String?
+  createdAt         DateTime         @default(now())
+  readAt            DateTime?
+  updatedAt         DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  content     String
+  excerpt     String?
+  status      ArticleStatus @default(DRAFT)
+  author      User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorId    String?
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([authorId])
+  @@index([status])
+  @@index([publishedAt])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId      String?
+  action      String
+  entityType  String?
+  entityId    String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  timestamp   DateTime @default(now())
+  report      Report?  @relation(name: "ReportActivityLogs", fields: [reportId], references: [id], onDelete: SetNull)
+  reportId    String?
+
+  @@index([userId])
+  @@index([reportId])
+  @@index([timestamp])
+  @@index([action])
 }

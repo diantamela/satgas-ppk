@@ -2,14 +2,33 @@
 
 import { auth } from './auth'; // Mengimpor instance auth utama
 
-// Hapus import { Session } from 'next-auth'; untuk mengatasi Error 2307, 
-// dan gunakan tipe 'any' atau buat tipe Session kustom Anda.
+// satgas-ppks/lib/auth-utils.ts
+import type { NextRequest } from 'next/server';
 
-// --- Helper Role Normalization ---
+export type SessionLike = { token: string } | null;
 
 /**
- * Utility helpers to normalize role and extract role from various session shapes
+ * Ambil sesi dari cookie 'session' (tanpa verifikasi DB, aman di middleware).
+ * Kalau mau verifikasi di server/API, lakukan di handler API dengan Prisma.
  */
+export function getSessionFromCookies(req: NextRequest): SessionLike {
+  const token = req.cookies.get('session')?.value;
+  if (!token) return null;
+  return { token };
+}
+
+/**
+ * Ambil role user dari cookie 'role' (opsional).
+ * Kalau cookie role tidak ada, fallback ke 'USER'.
+ * NOTE: Untuk otorisasi yang kuat, cek role di API/server dengan DB.
+ */
+export function getUserRole(session: SessionLike, req?: NextRequest): 'REKTOR' | 'SATGAS' | 'USER' {
+  if (!session) return 'USER';
+  const role = req?.cookies.get('role')?.value?.toUpperCase();
+  if (role === 'REKTOR' || role === 'SATGAS') return role;
+  return 'USER';
+}
+
 export function getNormalizedRoleFromSession(session: any): string | null {
   // Logika normalisasi role yang kompleks
   const raw =
@@ -80,7 +99,7 @@ export async function getSession(): Promise<any | null> {
 /**
  * Helper function to extract user role from session object
  */
-export function getUserRole(session: any): string {
+export function getUserRoleFromSession(session: any): string {
     // Menggunakan fungsi normalisasi untuk konsistensi
     const normalizedRole = getNormalizedRoleFromSession(session);
     return normalizedRole || 'USER'; // Default role
@@ -90,7 +109,7 @@ export function getUserRole(session: any): string {
  * Check if user has admin roles (SATGAS or REKTOR)
  */
 export function isAdmin(session: any): boolean {
-  const userRole = getUserRole(session);
+  const userRole = getUserRoleFromSession(session);
   return userRole === 'SATGAS' || userRole === 'REKTOR';
 }
 
@@ -98,7 +117,7 @@ export function isAdmin(session: any): boolean {
  * Type guard to check if user has specific role
  */
 export function hasRole(session: any, role: string): boolean {
-    const userRole = getUserRole(session);
+    const userRole = getUserRoleFromSession(session);
     // Perbandingan harus UPPERCASE
     return userRole === role.toUpperCase();
 }
@@ -107,7 +126,7 @@ export function hasRole(session: any, role: string): boolean {
  * Check if the session role is included in the list of allowed roles.
  */
 export function isRoleAllowed(session: any, allowedRoles: string[] = ['SATGAS', 'REKTOR']): boolean {
-  const role = getUserRole(session); 
-  if (!role || role === 'USER') return false; 
+  const role = getUserRoleFromSession(session);
+  if (!role || role === 'USER') return false;
   return allowedRoles.map(r => r.toUpperCase()).includes(role);
 }
