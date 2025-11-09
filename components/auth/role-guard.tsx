@@ -1,7 +1,7 @@
 'use client';
 
-import { useSession } from '@/lib/auth-client';
-import { getNormalizedRoleFromSession } from '@/lib/auth-utils';
+import { useSession } from '@/lib/auth/auth-client';
+import { getNormalizedRoleFromSession } from '@/lib/auth/auth-utils';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 

@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/database/prisma';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       // Ensure all users have a valid role (in case of null values)
       const result = await prisma.user.updateMany({
         where: {
-          role: null
+          role: undefined
         },
         data: {
           role: 'USER'

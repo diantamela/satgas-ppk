@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/database/prisma';
+import { auth } from '@/lib/auth/auth';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 

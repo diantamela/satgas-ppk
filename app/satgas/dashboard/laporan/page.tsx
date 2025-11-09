@@ -18,8 +18,8 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import Link from "next/link";
-import { reportService } from "@/lib/services/report-service";
-import { RoleGuard } from "../role-guard";
+import { reportService } from "@/lib/services/reports/report-service";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<any[]>([]);
@@ -145,7 +145,7 @@ export default function ReportsPage() {
                     placeholder="Cari laporan berdasarkan judul, nomor, atau kategori..."
                     className="pl-10"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
                   />
                 </div>
               </div>
@@ -153,7 +153,7 @@ export default function ReportsPage() {
                 <select 
                   className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
                 >
                   <option value="all">Semua Status</option>
                   <option value="pending">Menunggu</option>
@@ -234,6 +234,7 @@ export default function ReportsPage() {
               </Card>
             ))
           )}
+        </div>
         </div>
       </div>
     </RoleGuard>

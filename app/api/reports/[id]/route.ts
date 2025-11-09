@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { reportService } from "@/lib/services/report-service";
+import { reportService } from "@/lib/services/reports/report-service";
 
 export const runtime = "nodejs";
 
@@ -101,7 +101,7 @@ export async function DELETE(
     const updatedReport = await reportService.updateReport(reportId, {
       title: "[DELETED]",
       description: "[DELETED]",
-      status: "deleted",
+      status: "REJECTED",
     });
 
     if (!updatedReport) {

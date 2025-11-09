@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { investigationDocumentService } from "@/lib/services/report-service";
+import { investigationDocumentService } from "@/lib/services/reports/report-service";
 
 export const runtime = "nodejs";
 

@@ -1,7 +1,7 @@
 // satgas-ppks/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSessionFromRequest, getUserRoleFromSession } from '@/lib/auth-utils';
+import { getSessionFromRequest, getUserRoleFromSession } from '@/lib/auth/auth-utils';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

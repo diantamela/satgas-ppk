@@ -1,6 +1,6 @@
 // app/api/auth/signin/route.ts
 import { NextResponse, NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/database/prisma'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
@@ -46,9 +46,6 @@ export async function POST(req: NextRequest) {
 
     const email = data.email.toLowerCase() // Normalisasi email ke lowercase
     const password = data.password
-
-    // Ensure database connection
-    await prisma.$connect()
 
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user) return NextResponse.json({ ok: false, message: 'Email atau password salah.' }, { status: 401 })

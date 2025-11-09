@@ -19,7 +19,7 @@ import {
   XCircle
 } from "lucide-react";
 import Link from "next/link";
-import { RektorRoleGuard } from "./role-guard"; 
+import { RoleGuard } from "../role-guard";
 
 export default function RektorDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -102,10 +102,10 @@ export default function RektorDashboardPage() {
     return <Badge variant="outline">{decision}</Badge>;
   };
 
-  return (
-    <RektorRoleGuard>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
+  return (
+    <RoleGuard requiredRoles={['REKTOR']}>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard Rektor</h1>
@@ -311,8 +311,9 @@ export default function RektorDashboardPage() {
               </Button>
             </div>
           </CardContent>
-        </Card>
-      </div>
-    </RektorRoleGuard>
-  );
+</Card>
+</div>
+</div>
+</RoleGuard>
+);
 }

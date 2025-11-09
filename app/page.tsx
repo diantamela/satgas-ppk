@@ -3,8 +3,8 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Users, BookOpen, Mail, Shield, ArrowRight } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle"; // Asumsi komponen ini ada
-import { AuthButtons } from "@/components/auth-buttons"; // Asumsi komponen ini ada (handle Sign In/Sign Up)
+import { ThemeToggle } from "@/components/layout/theme-toggle"; // Asumsi komponen ini ada
+import { AuthButtons } from "@/components/auth/auth-buttons"; // Asumsi komponen ini ada (handle Sign In/Sign Up)
 import Image from "next/image";
 import Link from "next/link";
 import React from 'react'; // Impor React eksplisit untuk lingkungan TSX

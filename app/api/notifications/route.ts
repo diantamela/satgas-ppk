@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { notificationService } from "@/lib/services/report-service";
+import { notificationService } from "@/lib/services/reports/report-service";
 
 // POST /api/notifications - Create a new notification
 export async function POST(request: NextRequest) {

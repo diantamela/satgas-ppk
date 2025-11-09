@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useSession } from "@/lib/auth-client"
+import { useSession } from "@/lib/auth/auth-client"
 import {
   IconCamera,
   IconChartBar,
@@ -19,12 +19,13 @@ import {
   IconSearch,
   IconSettings,
   IconUsers,
+  IconBell,
 } from "@tabler/icons-react"
 
-import { NavDocuments } from "@/components/nav-documents"
-import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
-import { NavUser } from "@/components/nav-user"
+import { NavDocuments } from "@/components/navigation/nav-documents"
+import { NavMain } from "@/components/navigation/nav-main"
+import { NavSecondary } from "@/components/navigation/nav-secondary"
+import { NavUser } from "@/components/navigation/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -72,7 +73,7 @@ const staticData = {
     {
       title: "Notifikasi",
       url: "/dashboard/notifikasi",
-      icon: IconNotification,
+      icon: IconBell,
     },
     {
       title: "Pengaturan",
@@ -163,11 +164,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         {/* Show different navigation based on user role */}
-        {session?.user?.role === 'REKTOR' ? (
+        {(session as any)?.user?.role === 'REKTOR' ? (
           <>
             <NavMain items={staticData.navRektor} />
           </>
-        ) : session?.user?.role === 'SATGAS' ? (
+        ) : (session as any)?.user?.role === 'SATGAS' ? (
           <>
             <NavMain items={staticData.navMain} />
             <NavSecondary items={staticData.navSecondary} className="mt-auto" />

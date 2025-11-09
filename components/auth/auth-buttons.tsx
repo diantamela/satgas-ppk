@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { LogIn, LogOut, User, UserPlus } from "lucide-react";
-import { useSession, signOut } from "@/lib/auth-client";
+import { useSession, signOut } from "@/lib/auth/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
