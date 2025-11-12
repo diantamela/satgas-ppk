@@ -1,7 +1,7 @@
-import { auth } from '@/lib/auth';
+import { auth } from '@/lib/auth/auth';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSessionFromRequest } from '@/lib/auth-utils';
+import { getSessionFromRequest } from '@/lib/auth/auth-utils';
 
 export const runtime = 'nodejs';
 

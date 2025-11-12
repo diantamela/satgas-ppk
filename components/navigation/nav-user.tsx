@@ -48,16 +48,8 @@ export function NavUser({
   const handleSignOut = async () => {
     setIsSigningOut(true)
     try {
-      const res = await fetch("/api/auth/signout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      })
-
-      if (res.ok) {
-        router.push("/")
-      } else {
-        console.error("Sign out failed")
-      }
+      await signOut()
+      router.push("/")
     } catch (error) {
       console.error("Sign out error:", error)
     } finally {

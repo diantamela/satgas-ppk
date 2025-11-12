@@ -1,43 +1,16 @@
-// app/api/auth/signout/route.ts
-import { NextResponse, NextRequest } from 'next/server'
-import { prisma } from '@/lib/database/prisma'
-import { getSessionFromRequest } from '@/lib/auth/auth-utils'
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export const runtime = 'nodejs'
-
-export async function POST(req: NextRequest) {
+export async function POST() {
   try {
-    // Get the current session
-    const session = await getSessionFromRequest(req)
-
-    if (session) {
-      // Delete the session from database
-      await prisma.session.delete({
-        where: { tokenHash: session.tokenHash }
-      })
-    }
+    const cookieStore = await cookies();
 
     // Clear the session cookie
-    const res = NextResponse.json({
-      ok: true,
-      message: 'Signout berhasil'
-    })
+    cookieStore.delete('session');
 
-    res.cookies.set('session', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 0,
-      path: '/'
-    })
-
-    return res
+    return NextResponse.json({ ok: true, message: 'Signed out successfully' });
   } catch (error) {
-    console.error('Signout error:', error)
-    return NextResponse.json({
-      ok: false,
-      message: 'Terjadi kesalahan saat signout'
-    }, { status: 500 })
+    console.error('Sign out error:', error);
+    return NextResponse.json({ ok: false, message: 'Sign out failed' }, { status: 500 });
   }
 }
-

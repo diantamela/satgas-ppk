@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
-import { processFileUpload } from '@/lib/file-upload';
+import { auth } from '@/lib/auth/auth';
+import { processFileUpload } from '@/lib/utils/file-upload';
 import { db } from '@/db';
-import { getNormalizedRoleFromSession } from '@/lib/auth-utils';
+import { getNormalizedRoleFromSession } from '@/lib/auth/auth-utils';
 
 export const runtime = "nodejs";
 
@@ -34,12 +34,14 @@ export async function POST(request: NextRequest) {
     // Get report ID from form data if provided
     const formData = await request.formData();
     const reportId = formData.get('reportId') as string | null;
+    const file = formData.get('file') as File | null;
 
-    // If report ID is provided, update the report's evidence files
-    if (reportId) {
+    // If report ID is provided, create an investigation document
+    if (reportId && file) {
       // Verify that the user has permission to add evidence to this report
       const report = await db.report.findUnique({
-        where: { id: parseInt(reportId) }
+        where: { id: reportId },
+        include: { reporter: true }
       });
 
       if (!report) {
@@ -49,21 +51,22 @@ export async function POST(request: NextRequest) {
       // Only report creator or satgas can add evidence
       if (
         getNormalizedRoleFromSession(session) !== 'SATGAS' &&
-        session.user.email !== report.reporterEmail
+        session.user.email !== report.reporter.email
       ) {
         return Response.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      // Get existing evidence files and add the new one
-      const existingEvidence = report.evidenceFiles ? JSON.parse(report.evidenceFiles) : [];
-      const updatedEvidence = [...existingEvidence, result.filePath];
-
-      // Update the report with the new evidence file
-      await db.report.update({
-        where: { id: parseInt(reportId) },
+      // Create an investigation document for the uploaded file
+      await db.investigationDocument.create({
         data: {
-          evidenceFiles: JSON.stringify(updatedEvidence),
-          updatedAt: new Date(),
+          reportId: reportId,
+          documentType: 'EVIDENCE',
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          storagePath: result.filePath!,
+          description: `Uploaded evidence for report ${report.reportNumber}`,
+          uploadedById: session.user.id
         }
       });
     }

@@ -47,18 +47,11 @@ export default function SignInPage() {
       }
 
       // sukses - redirect berdasarkan role
-      console.log('Login successful, redirecting based on role...');
+      // Untuk sementara, semua user diarahkan ke dashboard
+      // Role-based redirect akan ditangani di middleware
+      console.log('Login successful, redirecting to dashboard...');
       console.log('Response JSON:', json);
-
-      // Role-based redirection
-      const userRole = json.user?.role?.toUpperCase();
-      if (userRole === 'SATGAS') {
-        window.location.href = "/satgas/dashboard";
-      } else if (userRole === 'REKTOR') {
-        window.location.href = "/rektor/dashboard";
-      } else {
-         window.location.href = "/user/dashboard"; // Default for USER role
-       }
+      window.location.href = "/dashboard"; // Force full page reload
     } catch {
       setError("Terjadi kesalahan tak terduga. Coba lagi.");
     } finally {
@@ -138,6 +131,9 @@ export default function SignInPage() {
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700">
                     Password
                   </Label>
+                  <Link href="/forgot-password" className="text-xs text-red-700 hover:underline transition-colors">
+                    Lupa Password?
+                  </Link>
                 </div>
                 <div className="relative">
                   <Input

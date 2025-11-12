@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 
 const schema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  password: z.string().min(1), // Temporarily reduce to 1 for testing
 })
 
 const sha256 = (s: string) => crypto.createHash('sha256').update(s).digest('hex')
@@ -66,26 +66,36 @@ export async function POST(req: NextRequest) {
       data: { userId: user.id, tokenHash, expiresAt, userAgent, ip },
     })
 
+    // Deteksi submit via form HTML (redirect) vs fetch (JSON)
+    const isHtmlSubmit =
+      (req.headers.get('accept') || '').includes('text/html') ||
+      (req.headers.get('content-type') || '').includes('application/x-www-form-urlencoded')
+
     console.log('Signin successful for user:', user.email, 'role:', user.role);
 
-    // Always return JSON response - let client handle redirection based on role
-    const res = NextResponse.json({
-      ok: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role
-      }
-    })
-    res.cookies.set('session', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      expires: expiresAt,
-    })
-    return res
+    if (isHtmlSubmit) {
+      console.log('HTML form submit detected, redirecting to dashboard');
+      const res = NextResponse.redirect(new URL('/dashboard', req.url))
+      res.cookies.set('session', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        expires: expiresAt,
+      })
+      return res
+    } else {
+      console.log('JSON API call detected, returning success response');
+      const res = NextResponse.json({ ok: true, user: { id: user.id, email: user.email, name: user.name } })
+      res.cookies.set('session', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        expires: expiresAt,
+      })
+      return res
+    }
   } catch (err: any) {
     console.error('[SIGNIN_ERROR]', err?.code || '', err?.message || err)
     return NextResponse.json({ ok: false, message: 'Signin gagal (500).' }, { status: 500 })

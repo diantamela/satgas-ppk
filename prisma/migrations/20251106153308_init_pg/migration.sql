@@ -19,6 +19,9 @@ CREATE TYPE "DecisionType" AS ENUM ('APPROVED', 'REJECTED', 'FOLLOW_UP');
 -- CreateEnum
 CREATE TYPE "Affiliation" AS ENUM ('STUDENT', 'FACULTY', 'STAFF', 'GUEST');
 
+-- CreateEnum
+CREATE TYPE "InquiryStatus" AS ENUM ('PENDING', 'RESPONDED', 'CLOSED');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -146,6 +149,25 @@ CREATE TABLE "ActivityLog" (
     CONSTRAINT "ActivityLog_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "ContactInquiry" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "status" "InquiryStatus" NOT NULL DEFAULT 'PENDING',
+    "userId" TEXT,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "respondedAt" TIMESTAMP(3),
+    "response" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ContactInquiry_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -227,6 +249,15 @@ CREATE INDEX "ActivityLog_timestamp_idx" ON "ActivityLog"("timestamp");
 -- CreateIndex
 CREATE INDEX "ActivityLog_action_idx" ON "ActivityLog"("action");
 
+-- CreateIndex
+CREATE INDEX "ContactInquiry_userId_idx" ON "ContactInquiry"("userId");
+
+-- CreateIndex
+CREATE INDEX "ContactInquiry_status_idx" ON "ContactInquiry"("status");
+
+-- CreateIndex
+CREATE INDEX "ContactInquiry_createdAt_idx" ON "ContactInquiry"("createdAt");
+
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -259,3 +290,6 @@ ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_userId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "ActivityLog" ADD CONSTRAINT "ActivityLog_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "Report"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ContactInquiry" ADD CONSTRAINT "ContactInquiry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

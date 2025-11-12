@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Phone, MapPin, Clock, MessageCircle } from "lucide-react";
+import { prisma } from '@/lib/database/prisma'
 
 export default function ContactPage() {
   return (

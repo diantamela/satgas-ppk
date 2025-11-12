@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
-// ⛔️ HAPUS: import { signUp } from "@/lib/auth-client";
+import { signUp } from "@/lib/auth/auth-client";
 
 const signUpSchema = z
   .object({
@@ -50,26 +50,12 @@ export default function SignUpPage() {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          email: data.email.toLowerCase(), // konsisten dengan CITEXT
-          password: data.password,
-        }),
-      });
+      await signUp(data.email.toLowerCase(), data.password, data.name);
 
-      const json = await res.json();
-      if (!res.ok || !json?.ok) {
-        setError(json?.message || "Sign up gagal");
-        return;
-      }
-
-      // Berhasil daftar → arahkan ke halaman login (atau dashboard jika auto-login)
+      // Berhasil daftar → arahkan ke halaman login
       router.push("/sign-in");
-    } catch {
-      setError("Terjadi kesalahan tak terduga");
+    } catch (error: any) {
+      setError(error?.message || "Terjadi kesalahan tak terduga");
     } finally {
       setIsLoading(false);
     }

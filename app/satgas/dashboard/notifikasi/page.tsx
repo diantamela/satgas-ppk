@@ -18,7 +18,7 @@ import {
   Filter
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { RoleGuard } from "../role-guard";
+import { RoleGuard } from "../../../../components/auth/role-guard";
 
 export default function NotificationManagementPage() {
   const [notifications, setNotifications] = useState([
@@ -297,6 +297,7 @@ export default function NotificationManagementPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </RoleGuard>
   );

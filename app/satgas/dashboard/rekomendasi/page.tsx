@@ -4,21 +4,22 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  FileText, 
-  AlertTriangle, 
-  CheckCircle, 
-  User, 
-  Calendar, 
+import {
+  FileText,
+  AlertTriangle,
+  CheckCircle,
+  User,
+  Calendar,
   Download,
   Edit,
   MessageSquare,
   FilePlus,
   Shield,
-  Mail
+  Mail,
+  Eye
 } from "lucide-react";
 import Link from "next/link";
-import { RoleGuard } from "../role-guard";
+import { RoleGuard } from "../../../../components/auth/role-guard";
 
 export default function RecommendationPage() {
   const [activeTab, setActiveTab] = useState("pending");
@@ -245,6 +246,7 @@ export default function RecommendationPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </RoleGuard>
   );

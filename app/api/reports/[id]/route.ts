@@ -6,11 +6,10 @@ export const runtime = "nodejs";
 // GET /api/reports/[id] - Get a specific report by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
-    const reportId = parseInt(id);
+    const reportId = parseInt(params.id);
     
     if (isNaN(reportId)) {
       return Response.json(
@@ -44,11 +43,10 @@ export async function GET(
 // PUT /api/reports/[id] - Update a specific report by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
-    const reportId = parseInt(id);
+    const reportId = parseInt(params.id);
     const body = await request.json();
     
     if (isNaN(reportId)) {
@@ -85,11 +83,10 @@ export async function PUT(
 // DELETE /api/reports/[id] - Delete a specific report by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
-    const reportId = parseInt(id);
+    const reportId = parseInt(params.id);
     
     if (isNaN(reportId)) {
       return Response.json(

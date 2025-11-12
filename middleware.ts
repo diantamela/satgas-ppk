@@ -1,120 +1,148 @@
-// satgas-ppks/middleware.ts
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { getSessionFromRequest, getUserRoleFromSession } from '@/lib/auth/auth-utils';
+// middleware.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+/** Baca role dari cookie tanpa akses DB (aman di Edge) */
+function readRoleFromCookie(req: NextRequest): "REKTOR" | "SATGAS" | "USER" | null {
+  const r = req.cookies.get("satgas_role")?.value;
+  return r === "REKTOR" || r === "SATGAS" || r === "USER" ? r : null;
+}
 
-  // --- 0) SELALU loloskan route AUTH API ---
-  // Supaya POST /api/auth/signin /signup tidak di-redirect ke /sign-in
-  if (pathname.startsWith('/api/auth/')) {
+/** Apakah path ini aset publik yang harus dilewatkan */
+function isPublicAsset(pathname: string) {
+  return (
+    pathname.startsWith("/_next/") ||
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/manifest.json" ||
+    pathname.startsWith("/images/") ||
+    pathname.startsWith("/assets/") ||
+    pathname.startsWith("/icons/") ||
+    pathname.startsWith("/fonts/")
+  );
+}
+
+/** Sanitasi nilai next agar tidak mengarah ke halaman auth dan memicu loop */
+function sanitizeNext(nextPath: string) {
+  if (!nextPath) return "";
+  if (nextPath.startsWith("/sign-in") || nextPath.startsWith("/sign-up")) return "";
+  return nextPath;
+}
+
+export function middleware(req: NextRequest) {
+  const { nextUrl } = req;
+  const pathname = nextUrl.pathname;
+
+  // Bebaskan preflight dan aset
+  if (req.method === "OPTIONS" || isPublicAsset(pathname)) {
     return NextResponse.next();
   }
 
-  // --- 0b) Asset & files umum: biarkan lewat ---
-  if (
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon.ico') ||
-    pathname.startsWith('/images/') ||
-    pathname.startsWith('/public/')
-  ) {
+  // Bebaskan seluruh auth API (signin/signup/signout/get-session, dsb)
+  if (pathname.startsWith("/api/auth/")) {
     return NextResponse.next();
   }
 
-  // --- 1) Public Routes (tanpa login) ---
+  // Rute publik (tanpa login)
   const publicRoutes = [
-    '/',
-    '/sign-in',
-    '/sign-up',
-    '/laporkan-kasus',
-    '/cek-status',
-    '/user/edukasi',
-    '/user/kontak',
-    '/tentang',
+    "/",
+    "/sign-in",
+    "/sign-up",
+    "/laporkan-kasus",
+    "/cek-status",
+    "/user/edukasi",
+    "/user/kontak",
+    "/tentang",
   ];
+  const isPublic = publicRoutes.some((r) => pathname === r || pathname.startsWith(r + "/"));
 
-  const isPublicRoute = publicRoutes.some((route) => {
-    if (route === '/') return pathname === '/';
-    return pathname === route || pathname.startsWith(`${route}/`);
-  });
+  // Status sesi/role hanya dari cookie (jangan query DB di middleware)
+  const hasSession = req.cookies.has("satgas_session");
+  const role = readRoleFromCookie(req);
 
-  // --- 2) Ambil "session" (versi edge-safe: hanya cek cookie) & role (dari cookie 'role' jika ada) ---
-  const session = await getSessionFromRequest(request); // { token?: string } | null
-  const userRole = getUserRoleFromSession(session); // 'REKTOR' | 'SATGAS' | 'USER'
-
-  // --- 3) Proteksi API non-auth (respon JSON, TIDAK redirect) ---
-  if (pathname.startsWith('/api/')) {
-    // Allow public API tertentu
-    if (pathname.startsWith('/api/reports/check-status')) {
+  // Proteksi API non-auth (JSON response, bukan redirect)
+  if (pathname.startsWith("/api/")) {
+    // API publik tertentu
+    if (pathname.startsWith("/api/reports/check-status")) {
       return NextResponse.next();
     }
 
-    // Wajib sesi untuk API lainnya
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Wajib ada sesi untuk API lain
+    if (!hasSession) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // RBAC spesifik untuk API admin/documents/notifications/reports
+    // RBAC dasar untuk admin/documents/notifications/reports
     if (
-      pathname.startsWith('/api/admin') ||
-      pathname.startsWith('/api/documents') ||
-      pathname.startsWith('/api/notifications') ||
-      pathname.startsWith('/api/reports')
+      pathname.startsWith("/api/admin") ||
+      pathname.startsWith("/api/documents") ||
+      pathname.startsWith("/api/notifications") ||
+      pathname.startsWith("/api/reports")
     ) {
-      if (userRole !== 'SATGAS' && userRole !== 'REKTOR') {
-        return NextResponse.json({ error: 'Forbidden. Role not authorized.' }, { status: 403 });
+      if (role !== "SATGAS" && role !== "REKTOR") {
+        return NextResponse.json({ error: "Forbidden. Role not authorized." }, { status: 403 });
       }
     }
 
     return NextResponse.next();
   }
 
-  // --- 4) Halaman privat: redirect ke /sign-in jika belum login ---
-  if (!session && !isPublicRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/sign-in';
-    url.searchParams.set('next', pathname);
+  // Belum login dan bukan rute publik → ke /sign-in dengan ?next=...
+  if (!hasSession && !isPublic) {
+    const url = nextUrl.clone();
+    url.pathname = "/sign-in";
+    const intended = sanitizeNext(pathname + nextUrl.search);
+    if (intended) url.searchParams.set("next", intended);
     return NextResponse.redirect(url);
   }
 
-  // --- 5) User sudah login tapi masuk /sign-in /sign-up: arahkan sesuai role ---
-  if (session && (pathname === '/sign-in' || pathname === '/sign-up')) {
-    // Redirect berdasarkan role user
-    if (userRole === 'SATGAS') {
-      return NextResponse.redirect(new URL('/satgas/dashboard', request.url));
-    } else if (userRole === 'REKTOR') {
-      return NextResponse.redirect(new URL('/rektor/dashboard', request.url));
-    } else {
-      // USER role
-      return NextResponse.redirect(new URL('/user/dashboard', request.url));
-    }
+  // Sudah login tapi membuka /sign-in /sign-up → lempar ke dashboard sesuai role
+  if (hasSession && (pathname === "/sign-in" || pathname === "/sign-up")) {
+    const dest =
+      role === "REKTOR" ? "/rektor/dashboard" :
+      role === "SATGAS" ? "/satgas/dashboard" :
+      "/user/dashboard";
+    return NextResponse.redirect(new URL(dest, req.url));
   }
 
-  // --- 6) Proteksi /dashboard: semua user yang login bisa akses ---
-  if (pathname.startsWith('/dashboard')) {
-    if (!session) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/sign-in';
-      url.searchParams.set('next', pathname);
+  // Netralisasi /dashboard (jika ada link umum ke sini)
+  if (pathname === "/dashboard") {
+    const dest =
+      role === "REKTOR" ? "/rektor/dashboard" :
+      role === "SATGAS" ? "/satgas/dashboard" :
+      "/user/dashboard";
+    if (!hasSession) {
+      const url = nextUrl.clone();
+      url.pathname = "/sign-in";
+      url.searchParams.set("next", "/dashboard");
       return NextResponse.redirect(url);
     }
-    // Semua user yang login bisa akses dashboard
-    // Role-based access control ditangani di dalam dashboard
+    return NextResponse.redirect(new URL(dest, req.url));
   }
 
-  // --- 7) Rektor-only routes ---
-  const rektorSpecificRoutes = ['/dashboard/rektor'];
-  if (rektorSpecificRoutes.some((route) => pathname.startsWith(route))) {
-    if (userRole !== 'REKTOR') {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+  // Proteksi rute khusus role
+  if (pathname.startsWith("/rektor")) {
+    if (role !== "REKTOR") return NextResponse.redirect(new URL("/user/dashboard", req.url));
+  }
+  if (pathname.startsWith("/satgas")) {
+    if (role !== "SATGAS") return NextResponse.redirect(new URL("/user/dashboard", req.url));
+  }
+  if (pathname.startsWith("/user/dashboard")) {
+    if (role !== "USER") {
+      const dest =
+        role === "REKTOR" ? "/rektor/dashboard" :
+        role === "SATGAS" ? "/satgas/dashboard" :
+        "/user/dashboard";
+      return NextResponse.redirect(new URL(dest, req.url));
     }
   }
 
   return NextResponse.next();
 }
 
-// Matcher: proses SEMUA kecuali asset statis utama (API tetap diproses sesuai logika di atas)
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Proses semua kecuali static bawaan Next/Image dan favicon
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

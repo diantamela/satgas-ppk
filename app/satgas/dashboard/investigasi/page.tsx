@@ -23,7 +23,7 @@ import {
   FileImage
 } from "lucide-react";
 import Link from "next/link";
-import { RoleGuard } from "../role-guard";
+import { RoleGuard } from "../../../../components/auth/role-guard";
 
 export default function InvestigationPage() {
   const [activeTab, setActiveTab] = useState("active");
@@ -264,6 +264,7 @@ export default function InvestigationPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </RoleGuard>
   );

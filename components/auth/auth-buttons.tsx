@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { LogIn, LogOut, User, UserPlus } from "lucide-react";
 import { useSession, signOut } from "@/lib/auth/auth-client";
+import { signIn } from "@/lib/auth/auth-client";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -53,7 +54,6 @@ export function AuthButtons() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.image || undefined} alt={user.name || "User"} />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
           </Button>
