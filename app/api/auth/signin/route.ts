@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 
 const schema = z.object({
   email: z.string().email(),
-  password: z.string().min(1), // Temporarily reduce to 1 for testing
+  password: z.string().min(1),
 })
 
 const sha256 = (s: string) => crypto.createHash('sha256').update(s).digest('hex')

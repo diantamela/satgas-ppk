@@ -57,8 +57,8 @@ export default function SignInPage() {
       } else if (userRole === 'REKTOR') {
         window.location.href = "/rektor/dashboard";
       } else {
-        window.location.href = "/dashboard"; // Default for USER role
-      }
+         window.location.href = "/user/dashboard"; // Default for USER role
+       }
     } catch {
       setError("Terjadi kesalahan tak terduga. Coba lagi.");
     } finally {
@@ -138,9 +138,6 @@ export default function SignInPage() {
                   <Label htmlFor="password" className="text-sm font-medium text-gray-700">
                     Password
                   </Label>
-                  <Link href="/forgot-password" className="text-xs text-red-700 hover:underline transition-colors">
-                    Lupa Password?
-                  </Link>
                 </div>
                 <div className="relative">
                   <Input
