@@ -29,8 +29,8 @@ export async function middleware(request: NextRequest) {
     '/sign-up',
     '/laporkan-kasus',
     '/cek-status',
-    '/edukasi',
-    '/kontak',
+    '/user/edukasi',
+    '/user/kontak',
     '/tentang',
   ];
 
@@ -80,8 +80,15 @@ export async function middleware(request: NextRequest) {
 
   // --- 5) User sudah login tapi masuk /sign-in /sign-up: arahkan sesuai role ---
   if (session && (pathname === '/sign-in' || pathname === '/sign-up')) {
-    // Semua user yang login diarahkan ke dashboard
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    // Redirect berdasarkan role user
+    if (userRole === 'SATGAS') {
+      return NextResponse.redirect(new URL('/satgas/dashboard', request.url));
+    } else if (userRole === 'REKTOR') {
+      return NextResponse.redirect(new URL('/rektor/dashboard', request.url));
+    } else {
+      // USER role
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
   }
 
   // --- 6) Proteksi /dashboard: semua user yang login bisa akses ---

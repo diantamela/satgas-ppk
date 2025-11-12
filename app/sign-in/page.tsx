@@ -47,11 +47,18 @@ export default function SignInPage() {
       }
 
       // sukses - redirect berdasarkan role
-      // Untuk sementara, semua user diarahkan ke dashboard
-      // Role-based redirect akan ditangani di middleware
-      console.log('Login successful, redirecting to dashboard...');
+      console.log('Login successful, redirecting based on role...');
       console.log('Response JSON:', json);
-      window.location.href = "/dashboard"; // Force full page reload
+
+      // Role-based redirection
+      const userRole = json.user?.role?.toUpperCase();
+      if (userRole === 'SATGAS') {
+        window.location.href = "/satgas/dashboard";
+      } else if (userRole === 'REKTOR') {
+        window.location.href = "/rektor/dashboard";
+      } else {
+        window.location.href = "/dashboard"; // Default for USER role
+      }
     } catch {
       setError("Terjadi kesalahan tak terduga. Coba lagi.");
     } finally {

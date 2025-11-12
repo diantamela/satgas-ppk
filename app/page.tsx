@@ -61,7 +61,7 @@ export default function Home(): React.ReactElement {
               variant="default"
               className="bg-red-600 hover:bg-red-700 text-white font-semibold px-8 py-4 rounded-xl shadow-lg transition"
             >
-              <Link href="/edukasi">
+              <Link href="/user/edukasi">
                 <BookOpen className="w-5 h-5 mr-2" /> Pusat Edukasi
               </Link>
             </Button>
@@ -72,7 +72,7 @@ export default function Home(): React.ReactElement {
               variant="outline"
               className="border-red-600 text-red-700 dark:border-red-500 dark:text-red-400 hover:bg-red-600 hover:text-white transition"
             >
-              <Link href="/kontak">
+              <Link href="/user/kontak">
                 <Mail className="w-5 h-5 mr-2" /> Hubungi Kami
               </Link>
             </Button>
@@ -97,10 +97,10 @@ export default function Home(): React.ReactElement {
             <div className="grid md:grid-cols-2 gap-8 items-center">
               <div>
                 <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-4 font-medium">
-                  **Satuan Tugas Pencegahan dan Penanganan Kekerasan (SATGAS PPK)** dibentuk sebagai wujud komitmen UIN Imam Bonjol untuk menciptakan kampus yang aman dari segala bentuk kekerasan, sesuai dengan Permendikbudristek No. 55 Tahun 2024.
+                  Satuan Tugas Pencegahan dan Penanganan Kekerasan (SATGAS PPK) dibentuk sebagai wujud komitmen UIN Imam Bonjol untuk menciptakan kampus yang aman dari segala bentuk kekerasan, sesuai dengan Permendikbudristek No. 55 Tahun 2024.
                 </p>
                 <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Kami bekerja secara independen, menjunjung tinggi **kerahasiaan** dan **keadilan** bagi seluruh sivitas akademika. Tim kami siap memberikan **pendampingan** dan memastikan proses penanganan dilakukan secara profesional.
+                  Kami bekerja secara independen, menjunjung tinggi kerahasiaan dan keadilan bagi seluruh sivitas akademika. Tim kami siap memberikan pendampingan dan memastikan proses penanganan dilakukan secara profesional.
                 </p>
               </div>
 
@@ -108,13 +108,13 @@ export default function Home(): React.ReactElement {
                 <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
                   <Shield className="w-5 h-5 text-red-600 dark:text-red-400 mt-1 flex-shrink-0" />
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    **Misi Utama:** Melindungi dan menjamin hak-hak korban kekerasan.
+                    Misi Utama: Melindungi dan menjamin hak-hak korban kekerasan.
                   </p>
                 </div>
                 <div className="flex items-start gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                   <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-1 flex-shrink-0" />
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    **Kerahasiaan:** Semua informasi dan identitas pelapor dijaga ketat.
+                    Kerahasiaan: Semua informasi dan identitas pelapor dijaga ketat.
                   </p>
                 </div>
               </div>
@@ -142,7 +142,7 @@ export default function Home(): React.ReactElement {
                 Pahami berbagai bentuk dan jenis kekerasan seksual dan perundungan.
               </p>
               <Button asChild variant="link" className="p-0 text-red-600 dark:text-red-400">
-                <Link href="/edukasi/definisi">Baca Selengkapnya <ArrowRight className="w-4 h-4 ml-1" /></Link>
+                <Link href="/user/edukasi">Baca Selengkapnya <ArrowRight className="w-4 h-4 ml-1" /></Link>
               </Button>
             </Card>
 
@@ -152,7 +152,7 @@ export default function Home(): React.ReactElement {
                 Langkah-langkah yang harus dilakukan jika Anda menjadi korban atau saksi.
               </p>
               <Button asChild variant="link" className="p-0 text-red-600 dark:text-red-400">
-                <Link href="/edukasi/prosedur">Baca Selengkapnya <ArrowRight className="w-4 h-4 ml-1" /></Link>
+                <Link href="/user/edukasi">Baca Selengkapnya <ArrowRight className="w-4 h-4 ml-1" /></Link>
               </Button>
             </Card>
 
@@ -162,7 +162,7 @@ export default function Home(): React.ReactElement {
                 Informasi detail tentang hak-hak dan perlindungan yang akan Anda terima.
               </p>
               <Button asChild variant="link" className="p-0 text-red-600 dark:text-red-400">
-                <Link href="/edukasi/hak-korban">Baca Selengkapnya <ArrowRight className="w-4 h-4 ml-1" /></Link>
+                <Link href="/user/edukasi">Baca Selengkapnya <ArrowRight className="w-4 h-4 ml-1" /></Link>
               </Button>
             </Card>
           </div>
@@ -179,7 +179,7 @@ export default function Home(): React.ReactElement {
             size="lg"
             className="bg-white text-red-700 font-semibold px-8 py-4 rounded-lg hover:bg-yellow-50 transition"
           >
-            <Link href="/kontak">
+            <Link href="/user/kontak">
               <Mail className="w-5 h-5 mr-2" /> Kontak Satgas PPK
             </Link>
           </Button>

@@ -36,7 +36,6 @@ Aplikasi ini bertujuan menciptakan **lingkungan kampus yang aman, inklusif, dan 
 | **Backend** | Next.js API Routes |
 | **ORM** | Prisma ORM |
 | **Database** | PostgreSQL (via Supabase) |
-| **Autentikasi** | Better Auth (Email & Password + JWT) |
 | **Penyimpanan File** | Supabase Storage |
 | **Deployment** | Vercel |
 | **Version Control** | Git & GitHub |

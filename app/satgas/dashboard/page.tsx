@@ -17,8 +17,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-// Asumsi RoleGuard berada di path yang benar relatif terhadap page.tsx
-import { RoleGuard } from "../role-guard"; 
+import { RoleGuard } from "@/components/auth/role-guard";
 
 // Mengubah nama fungsi untuk mencerminkan nama file: AnggotaPage
 export default function AnggotaPage() { 

@@ -19,7 +19,7 @@ import {
   XCircle
 } from "lucide-react";
 import Link from "next/link";
-import { RoleGuard } from "../role-guard";
+import { RoleGuard } from "@/components/auth/role-guard";
 
 export default function RektorDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
