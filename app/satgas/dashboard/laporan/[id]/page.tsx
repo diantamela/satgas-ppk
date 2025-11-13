@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { reportService } from "@/lib/services/report-service";
+import { reportService } from "@/lib/services/reports/report-service";
 
 export default function ReportDetailPage() {
   const { id } = useParams();
@@ -36,7 +36,7 @@ export default function ReportDetailPage() {
     const fetchReport = async () => {
       try {
         if (id) {
-          const reportId = typeof id === 'string' ? parseInt(id) : id[0];
+          const reportId = typeof id === 'string' ? id : id[0];
           const data = await reportService.getReportById(reportId);
           setReport(data);
         }

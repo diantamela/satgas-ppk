@@ -101,14 +101,14 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Sudah login tapi membuka /sign-in /sign-up → lempar ke dashboard sesuai role
-  if (hasSession && (pathname === "/sign-in" || pathname === "/sign-up")) {
-    const dest =
-      role === "REKTOR" ? "/rektor/dashboard" :
-      role === "SATGAS" ? "/satgas/dashboard" :
-      "/user/dashboard";
-    return NextResponse.redirect(new URL(dest, req.url));
-  }
+  // Commented out: Allow logged-in users to access sign-in/sign-up pages if needed
+  // if (hasSession && (pathname === "/sign-in" || pathname === "/sign-up")) {
+  //   const dest =
+  //     role === "REKTOR" ? "/rektor/dashboard" :
+  //     role === "SATGAS" ? "/satgas/dashboard" :
+  //     "/user/dashboard";
+  //   return NextResponse.redirect(new URL(dest, req.url));
+  // }
 
   // Netralisasi /dashboard (jika ada link umum ke sini)
   if (pathname === "/dashboard") {
@@ -127,10 +127,10 @@ export function middleware(req: NextRequest) {
 
   // Proteksi rute khusus role
   if (pathname.startsWith("/rektor")) {
-    if (role !== "REKTOR") return NextResponse.redirect(new URL("/user/dashboard", req.url));
+    if (role !== "REKTOR") return NextResponse.redirect(new URL("/rektor/dashboard", req.url));
   }
   if (pathname.startsWith("/satgas")) {
-    if (role !== "SATGAS") return NextResponse.redirect(new URL("/user/dashboard", req.url));
+    if (role !== "SATGAS") return NextResponse.redirect(new URL("/satgas/dashboard", req.url));
   }
   if (pathname.startsWith("/user/dashboard")) {
     if (role !== "USER") {

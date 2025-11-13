@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useSession } from "@/lib/auth/auth-client";
 
 // Styling
 const styles = {
@@ -48,6 +49,7 @@ export default function ReportFormPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ id?: string; error?: string } | null>(null);
+  const { data: session, isPending: sessionLoading } = useSession();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -62,6 +64,13 @@ export default function ReportFormPage() {
       kronologi: ""
     }
   });
+
+  // Auto-fill email when session loads
+  useEffect(() => {
+    if (session?.user?.email) {
+      form.setValue("email", session.user.email);
+    }
+  }, [session, form]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -86,6 +95,11 @@ export default function ReportFormPage() {
   };
 
   const onSubmit = async (data: FormData) => {
+    if (!session?.user?.id) {
+      setSubmitResult({ error: "Anda harus login untuk mengirim laporan" });
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitResult(null);
 
@@ -100,26 +114,37 @@ export default function ReportFormPage() {
         }))
       );
 
-      // Create report object
-      const report = {
-        id: generateReportNumber(),
-        created_at: new Date().toISOString(),
-        ...data,
-        files: fileEntries
+      // Create report object for API
+      const reportData = {
+        title: `Laporan ${data.jenis} - ${data.nama_terlapor}`,
+        description: data.kronologi,
+        incidentDate: data.waktu ? new Date(data.waktu) : null,
+        incidentLocation: data.lokasi,
+        reporterId: session.user.id,
       };
 
-      // Simulate storing to localStorage (as in original code)
-      const LS_KEY = "ppks_reports_v1";
-      const store = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
-      store.push(report);
-      localStorage.setItem(LS_KEY, JSON.stringify(store));
+      // Send to API
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reportData),
+      });
 
-      // Show success
-      setSubmitResult({ id: report.id });
-      form.reset();
-      setFiles([]);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const result = await response.json();
+
+      if (result.success) {
+        // Show success
+        setSubmitResult({ id: result.report.reportNumber });
+        form.reset();
+        setFiles([]);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        setSubmitResult({ error: result.message || "Terjadi kesalahan saat mengirim laporan" });
+      }
     } catch (error) {
+      console.error("Submit error:", error);
       setSubmitResult({ error: "Terjadi kesalahan saat mengirim laporan" });
     } finally {
       setIsSubmitting(false);

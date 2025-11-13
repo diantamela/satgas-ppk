@@ -108,6 +108,7 @@ model Report {
   decisionNotes    String?
   reporter         User         @relation(name: "ReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
   reporterId       String
+  reporterEmail    String?      // Store email for data integrity (optional for migration)
   assignee         User?        @relation(name: "ReportAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   assigneeId       String?
   recommendation   String?
