@@ -106,22 +106,30 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
-                <IconUserCircle />
-                Account
+                <div className="flex items-center">
+                  <IconUserCircle className="mr-2 h-4 w-4" />
+                  Account
+                </div>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
+                <div className="flex items-center">
+                  <IconCreditCard className="mr-2 h-4 w-4" />
+                  Billing
+                </div>
               </DropdownMenuItem>
               <DropdownMenuItem>
-                <IconNotification />
-                Notifications
+                <div className="flex items-center">
+                  <IconNotification className="mr-2 h-4 w-4" />
+                  Notifications
+                </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} disabled={isSigningOut}>
-              <IconLogout />
-              {isSigningOut ? "Signing out..." : "Log out"}
+              <div className="flex items-center">
+                <IconLogout className="mr-2 h-4 w-4" />
+                {isSigningOut ? "Signing out..." : "Log out"}
+              </div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

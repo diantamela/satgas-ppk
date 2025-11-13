@@ -16,13 +16,27 @@ import {
   BookOpen,
   Phone,
   Settings,
-  Bell
+  Bell,
+  LogOut
 } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
+import { signOut } from "@/lib/auth/auth-client";
 
 export default function UserDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Sign out error:", error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   // Mock data for user dashboard
   const userStats = {
@@ -110,6 +124,15 @@ export default function UserDashboardPage() {
               <Button variant="outline" size="sm">
                 <Settings className="w-4 h-4 mr-2" />
                 Pengaturan
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSignOut}
+                disabled={isSigningOut}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                {isSigningOut ? "Keluar..." : "Keluar"}
               </Button>
             </div>
           </div>

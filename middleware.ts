@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 
 /** Baca role dari cookie tanpa akses DB (aman di Edge) */
 function readRoleFromCookie(req: NextRequest): "REKTOR" | "SATGAS" | "USER" | null {
-  const r = req.cookies.get("satgas_role")?.value;
+  const r = req.cookies.get("role")?.value;
   return r === "REKTOR" || r === "SATGAS" || r === "USER" ? r : null;
 }
 
@@ -59,8 +59,11 @@ export function middleware(req: NextRequest) {
   const isPublic = publicRoutes.some((r) => pathname === r || pathname.startsWith(r + "/"));
 
   // Status sesi/role hanya dari cookie (jangan query DB di middleware)
-  const hasSession = req.cookies.has("satgas_session");
+  console.log('[MIDDLEWARE] Cookies present:', req.cookies.getAll().map(c => c.name));
+  const hasSession = req.cookies.has("session");
+  console.log('[MIDDLEWARE] hasSession (session):', hasSession);
   const role = readRoleFromCookie(req);
+  console.log('[MIDDLEWARE] role from cookie:', role);
 
   // Proteksi API non-auth (JSON response, bukan redirect)
   if (pathname.startsWith("/api/")) {

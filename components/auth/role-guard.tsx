@@ -16,6 +16,7 @@ export function RoleGuard({ children, requiredRoles = [] }: RoleGuardProps) {
 
   useEffect(() => {
     console.log('RoleGuard - Session status:', { session: !!session, isPending });
+    console.log('RoleGuard - Session data:', session);
     console.log('RoleGuard - User role:', getNormalizedRoleFromSession(session));
     console.log('RoleGuard - Required roles:', requiredRoles);
 

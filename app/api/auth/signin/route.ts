@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
       (req.headers.get('accept') || '').includes('text/html') ||
       (req.headers.get('content-type') || '').includes('application/x-www-form-urlencoded')
 
-    console.log('Signin successful for user:', user.email, 'role:', user.role);
+    console.log('Signin successful for user:', user.email, 'role:', user.role, 'id:', user.id);
 
     if (isHtmlSubmit) {
       console.log('HTML form submit detected, redirecting to dashboard');
@@ -83,6 +83,14 @@ export async function POST(req: NextRequest) {
         path: '/',
         expires: expiresAt,
       })
+      res.cookies.set('role', user.role, {
+        httpOnly: false, // Allow client-side access for middleware
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        expires: expiresAt,
+      })
+      console.log('Cookies set: session and role');
       return res
     } else {
       console.log('JSON API call detected, returning success response');
@@ -94,6 +102,14 @@ export async function POST(req: NextRequest) {
         path: '/',
         expires: expiresAt,
       })
+      res.cookies.set('role', user.role, {
+        httpOnly: false, // Allow client-side access for middleware
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        expires: expiresAt,
+      })
+      console.log('Cookies set: session and role');
       return res
     }
   } catch (err: any) {

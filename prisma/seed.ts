@@ -10,10 +10,15 @@ async function main() {
   const password = await bcrypt.hash("Admin123!", 10);
 
   try {
-    // 1. Buat akun SATGAS - use upsert to avoid conflicts
+    // 1. Buat/Update akun SATGAS
     await prisma.user.upsert({
       where: { email: "satgas@satgas-ppks.com" },
-      update: {}, // Don't update if exists
+      update: {
+        name: "Admin SATGAS",
+        password: password,
+        role: "SATGAS",
+        affiliation: "STAFF",
+      },
       create: {
         name: "Admin SATGAS",
         email: "satgas@satgas-ppks.com",
@@ -22,11 +27,17 @@ async function main() {
         affiliation: "STAFF",
       },
     });
+    console.log("✅ SATGAS user created/updated");
 
-    // 2. Buat akun REKTOR - use upsert to avoid conflicts
+    // 2. Buat/Update akun REKTOR
     await prisma.user.upsert({
       where: { email: "rektor@satgas-ppks.com" },
-      update: {}, // Don't update if exists
+      update: {
+        name: "Admin Rektor",
+        password: password,
+        role: "REKTOR",
+        affiliation: "STAFF",
+      },
       create: {
         name: "Admin Rektor",
         email: "rektor@satgas-ppks.com",
@@ -35,11 +46,17 @@ async function main() {
         affiliation: "STAFF",
       },
     });
+    console.log("✅ REKTOR user created/updated");
 
-    // 3. Buat akun USER BARU - use upsert to avoid conflicts
+    // 3. Buat/Update akun USER
     await prisma.user.upsert({
       where: { email: "user@satgas-ppks.com" },
-      update: {}, // Don't update if exists
+      update: {
+        name: "Pengguna Umum",
+        password: password,
+        role: "USER",
+        affiliation: "STUDENT",
+      },
       create: {
         name: "Pengguna Umum",
         email: "user@satgas-ppks.com",
@@ -48,6 +65,7 @@ async function main() {
         affiliation: "STUDENT",
       },
     });
+    console.log("✅ USER user created/updated");
 
     console.log("✅ Seeding selesai! 3 akun berhasil dibuat/diperbarui.");
     console.table([

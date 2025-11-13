@@ -5,8 +5,9 @@ export async function POST() {
   try {
     const cookieStore = await cookies();
 
-    // Clear the session cookie
+    // Clear the session and role cookies
     cookieStore.delete('session');
+    cookieStore.delete('role');
 
     return NextResponse.json({ ok: true, message: 'Signed out successfully' });
   } catch (error) {

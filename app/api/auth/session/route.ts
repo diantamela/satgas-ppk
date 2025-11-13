@@ -49,7 +49,12 @@ export async function GET() {
       return NextResponse.json({ user: null });
     }
 
-    console.log('[SESSION_API] Session found, returning user data');
+    console.log('[SESSION_API] Session found, user data:', {
+      id: session.user.id,
+      email: session.user.email,
+      role: session.user.role,
+      name: session.user.name
+    });
     return NextResponse.json({
       user: session.user,
     });

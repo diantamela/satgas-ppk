@@ -45,7 +45,8 @@ function Button({
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
   }) {
-  const Comp = asChild ? Slot : "button"
+  // Temporarily disable Slot to fix React.Children.only error
+  const Comp = "button"
 
   return (
     <Comp

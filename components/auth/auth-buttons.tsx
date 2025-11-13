@@ -83,8 +83,10 @@ export function AuthButtons() {
             onClick={handleSignOut}
             disabled={isSigningOut}
           >
-            <LogOut className="mr-2 h-4 w-4" />
-            {isSigningOut ? "Signing out..." : "Sign out"}
+            <div className="flex items-center">
+              <LogOut className="mr-2 h-4 w-4" />
+              {isSigningOut ? "Signing out..." : "Sign out"}
+            </div>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
