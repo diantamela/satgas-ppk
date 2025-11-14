@@ -80,6 +80,30 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // Check permissions - verify that the user has permission to add evidence to this report
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+      include: { reporter: true }
+    });
+
+    if (!report) {
+      return NextResponse.json({
+        success: false,
+        message: "Report not found"
+      }, { status: 404 });
+    }
+
+    // Only report creator or satgas can add evidence
+    const isSatgas = user.role === 'SATGAS';
+    const isReportCreator = user.email === report.reporter.email;
+
+    if (!isSatgas && !isReportCreator) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: You don't have permission to add documents to this report"
+      }, { status: 403 });
+    }
+
     const document = await investigationDocumentService.createDocument({
       reportId,
       fileName,

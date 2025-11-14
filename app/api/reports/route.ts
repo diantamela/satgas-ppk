@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { reportService } from "@/lib/services/reports/report-service";
+import { reportService, investigationDocumentService } from "@/lib/services/reports/report-service";
+import { processEvidenceUploads } from "@/lib/utils/file-upload";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,53 @@ export async function POST(request: NextRequest) {
       reporterId: body.reporterId,
       reporterEmail: body.reporterEmail,
     });
+
+    // If evidence files are provided, upload them
+    let evidenceCount = 0;
+    if (body.evidenceFiles && Array.isArray(body.evidenceFiles) && body.evidenceFiles.length > 0) {
+      try {
+        // Convert base64 files to File objects and upload
+        for (const fileData of body.evidenceFiles) {
+          if (fileData.base64 && fileData.name && fileData.type) {
+            // Convert base64 to buffer
+            const base64Data = fileData.base64.split(',')[1]; // Remove data:image/jpeg;base64, prefix
+            const buffer = Buffer.from(base64Data, 'base64');
+
+            // Upload file to storage
+            const { uploadFileToStorage, saveLocalFile } = await import('@/lib/utils/file-upload');
+            let filePath: string;
+
+            if (process.env.S3_ACCESS_KEY_ID && process.env.S3_SECRET_ACCESS_KEY) {
+              filePath = await uploadFileToStorage(buffer, `${newReport.id}-${fileData.name}`, fileData.type);
+            } else {
+              filePath = await saveLocalFile(buffer, fileData.name, 'public/uploads/evidence');
+            }
+
+            // Save document record in database
+            await investigationDocumentService.createDocument({
+              reportId: newReport.id,
+              fileName: fileData.name,
+              fileType: fileData.type,
+              fileSize: fileData.size,
+              storagePath: filePath,
+              documentType: 'EVIDENCE',
+              uploadedById: body.reporterId,
+              description: 'Bukti dari pelapor',
+            });
+
+            evidenceCount++;
+          }
+        }
+
+        // Update report with evidence count
+        if (evidenceCount > 0) {
+          await reportService.updateReport(newReport.id, { evidenceCount });
+        }
+      } catch (evidenceError) {
+        console.error("Error uploading evidence:", evidenceError);
+        // Don't fail the entire request if evidence upload fails
+      }
+    }
 
     return Response.json({
       success: true,

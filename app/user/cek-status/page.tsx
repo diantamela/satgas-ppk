@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, CheckCircle, Clock, FileText, Shield, Search } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, FileText, Shield, Search, Download } from "lucide-react";
 
 export default function StatusCheckPage() {
   const [reportNumber, setReportNumber] = useState("");
@@ -190,6 +190,64 @@ export default function StatusCheckPage() {
                   </CardContent>
                 </Card>
                 
+                {reportStatus.documents && reportStatus.documents.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="w-5 h-5" />
+                        Dokumen Pendukung / Bukti
+                        {reportStatus.evidenceCount > 0 && (
+                          <Badge variant="secondary" className="ml-2">
+                            {reportStatus.evidenceCount} file{reportStatus.evidenceCount > 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        File bukti disimpan di: <code>public/uploads/evidence/</code>
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {reportStatus.documents.map((doc: any) => (
+                          <div key={doc.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 dark:text-white mb-1">{doc.fileName}</h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                  {(doc.fileSize / 1024).toFixed(1)} KB • {doc.fileType}
+                                </p>
+                                {doc.description && (
+                                  <p className="text-sm text-gray-600 dark:text-gray-400">{doc.description}</p>
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(`/api/documents/${doc.id}/download`);
+                                    const data = await response.json();
+                                    if (data.success) {
+                                      window.open(data.url, '_blank');
+                                    } else {
+                                      alert('Gagal mendapatkan URL download');
+                                    }
+                                  } catch (error) {
+                                    alert('Terjadi kesalahan saat mengunduh');
+                                  }
+                                }}
+                              >
+                                <Download className="w-4 h-4 mr-1" />
+                                Unduh
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -206,12 +264,12 @@ export default function StatusCheckPage() {
                           <Clock className="w-5 h-5 text-blue-500" />
                         )}
                         <span>
-                          {reportStatus.status === "completed" 
+                          {reportStatus.status === "completed"
                             ? "Proses penanganan laporan telah selesai"
                             : "Laporan sedang dalam proses penanganan oleh tim Satgas PPK"}
                         </span>
                       </div>
-                      
+
                       <div className="text-sm text-gray-600 dark:text-gray-300">
                         <p className="mb-2">Tim Satgas PPK berkomitmen untuk menyelesaikan setiap laporan secara profesional dan tepat waktu.</p>
                         <p>Jika Anda memiliki pertanyaan lebih lanjut, silakan hubungi kami melalui halaman kontak.</p>

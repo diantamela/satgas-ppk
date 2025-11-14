@@ -193,7 +193,7 @@ export async function processFileUpload(
       filePath = await uploadFileToStorage(buffer, uniqueFileName, file.type);
     } else {
       // Use local storage for development
-      filePath = await saveLocalFile(buffer, uniqueFileName, 'public/uploads/documents');
+      filePath = await saveLocalFile(buffer, uniqueFileName, 'public/uploads/evidence');
     }
 
     return { success: true, filePath };
@@ -240,7 +240,7 @@ export async function processEvidenceUploads(
       filePath = await uploadFileToStorage(buffer, uniqueFileName, file.type);
     } else {
       // Use local storage for development
-      filePath = await saveLocalFile(buffer, uniqueFileName, 'public/uploads/documents');
+      filePath = await saveLocalFile(buffer, uniqueFileName, 'public/uploads/evidence');
     }
     
     uploadedFilePaths.push(filePath);

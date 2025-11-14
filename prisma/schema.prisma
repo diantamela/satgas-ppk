@@ -124,6 +124,7 @@ model Report {
    assignee               User?               @relation(name: "ReportAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
    assigneeId             String?
    recommendation         String?
+   evidenceCount          Int?                @default(0) // Number of evidence files uploaded
    createdAt              DateTime            @default(now())
    updatedAt              DateTime            @updatedAt
 

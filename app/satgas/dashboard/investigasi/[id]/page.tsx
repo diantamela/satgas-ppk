@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import {
   FileText,
   AlertTriangle,
@@ -23,23 +24,22 @@ import {
   Edit,
   MessageSquare,
   Shield,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-export default function ReportDetailPage() {
+export default function InvestigationDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const [report, setReport] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("detail");
 
   // Action states
   const [showNotesDialog, setShowNotesDialog] = useState(false);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [notesText, setNotesText] = useState("");
-  const [notesType, setNotesType] = useState<"verification" | "investigation" | "recommendation">("verification");
+  const [notesType, setNotesType] = useState<"investigation" | "recommendation">("investigation");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
@@ -69,16 +69,10 @@ export default function ReportDetailPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
-        return <Badge variant="secondary">Menunggu Verifikasi</Badge>;
-      case "verified":
-        return <Badge variant="default">Terverifikasi</Badge>;
       case "IN_PROGRESS":
-        return <Badge variant="default">Dalam Investigasi</Badge>;
-      case "rejected":
-        return <Badge variant="destructive">Ditolak</Badge>;
+        return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">Dalam Investigasi</Badge>;
       case "completed":
-        return <Badge variant="success">Selesai</Badge>;
+        return <Badge className="bg-green-500 hover:bg-green-600 text-white">Selesai</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -138,7 +132,7 @@ export default function ReportDetailPage() {
     }
   };
 
-  const handleUpdateStatus = async (status: string, notes?: string) => {
+  const handleCompleteInvestigation = async () => {
     if (!id) return;
 
     setIsSubmitting(true);
@@ -146,38 +140,23 @@ export default function ReportDetailPage() {
       const response = await fetch(`/api/reports/${id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, notes }),
+        body: JSON.stringify({ status: 'completed' }),
       });
 
       const data = await response.json();
       if (data.success) {
         setReport(data.report);
-        setShowRejectDialog(false);
-        setNotesText("");
-        setAlertMessage({
-          type: 'success',
-          message: status === 'rejected' ? 'Laporan berhasil ditolak' : 'Status laporan berhasil diperbarui'
-        });
+        setAlertMessage({ type: 'success', message: 'Investigasi berhasil diselesaikan' });
         setTimeout(() => setAlertMessage(null), 3000);
       } else {
-        setAlertMessage({ type: 'error', message: data.message || 'Gagal memperbarui status' });
+        setAlertMessage({ type: 'error', message: data.message || 'Gagal menyelesaikan investigasi' });
       }
     } catch (error) {
-      console.error('Update status error:', error);
-      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat memperbarui status' });
+      console.error('Complete investigation error:', error);
+      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat menyelesaikan investigasi' });
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleReject = () => {
-    if (notesText.trim()) {
-      handleUpdateStatus('rejected', notesText);
-    }
-  };
-
-  const handleForward = () => {
-    handleUpdateStatus('IN_PROGRESS');
   };
 
   if (isLoading) {
@@ -204,7 +183,7 @@ export default function ReportDetailPage() {
             Laporan dengan ID yang Anda cari tidak ditemukan.
           </p>
           <Button asChild>
-            <Link href="/satgas/dashboard/laporan">Kembali ke Daftar Laporan</Link>
+            <Link href="/satgas/dashboard/investigasi">Kembali ke Daftar Investigasi</Link>
           </Button>
         </div>
       </div>
@@ -223,24 +202,71 @@ export default function ReportDetailPage() {
         )}
 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Detail Laporan</h1>
-            <div className="flex items-center gap-3 mt-2">
-              <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{report.reportNumber}</span>
-              <span>{getStatusBadge(report.status)}</span>
+          <div className="flex items-center gap-4 mb-4 md:mb-0">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/satgas/dashboard/investigasi">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Kembali
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Detail Investigasi</h1>
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{report.reportNumber}</span>
+                <span>{getStatusBadge(report.status)}</span>
+              </div>
             </div>
           </div>
-          <div className="flex gap-2 mt-4 md:mt-0">
-            <Button variant="outline">
-              <Edit className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
-            <Button onClick={() => setShowNotesDialog(true)}>
+          <div className="flex gap-2">
+            <Button onClick={() => setShowNotesDialog(true)} disabled={isSubmitting}>
               <MessageSquare className="w-4 h-4 mr-2" />
               Tambah Catatan
             </Button>
+            <Button
+              onClick={handleCompleteInvestigation}
+              disabled={isSubmitting || report.status === 'completed'}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Selesai Investigasi
+            </Button>
           </div>
         </div>
+
+        {/* Progress Section */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5" />
+              Progress Investigasi
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Progress Keseluruhan</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{report.investigationProgress || 0}%</span>
+                </div>
+                <Progress value={report.investigationProgress || 0} className="w-full" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <div className="font-semibold text-blue-600 dark:text-blue-400">Pengumpulan Data</div>
+                  <div className="text-gray-600 dark:text-gray-400">25%</div>
+                </div>
+                <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                  <div className="font-semibold text-yellow-600 dark:text-yellow-400">Analisis</div>
+                  <div className="text-gray-600 dark:text-gray-400">50%</div>
+                </div>
+                <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <div className="font-semibold text-green-600 dark:text-green-400">Penyusunan Laporan</div>
+                  <div className="text-gray-600 dark:text-gray-400">75%</div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="flex flex-col md:flex-row gap-6">
           {/* Main Content */}
@@ -257,12 +283,12 @@ export default function ReportDetailPage() {
                   <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Judul Laporan</h3>
                   <p className="text-lg font-semibold">{report.title}</p>
                 </div>
-                
+
                 <div>
                   <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Deskripsi</h3>
                   <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">{report.description}</p>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Kategori</h3>
@@ -275,10 +301,7 @@ export default function ReportDetailPage() {
                   <div>
                     <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Status</h3>
                     <div className="flex items-center gap-2">
-                      {report.status === "PENDING" && <Clock className="w-4 h-4 text-yellow-500" />}
-                      {report.status === "IN_PROGRESS" && <AlertTriangle className="w-4 h-4 text-orange-500" />}
-                      {report.status === "COMPLETED" && <CheckCircle className="w-4 h-4 text-green-500" />}
-                      {report.status !== "PENDING" && report.status !== "IN_PROGRESS" && report.status !== "COMPLETED" && <FileText className="w-4 h-4 text-blue-500" />}
+                      <AlertTriangle className="w-4 h-4 text-orange-500" />
                       <span>{getStatusBadge(report.status)}</span>
                     </div>
                   </div>
@@ -293,81 +316,91 @@ export default function ReportDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Detail Terlapor
+                  <FileText className="w-5 h-5" />
+                  Bukti dari Pelapor
+                  {report.evidenceCount > 0 && (
+                    <Badge variant="secondary" className="ml-2">
+                      {report.evidenceCount} file{report.evidenceCount > 1 ? 's' : ''}
+                    </Badge>
+                  )}
                 </CardTitle>
+                <CardDescription>
+                  File bukti disimpan di: <code>public/uploads/evidence/</code>
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Nama Terlapor</h3>
-                  <p className="text-gray-900 dark:text-white">{report.respondentName}</p>
+              <CardContent>
+                <div className="space-y-4">
+                  {report.documents && report.documents.filter((doc: any) => doc.documentType === 'EVIDENCE').length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {report.documents.filter((doc: any) => doc.documentType === 'EVIDENCE').map((doc: any) => (
+                        <div key={doc.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900 dark:text-white mb-1">{doc.fileName}</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                {(doc.fileSize / 1024).toFixed(1)} KB • {doc.fileType}
+                              </p>
+                              {doc.description && (
+                                <p className="text-sm text-gray-600 dark:text-gray-400">{doc.description}</p>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`/api/documents/${doc.id}/download`);
+                                  const data = await response.json();
+                                  if (data.success) {
+                                    window.open(data.url, '_blank');
+                                  } else {
+                                    alert('Gagal mendapatkan URL download');
+                                  }
+                                } catch (error) {
+                                  alert('Terjadi kesalahan saat mengunduh');
+                                }
+                              }}
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Unduh
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400 italic">Tidak ada bukti yang diupload pelapor</p>
+                  )}
                 </div>
-                {report.respondentPosition && (
-                  <div>
-                    <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Posisi/Peran</h3>
-                    <p className="text-gray-900 dark:text-white">{report.respondentPosition}</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Detail Kejadian
+                  <MessageSquare className="w-5 h-5" />
+                  Catatan Investigasi
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {report.incidentDate && (
-                  <div>
-                    <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Tanggal Kejadian</h3>
-                    <p className="text-gray-900 dark:text-white">{new Date(report.incidentDate).toLocaleDateString()}</p>
-                  </div>
-                )}
-                {report.incidentLocation && (
-                  <div>
-                    <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Lokasi Kejadian</h3>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-gray-500" />
-                      <p className="text-gray-900 dark:text-white">{report.incidentLocation}</p>
+              <CardContent>
+                <div className="space-y-4">
+                  {report.decisionNotes ? (
+                    <div>
+                      <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan Investigasi</h3>
+                      <p className="text-gray-600 dark:text-gray-300">{report.decisionNotes}</p>
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400 italic">Belum ada catatan investigasi</p>
+                  )}
+                  {report.recommendation && (
+                    <div>
+                      <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Rekomendasi</h3>
+                      <p className="text-gray-600 dark:text-gray-300">{report.recommendation}</p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
-
-            {report.evidenceFiles && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    Bukti Dokumentasi
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {JSON.parse(report.evidenceFiles).map((file: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                            <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{file.name}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{file.type} • {(file.size / 1024).toFixed(1)} KB</p>
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-1" />
-                          Lihat
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Sidebar */}
@@ -380,58 +413,22 @@ export default function ReportDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {report.isAnonymous ? (
-                  <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                    <Shield className="w-4 h-4" />
-                    <span>Laporan Anonim</span>
-                  </div>
-                ) : (
-                  <>
-                    {report.reporterName && (
-                      <div>
-                        <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Nama</h3>
-                        <p className="text-gray-900 dark:text-white flex items-center gap-2">
-                          <User className="w-4 h-4 text-gray-500" />
-                          {report.reporterName}
-                        </p>
-                      </div>
-                    )}
-                    {report.reporterEmail && (
-                      <div>
-                        <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Email</h3>
-                        <p className="text-gray-900 dark:text-white flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-gray-500" />
-                          {report.reporterEmail}
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare className="w-5 h-5" />
-                  Catatan
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {report.decisionNotes && (
-                    <div>
-                      <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan Keputusan</h3>
-                      <p className="text-gray-600 dark:text-gray-300">{report.decisionNotes}</p>
-                    </div>
-                  )}
-                  {report.recommendation && (
-                    <div>
-                      <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Rekomendasi</h3>
-                      <p className="text-gray-600 dark:text-gray-300">{report.recommendation}</p>
-                    </div>
-                  )}
+                <div>
+                  <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Nama</h3>
+                  <p className="text-gray-900 dark:text-white flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-500" />
+                    {report.reporter?.name || 'N/A'}
+                  </p>
                 </div>
+                {report.reporter?.email && (
+                  <div>
+                    <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Email</h3>
+                    <p className="text-gray-900 dark:text-white flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      {report.reporter.email}
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -460,23 +457,6 @@ export default function ReportDetailPage() {
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Tambah Catatan
                 </Button>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowRejectDialog(true)}
-                    disabled={isSubmitting || report.status === 'rejected'}
-                  >
-                    Tolak
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleForward}
-                    disabled={isSubmitting || report.status === 'IN_PROGRESS' || report.status === 'COMPLETED'}
-                  >
-                    Teruskan
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -487,9 +467,9 @@ export default function ReportDetailPage() {
       <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tambah Catatan</DialogTitle>
+            <DialogTitle>Tambah Catatan Investigasi</DialogTitle>
             <DialogDescription>
-              Tambahkan catatan untuk laporan ini.
+              Tambahkan catatan untuk proses investigasi laporan ini.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -500,15 +480,14 @@ export default function ReportDetailPage() {
                 value={notesType}
                 onChange={(e) => setNotesType(e.target.value as any)}
               >
-                <option value="verification">Verifikasi</option>
-                <option value="investigation">Investigasi</option>
+                <option value="investigation">Catatan Investigasi</option>
                 <option value="recommendation">Rekomendasi</option>
               </select>
             </div>
             <div>
               <label className="text-sm font-medium">Catatan</label>
               <Textarea
-                placeholder="Masukkan catatan..."
+                placeholder="Masukkan catatan investigasi..."
                 value={notesText}
                 onChange={(e) => setNotesText(e.target.value)}
                 rows={4}
@@ -522,37 +501,6 @@ export default function ReportDetailPage() {
             <Button onClick={handleAddNotes} disabled={isSubmitting || !notesText.trim()}>
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Report Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Tolak Laporan</DialogTitle>
-            <DialogDescription>
-              Berikan alasan penolakan laporan ini.
-            </DialogDescription>
-          </DialogHeader>
-          <div>
-            <label className="text-sm font-medium">Alasan Penolakan</label>
-            <Textarea
-              placeholder="Masukkan alasan penolakan..."
-              value={notesText}
-              onChange={(e) => setNotesText(e.target.value)}
-              rows={4}
-              className="mt-1"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
-              Batal
-            </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={isSubmitting || !notesText.trim()}>
-              {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Tolak Laporan
             </Button>
           </DialogFooter>
         </DialogContent>

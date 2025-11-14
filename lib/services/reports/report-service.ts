@@ -53,6 +53,14 @@ export const reportService = {
         include: {
           reporter: {
             select: { name: true, email: true }
+          },
+          documents: {
+            include: {
+              uploadedBy: {
+                select: { name: true }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
           }
         }
       });
@@ -68,7 +76,18 @@ export const reportService = {
   async getReportByNumber(reportNumber: string) {
     try {
       const report = await db.report.findUnique({
-        where: { reportNumber }
+        where: { reportNumber },
+        include: {
+          documents: {
+            where: { documentType: 'EVIDENCE' },
+            include: {
+              uploadedBy: {
+                select: { name: true }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
+          }
+        }
       });
 
       return report;

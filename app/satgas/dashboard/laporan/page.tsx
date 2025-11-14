@@ -219,7 +219,7 @@ export default function ReportsPage() {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/dashboard/laporan/${report.id}`}>
+                          <Link href={`/satgas/dashboard/laporan/${report.id}`}>
                             <Eye className="w-4 h-4 mr-1" />
                             Lihat
                           </Link>

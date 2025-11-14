@@ -104,8 +104,8 @@ export default function ReportFormPage() {
     setSubmitResult(null);
 
     try {
-      // Process files
-      const fileEntries = await Promise.all(
+      // Process files to base64
+      const evidenceFiles = await Promise.all(
         files.map(async (f) => ({
           name: f.name,
           size: f.size,
@@ -122,6 +122,7 @@ export default function ReportFormPage() {
         incidentLocation: data.lokasi,
         reporterId: session.user.id,
         reporterEmail: data.email, // Include email from form data
+        evidenceFiles: evidenceFiles, // Include processed files for evidence upload
       };
 
       // Send to API
@@ -270,18 +271,22 @@ export default function ReportFormPage() {
               {/* Dokumen & Jenis */}
               <div className={styles.row}>
                 <div className={styles.col}>
-                  <FormLabel>Dokumen Pendukung (opsional)</FormLabel>
+                  <label className={styles.label}>
+                    Dokumen Pendukung / Bukti <span className={styles.small}>(opsional)</span>
+                  </label>
                   <Input
                     type="file"
                     onChange={handleFileChange}
                     multiple
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    className="mb-2"
                   />
                   {files.length > 0 && (
                     <div className={styles.filesList}>
-                      <ul>
+                      <strong>File yang dipilih:</strong>
+                      <ul className="mt-1">
                         {files.map((f, i) => (
-                          <li key={i}>
+                          <li key={i} className="text-green-600">
                             {f.name} ({Math.round(f.size/1024)} KB)
                           </li>
                         ))}
@@ -289,7 +294,7 @@ export default function ReportFormPage() {
                     </div>
                   )}
                   <p className={styles.small}>
-                    Anda dapat mengunggah beberapa file. (pdf, docx, jpg, png)
+                    Unggah bukti kejadian seperti foto, dokumen, atau file pendukung lainnya. Maksimal beberapa file.
                   </p>
                 </div>
 
