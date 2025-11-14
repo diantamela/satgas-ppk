@@ -20,15 +20,17 @@ import {
   Bell,
   LogOut,
   Mail,
-  Shield
+  Shield,
+  Loader2 // Tambahkan Loader2 untuk loading state
 } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { signOut, useSession } from "@/lib/auth/auth-client";
-import { NavUser } from "@/components/navigation/nav-user";
+
+
 
 export default function UserDashboardPage() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("overview"); // Tidak digunakan di tampilan ini, tapi dipertahankan
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [userStats, setUserStats] = useState({
     totalReports: 0,
@@ -39,12 +41,13 @@ export default function UserDashboardPage() {
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
-  const { data: session } = useSession();
+  const { data: session } = useSession(); // Dibiarkan
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
       await signOut();
+      // Redirect to sign in page (assuming this is handled by signOut or context)
     } catch (error) {
       console.error("Sign out error:", error);
     } finally {
@@ -58,23 +61,25 @@ export default function UserDashboardPage() {
       if (!session?.user?.id) return;
 
       try {
-        // Fetch user reports
         const reportsResponse = await fetch(`/api/reports?reporterId=${session.user.id}`);
         const reportsData = await reportsResponse.json();
 
         if (reportsData.success) {
           const reports = reportsData.reports;
+          // Sort reports by creation date descending
+          reports.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
           setRecentReports(reports.slice(0, 5)); // Show latest 5 reports
 
           // Calculate stats
           const totalReports = reports.length;
-          const pendingReports = reports.filter((r: any) => r.status === 'PENDING').length;
-          const resolvedReports = reports.filter((r: any) => r.status === 'COMPLETED').length;
+          const pendingReports = reports.filter((r: any) => r.status === 'PENDING' || r.status === 'IN_PROGRESS' || r.status === 'VERIFIED').length;
+          const completedReports = reports.filter((r: any) => r.status === 'COMPLETED').length;
 
           setUserStats({
             totalReports,
             pendingReports,
-            resolvedReports,
+            resolvedReports: completedReports,
             unreadMessages: 0 // TODO: implement notifications
           });
         }
@@ -101,21 +106,35 @@ export default function UserDashboardPage() {
       description: "Ajukan laporan kekerasan baru",
       icon: Plus,
       href: "/user/laporkan-kasus",
-      color: "bg-red-500"
+      color: "bg-red-600 hover:bg-red-700" // Warna Merah Solid (Primary)
     },
     {
       title: "Cek Status Laporan",
-      description: "Lihat status laporan Anda",
+      description: "Lacak status dan lihat detail laporan",
       icon: Eye,
       href: "/user/cek-status",
-      color: "bg-blue-500"
+      color: "bg-blue-600 hover:bg-blue-700" // Warna Sekunder
+    },
+    {
+      title: "Panduan PPK",
+      description: "Baca panduan pencegahan & penanganan",
+      icon: BookOpen,
+      href: "/panduan",
+      color: "bg-purple-600 hover:bg-purple-700" // Warna Pelengkap
+    },
+    {
+      title: "Kontak Darurat",
+      description: "Hubungi Satgas atau layanan darurat",
+      icon: Phone,
+      href: "/kontak-darurat",
+      color: "bg-amber-600 hover:bg-amber-700" // Warna Peringatan/Aksi
     }
   ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":
-        return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">Sedang Diproses</Badge>;
+        return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">Menunggu Verifikasi</Badge>;
       case "IN_PROGRESS":
         return <Badge className="bg-blue-500 text-white hover:bg-blue-600">Sedang Ditangani</Badge>;
       case "COMPLETED":
@@ -129,30 +148,39 @@ export default function UserDashboardPage() {
     }
   };
 
+  // Warna Aksen Utama Merah
+  const primaryColor = "text-red-600";
+  const primaryBg = "bg-red-600";
+
   return (
     <RoleGuard requiredRoles={['USER']}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8 font-['Inter']">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          {/* Header Dashboard & Aksi Cepat */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b pb-4 border-gray-200 dark:border-gray-700">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                Selamat Datang{profileData?.name ? `, ${profileData.name}` : ''}!
+              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white">
+                Selamat Datang Kembali{profileData?.name ? `, ${profileData.name.split(' ')[0]}` : ''}!
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">Kelola laporan dan akses layanan dukungan Satgas PPK</p>
+              <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">Kelola laporan dan akses layanan dukungan Satgas PPK UIN Imam Bonjol</p>
             </div>
             <div className="flex gap-2 mt-4 md:mt-0">
-              <Button variant="outline" size="sm">
+              {/* Notifikasi */}
+              <Button variant="outline" size="sm" className={`border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20`}>
                 <Bell className="w-4 h-4 mr-2" />
                 Notifikasi ({userStats.unreadMessages})
               </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/user/settings">
+              {/* Pengaturan */}
+              <Button variant="outline" size="sm" asChild className={`border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20`}>
+                <Link href="/user/settings" className="flex items-center">
                   <Settings className="w-4 h-4 mr-2" />
                   Pengaturan
                 </Link>
               </Button>
+              {/* Keluar */}
               <Button
-                variant="outline"
+                variant="default" // Menggunakan default untuk Log Out (Merah)
+                className="bg-red-600 hover:bg-red-700 text-white"
                 size="sm"
                 onClick={handleSignOut}
                 disabled={isSigningOut}
@@ -163,49 +191,53 @@ export default function UserDashboardPage() {
             </div>
           </div>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - Menggunakan Merah/Maroon sebagai aksen utama */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-white dark:from-blue-950/20 dark:to-gray-900 shadow-md hover:shadow-lg transition-shadow duration-300">
+            {/* Total Laporan (Aksen Merah Utama) */}
+            <Card className="border-l-4 border-l-red-600 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Total Laporan</CardDescription>
-                <FileText className="w-5 h-5 text-blue-500" />
+                <CardDescription className="text-red-600 font-semibold">Total Laporan</CardDescription>
+                <FileText className="w-5 h-5 text-red-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">{userStats.totalReports}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Laporan yang telah diajukan</p>
+                <div className="text-3xl font-extrabold text-gray-900 dark:text-white">{userStats.totalReports}</div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Laporan yang telah diajukan</p>
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-yellow-500 bg-gradient-to-r from-yellow-50 to-white dark:from-yellow-950/20 dark:to-gray-900 shadow-md hover:shadow-lg transition-shadow duration-300">
+            {/* Sedang Diproses (Aksen Kuning/Amber) */}
+            <Card className="border-l-4 border-l-amber-500 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Sedang Diproses</CardDescription>
-                <Clock className="w-5 h-5 text-yellow-500" />
+                <CardDescription className="text-amber-600 font-semibold">Sedang Diproses</CardDescription>
+                <Clock className="w-5 h-5 text-amber-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">{userStats.pendingReports}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Menunggu penanganan</p>
+                <div className="text-3xl font-extrabold text-gray-900 dark:text-white">{userStats.pendingReports}</div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Menunggu/sedang ditangani</p>
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-green-500 bg-gradient-to-r from-green-50 to-white dark:from-green-950/20 dark:to-gray-900 shadow-md hover:shadow-lg transition-shadow duration-300">
+            {/* Selesai (Aksen Hijau) */}
+            <Card className="border-l-4 border-l-green-600 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Selesai</CardDescription>
-                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CardDescription className="text-green-600 font-semibold">Selesai</CardDescription>
+                <CheckCircle className="w-5 h-5 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">{userStats.resolvedReports}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Telah ditangani</p>
+                <div className="text-3xl font-extrabold text-gray-900 dark:text-white">{userStats.resolvedReports}</div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Telah ditangani & diselesaikan</p>
               </CardContent>
             </Card>
 
-            <Card className="border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-white dark:from-purple-950/20 dark:to-gray-900 shadow-md hover:shadow-lg transition-shadow duration-300">
+            {/* Pesan (Aksen Ungu) */}
+            <Card className="border-l-4 border-l-purple-600 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Pesan</CardDescription>
-                <MessageSquare className="w-5 h-5 text-purple-500" />
+                <CardDescription className="text-purple-600 font-semibold">Pesan Baru</CardDescription>
+                <MessageSquare className="w-5 h-5 text-purple-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-purple-600">{userStats.unreadMessages}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Pesan belum dibaca</p>
+                <div className="text-3xl font-extrabold text-gray-900 dark:text-white">{userStats.unreadMessages}</div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pesan/notifikasi belum dibaca</p>
               </CardContent>
             </Card>
           </div>
@@ -213,49 +245,57 @@ export default function UserDashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             {/* Recent Reports */}
             <div className="lg:col-span-2">
-              <Card>
+              <Card className="shadow-lg dark:bg-gray-800">
                 <CardHeader>
                   <div className="flex justify-between items-center">
-                    <CardTitle>Laporan Terbaru</CardTitle>
-                    <Button variant="outline" size="sm" asChild>
+                    <CardTitle className="text-xl font-bold">Aktivitas Laporan Terbaru</CardTitle>
+                    <Button variant="outline" size="sm" asChild className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20">
                       <Link href="/user/cek-status">
-                        Lihat Semua
+                        Lihat Semua ({userStats.totalReports})
                       </Link>
                     </Button>
                   </div>
-                  <CardDescription>Laporan yang telah Anda ajukan</CardDescription>
+                  <CardDescription>Lima laporan terakhir yang telah Anda ajukan.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {loading ? (
-                    <div className="text-center py-8">Memuat laporan...</div>
+                    <div className="text-center py-8 flex items-center justify-center text-red-600">
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Memuat laporan...
+                    </div>
                   ) : recentReports.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500">
-                      Belum ada laporan yang diajukan
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 border border-dashed rounded-lg p-6">
+                      <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-red-500" />
+                      <p className="font-semibold">Belum ada laporan yang diajukan.</p>
+                      <p className="text-sm mt-1">Silakan gunakan tombol "Laporkan Kasus Baru" untuk memulai.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {recentReports.map((report) => (
                         <div
                           key={report.id}
-                          className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800"
                         >
-                          <div className="flex items-center">
-                            <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded-lg mr-4">
-                              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center">
+                              <div className="bg-red-100 dark:bg-red-900/20 p-3 rounded-xl mr-4">
+                                <FileText className="w-5 h-5 text-red-600 dark:text-red-400" />
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-gray-900 dark:text-white">
+                                    {report.title} <span className="text-xs font-normal text-gray-400 ml-2">({report.id})</span>
+                                </h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                  {report.incidentLocation || 'Lokasi tidak ditentukan'} &bull; Diajukan pada {new Date(report.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                  Kode Laporan: {report.reportNumber}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <h3 className="font-medium">{report.title}</h3>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {report.incidentLocation || 'Lokasi tidak ditentukan'} • {new Date(report.createdAt).toLocaleDateString('id-ID')}
-                              </p>
+                            <div className="flex items-center gap-3 ml-4">
+                              {getStatusBadge(report.status)}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            {getStatusBadge(report.status)}
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4 mr-1" />
-                              Detail
-                            </Button>
                           </div>
                         </div>
                       ))}
@@ -267,140 +307,35 @@ export default function UserDashboardPage() {
 
             {/* Quick Actions */}
             <div>
-              <Card>
+              <Card className="shadow-lg dark:bg-gray-800">
                 <CardHeader>
-                  <CardTitle>Aksi Cepat</CardTitle>
-                  <CardDescription>Fitur yang sering digunakan</CardDescription>
+                  <CardTitle className="text-xl font-bold">Aksi Cepat</CardTitle>
+                  <CardDescription>Lompat ke fitur yang paling sering digunakan.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 gap-4">
                     {quickActions.map((action, index) => (
-                      <Button
+                      <Link
                         key={index}
-                        variant="outline"
-                        className="h-auto p-4 justify-start"
-                        asChild
+                        href={action.href}
+                        className={`flex items-center p-4 rounded-xl shadow-md transition-all duration-200 ease-in-out ${action.color} text-white hover:opacity-90`}
                       >
-                        <Link href={action.href}>
-                          <div className={`p-2 rounded-lg mr-3 ${action.color}`}>
-                            <action.icon className="w-4 h-4 text-white" />
+                        <div className="p-2 rounded-full mr-4 bg-white/20">
+                          <action.icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-bold text-lg">{action.title}</div>
+                          <div className="text-sm opacity-90">
+                            {action.description}
                           </div>
-                          <div className="text-left">
-                            <div className="font-medium">{action.title}</div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {action.description}
-                            </div>
-                          </div>
-                        </Link>
-                      </Button>
+                        </div>
+                      </Link>
                     ))}
                   </div>
                 </CardContent>
               </Card>
             </div>
           </div>
-
-          {/* Profile Section */}
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Profil Pengguna</CardTitle>
-              <CardDescription>
-                Informasi akun dari pendaftaran dan statistik penggunaan
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {profileData ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  {/* Registration Information */}
-                  <div className="lg:col-span-2 space-y-4">
-                    <div>
-                      <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                        <User className="w-4 h-4" />
-                        Informasi Pendaftaran
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-xs text-gray-500 dark:text-gray-400">Nama Lengkap</Label>
-                            <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-md text-gray-900 dark:text-white font-medium">
-                              {profileData.name}
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500 dark:text-gray-400">Email</Label>
-                            <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-md text-gray-900 dark:text-white">
-                              {profileData.email}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-xs text-gray-500 dark:text-gray-400">Role</Label>
-                            <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-md text-blue-800 dark:text-blue-400 font-medium">
-                              {profileData.role}
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-xs text-gray-500 dark:text-gray-400">Status Akun</Label>
-                            <div className="mt-1 p-3 bg-green-50 dark:bg-green-950/20 rounded-md text-green-800 dark:text-green-400 font-medium">
-                              Aktif
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Account Statistics */}
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        Statistik Laporan
-                      </h3>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                          <span className="text-sm font-medium">Total Laporan</span>
-                          <Badge variant="secondary" className="font-bold">{userStats.totalReports}</Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg">
-                          <span className="text-sm font-medium">Sedang Diproses</span>
-                          <Badge className="bg-yellow-500 text-white font-bold">{userStats.pendingReports}</Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                          <span className="text-sm font-medium">Selesai</span>
-                          <Badge className="bg-green-500 text-white font-bold">{userStats.resolvedReports}</Badge>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick Actions */}
-                    <div>
-                      <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-3">Aksi Cepat</h3>
-                      <div className="space-y-2">
-                        <Button variant="outline" size="sm" className="w-full justify-start" asChild>
-                          <Link href="/user/settings">
-                            <Settings className="w-4 h-4 mr-2" />
-                            Ubah Password
-                          </Link>
-                        </Button>
-                        <Button variant="outline" size="sm" className="w-full justify-start" asChild>
-                          <Link href="/user/laporkan-kasus">
-                            <Plus className="w-4 h-4 mr-2" />
-                            Buat Laporan Baru
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  Memuat data profil...
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </RoleGuard>

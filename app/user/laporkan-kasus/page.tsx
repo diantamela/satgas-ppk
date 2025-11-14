@@ -121,6 +121,7 @@ export default function ReportFormPage() {
         incidentDate: data.waktu ? new Date(data.waktu) : null,
         incidentLocation: data.lokasi,
         reporterId: session.user.id,
+        reporterEmail: data.email, // Include email from form data
       };
 
       // Send to API

@@ -77,16 +77,28 @@ export function middleware(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // RBAC dasar untuk admin/documents/notifications/reports
+    // RBAC dasar untuk admin/documents/notifications
     if (
       pathname.startsWith("/api/admin") ||
       pathname.startsWith("/api/documents") ||
-      pathname.startsWith("/api/notifications") ||
-      pathname.startsWith("/api/reports")
+      pathname.startsWith("/api/notifications")
     ) {
       if (role !== "SATGAS" && role !== "REKTOR") {
         return NextResponse.json({ error: "Forbidden. Role not authorized." }, { status: 403 });
       }
+    }
+
+    // Special handling for /api/reports - allow USER to access their own reports
+    if (pathname.startsWith("/api/reports") && pathname !== "/api/reports") {
+      // For specific report access (like /api/reports/[id]), only allow admin roles
+      if (role !== "SATGAS" && role !== "REKTOR") {
+        return NextResponse.json({ error: "Forbidden. Role not authorized." }, { status: 403 });
+      }
+    }
+    // Allow USER role to access /api/reports (for listing their own reports and creating new ones)
+    if (pathname === "/api/reports") {
+      // Allow GET for listing reports and POST for creating reports
+      return NextResponse.next();
     }
 
     return NextResponse.next();

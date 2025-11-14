@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { reportService } from "@/lib/services/reports/report-service";
 
 export default function ReportDetailPage() {
   const { id } = useParams();
@@ -37,8 +36,13 @@ export default function ReportDetailPage() {
       try {
         if (id) {
           const reportId = typeof id === 'string' ? id : id[0];
-          const data = await reportService.getReportById(reportId);
-          setReport(data);
+          const response = await fetch(`/api/reports/${reportId}`);
+          const data = await response.json();
+          if (data.success) {
+            setReport(data.report);
+          } else {
+            console.error("Error fetching report:", data.message);
+          }
         }
       } catch (error) {
         console.error("Error fetching report:", error);

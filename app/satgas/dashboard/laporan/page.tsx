@@ -18,7 +18,6 @@ import {
   MoreHorizontal
 } from "lucide-react";
 import Link from "next/link";
-import { reportService } from "@/lib/services/reports/report-service";
 import { RoleGuard } from "@/components/auth/role-guard";
 
 export default function ReportsPage() {
@@ -32,9 +31,14 @@ export default function ReportsPage() {
   useEffect(() => {
     const fetchReports = async () => {
       try {
-        const data = await reportService.getAllReports();
-        setReports(data);
-        setFilteredReports(data);
+        const response = await fetch('/api/reports');
+        const data = await response.json();
+        if (data.success) {
+          setReports(data.reports);
+          setFilteredReports(data.reports);
+        } else {
+          console.error("Error fetching reports:", data.message);
+        }
       } catch (error) {
         console.error("Error fetching reports:", error);
       } finally {
