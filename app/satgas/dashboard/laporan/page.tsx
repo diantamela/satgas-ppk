@@ -106,8 +106,8 @@ export default function ReportsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
+      <RoleGuard>
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Laporan</h1>
@@ -120,24 +120,23 @@ export default function ReportsPage() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4 h-20"></div>
           </div>
         </div>
-      </div>
+      </RoleGuard>
     );
   }
 
   return (
     <RoleGuard>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Laporan</h1>
-              <p className="text-gray-600 dark:text-gray-400">Kelola laporan kekerasan yang masuk</p>
-            </div>
-            <Button className="mt-4 md:mt-0">
-              <FileText className="w-4 h-4 mr-2" />
-              Ekspor Laporan
-            </Button>
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Laporan</h1>
+            <p className="text-gray-600 dark:text-gray-400">Kelola laporan kekerasan yang masuk</p>
           </div>
+          <Button className="mt-4 md:mt-0">
+            <FileText className="w-4 h-4 mr-2" />
+            Ekspor Laporan
+          </Button>
+        </div>
 
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -239,8 +238,7 @@ export default function ReportsPage() {
             ))
           )}
         </div>
-        </div>
-      </div>
-    </RoleGuard>
+    </div>
+  </RoleGuard>
   );
 }

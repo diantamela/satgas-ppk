@@ -1,9 +1,8 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import Link from "next/link"
-import Image from "next/image"
-import { useSession } from "@/lib/auth/auth-client"
+import * as React from "react";
+import Link from "next/link";
+import { useSession } from "@/lib/auth/auth-client";
 import {
   IconCamera,
   IconChartBar,
@@ -20,12 +19,11 @@ import {
   IconSettings,
   IconUsers,
   IconBell,
-} from "@tabler/icons-react"
+} from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/navigation/nav-documents"
-import { NavMain } from "@/components/navigation/nav-main"
-import { NavSecondary } from "@/components/navigation/nav-secondary"
-import { NavUser } from "@/components/navigation/nav-user"
+import { NavDocuments } from "@/components/navigation/nav-documents";
+import { NavMain } from "@/components/navigation/nav-main";
+import { NavUser } from "@/components/navigation/nav-user";
 import {
   Sidebar,
   SidebarContent,
@@ -34,50 +32,48 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 const staticData = {
   navMain: [
     {
       title: "Dashboard",
-      url: "/dashboard",
+      url: "/satgas/dashboard",
       icon: IconDashboard,
     },
     {
       title: "Semua Laporan",
-      url: "/dashboard/laporan",
+      url: "/satgas/dashboard/laporan",
       icon: IconReport,
     },
     {
       title: "Investigasi",
-      url: "/dashboard/investigasi",
+      url: "/satgas/dashboard/investigasi",
       icon: IconListDetails,
     },
     {
       title: "Rekomendasi",
-      url: "/dashboard/rekomendasi",
+      url: "/satgas/dashboard/rekomendasi",
       icon: IconFileDescription,
     },
-  ],
-  navSecondary: [
     {
       title: "Anggota Satgas",
-      url: "/dashboard/anggota",
+      url: "/satgas/dashboard/anggota",
       icon: IconUsers,
     },
     {
       title: "Dokumen",
-      url: "/dashboard/dokumen",
+      url: "/satgas/dashboard/dokumen",
       icon: IconDatabase,
     },
     {
       title: "Notifikasi",
-      url: "/dashboard/notifikasi",
+      url: "/satgas/dashboard/notifikasi",
       icon: IconBell,
     },
     {
       title: "Pengaturan",
-      url: "/dashboard/settings",
+      url: "/satgas/dashboard/settings",
       icon: IconSettings,
     },
   ],
@@ -130,20 +126,22 @@ const staticData = {
       icon: IconHelp,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { data: session } = useSession()
-  
-  const userData = session?.user ? {
-    name: session.user.name || "User",
-    email: session.user.email,
-    avatar: session.user.image || "/codeguide-logo.png",
-  } : {
-    name: "Guest",
-    email: "guest@example.com", 
-    avatar: "/codeguide-logo.png",
-  }
+  const { data: session } = useSession();
+
+  const userData = session?.user
+    ? {
+        name: session.user.name || "User",
+        email: session.user.email,
+        avatar: "/codeguide-logo.png",
+      }
+    : {
+        name: "Guest",
+        email: "guest@example.com",
+        avatar: "/codeguide-logo.png",
+      };
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -155,7 +153,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <Link href="/">
-                <Image src="/codeguide-logo.png" alt="CodeGuide" width={32} height={32} className="rounded-lg" />
                 <span className="text-base font-semibold font-parkinsans">Satgas PPK</span>
               </Link>
             </SidebarMenuButton>
@@ -165,23 +162,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {/* Show different navigation based on user role */}
         {(session as any)?.user?.role === 'REKTOR' ? (
-          <>
-            <NavMain items={staticData.navRektor} />
-          </>
+          <NavMain items={staticData.navRektor} />
         ) : (session as any)?.user?.role === 'SATGAS' ? (
-          <>
-            <NavMain items={staticData.navMain} />
-            <NavSecondary items={staticData.navSecondary} className="mt-auto" />
-          </>
+          <NavMain items={staticData.navMain} />
         ) : (
-          <>
-            <NavMain items={staticData.navUser} />
-          </>
+          <NavMain items={staticData.navUser} />
         )}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

@@ -127,18 +127,17 @@ export default function NotificationManagementPage() {
 
   return (
     <RoleGuard>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Notifikasi</h1>
-              <p className="text-gray-600 dark:text-gray-400">Kelola dan lacak notifikasi yang dikirim</p>
-            </div>
-            <Button className="mt-4 md:mt-0">
-              <Send className="w-4 h-4 mr-2" />
-              Kirim Notifikasi
-            </Button>
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Notifikasi</h1>
+            <p className="text-gray-600 dark:text-gray-400">Kelola dan lacak notifikasi yang dikirim</p>
           </div>
+          <Button className="mt-4 md:mt-0">
+            <Send className="w-4 h-4 mr-2" />
+            Kirim Notifikasi
+          </Button>
+        </div>
 
         <Card className="mb-6">
           <CardContent className="pt-6">
@@ -297,7 +296,6 @@ export default function NotificationManagementPage() {
             </div>
           </CardContent>
         </Card>
-        </div>
       </div>
     </RoleGuard>
   );
