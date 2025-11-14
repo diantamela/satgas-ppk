@@ -6,12 +6,13 @@ export const runtime = "nodejs";
 // GET /api/reports/[id] - Get a specific report by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = parseInt(params.id);
-    
-    if (isNaN(reportId)) {
+    const resolvedParams = await params;
+    const reportId = resolvedParams.id;
+
+    if (!reportId || typeof reportId !== 'string') {
       return Response.json(
         { success: false, message: "ID laporan tidak valid" },
         { status: 400 }
@@ -43,13 +44,14 @@ export async function GET(
 // PUT /api/reports/[id] - Update a specific report by ID
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = parseInt(params.id);
+    const resolvedParams = await params;
+    const reportId = resolvedParams.id;
     const body = await request.json();
-    
-    if (isNaN(reportId)) {
+
+    if (!reportId || typeof reportId !== 'string') {
       return Response.json(
         { success: false, message: "ID laporan tidak valid" },
         { status: 400 }
@@ -83,12 +85,13 @@ export async function PUT(
 // DELETE /api/reports/[id] - Delete a specific report by ID
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = parseInt(params.id);
-    
-    if (isNaN(reportId)) {
+    const resolvedParams = await params;
+    const reportId = resolvedParams.id;
+
+    if (!reportId || typeof reportId !== 'string') {
       return Response.json(
         { success: false, message: "ID laporan tidak valid" },
         { status: 400 }

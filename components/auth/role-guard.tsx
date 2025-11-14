@@ -15,18 +15,28 @@ export function RoleGuard({ children, requiredRoles = [] }: RoleGuardProps) {
   const router = useRouter();
 
   useEffect(() => {
-    console.log('RoleGuard - Session status:', { session: !!session, isPending });
-    console.log('RoleGuard - Session data:', session);
-    console.log('RoleGuard - User role:', getNormalizedRoleFromSession(session));
-    console.log('RoleGuard - Required roles:', requiredRoles);
+    const userRole = getNormalizedRoleFromSession(session);
+    const normalizedRequiredRoles = requiredRoles.map(r => r.toUpperCase());
+    const hasRequiredRole = requiredRoles.length === 0 || normalizedRequiredRoles.includes(userRole || '');
+
+    console.log('RoleGuard Debug:', {
+      pathname: window.location.pathname,
+      hasSession: !!session,
+      isPending,
+      userRole,
+      requiredRoles,
+      normalizedRequiredRoles,
+      hasRequiredRole,
+      sessionUser: session?.user?.role
+    });
 
     if (!isPending && !session) {
       console.log('RoleGuard - Redirecting to sign-in: no session');
       router.push('/sign-in');
-    } else if (session && requiredRoles.length > 0 && !requiredRoles.map(r => r.toUpperCase()).includes(getNormalizedRoleFromSession(session) || '')) {
-      console.log('RoleGuard - Redirecting to home: insufficient role');
+    } else if (!isPending && session && !hasRequiredRole) {
+      console.log('RoleGuard - Redirecting to home: insufficient role', { userRole, requiredRoles, normalizedRequiredRoles });
       router.push('/');
-    } else if (session) {
+    } else if (!isPending && session && hasRequiredRole) {
       console.log('RoleGuard - Access granted');
     }
   }, [session, isPending, router, requiredRoles]);

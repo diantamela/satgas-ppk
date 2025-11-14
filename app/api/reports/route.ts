@@ -37,10 +37,20 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const reporterId = searchParams.get('reporterId');
+    const reportNumber = searchParams.get('reportNumber');
 
     let filters: any = {};
     if (reporterId) {
       filters.reporterId = reporterId;
+    }
+
+    // If reportNumber is provided, get specific report by number
+    if (reportNumber) {
+      const report = await reportService.getReportByNumber(reportNumber);
+      return Response.json({
+        success: true,
+        reports: report ? [report] : [],
+      });
     }
 
     const reports = await reportService.getAllReports(filters);

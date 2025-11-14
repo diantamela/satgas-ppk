@@ -35,7 +35,7 @@ export default function ReportDetailPage() {
     const fetchReport = async () => {
       try {
         if (id) {
-          const reportId = typeof id === 'string' ? id : id[0];
+          const reportId = Array.isArray(id) ? id[0] : id;
           const response = await fetch(`/api/reports/${reportId}`);
           const data = await response.json();
           if (data.success) {

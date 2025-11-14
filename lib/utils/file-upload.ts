@@ -80,14 +80,18 @@ export async function saveLocalFile(
     fs.mkdirSync(uploadPath, { recursive: true });
   }
 
-  const fileName = `${Date.now()}-${originalName}`;
+  // Sanitize filename for Windows compatibility
+  const sanitizedName = originalName.replace(/[<>:"/\\|?*]/g, '_');
+  const fileName = `${Date.now()}-${sanitizedName}`;
   const filePath = path.join(process.cwd(), uploadPath, fileName);
 
   // Write file to disk
   fs.writeFileSync(filePath, fileBuffer);
 
   // Return relative path from public directory
-  return `/uploads/${fileName}`;
+  // Assuming uploadPath starts with './public/' or 'public/', extract the path after 'public/'
+  const relativePath = uploadPath.replace(/^(\.\/)?public\//, '');
+  return `/${relativePath}/${fileName}`;
 }
 
 // Function to validate file upload (size, type, etc.)
@@ -151,11 +155,10 @@ export function validateFileUpload(
 
 // Function to process file upload from Next.js API route
 export async function processFileUpload(
-  request: NextRequest
+  formData: FormData
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
   try {
-    // Parse form data from request
-    const formData = await request.formData();
+    // Get file from form data
     const file = formData.get('file') as File | null;
     
     if (!file) {
@@ -179,7 +182,7 @@ export async function processFileUpload(
 
     // Generate a unique file name
     const extension = path.extname(file.name);
-    const baseName = path.basename(file.name, extension);
+    const baseName = path.basename(file.name, extension).replace(/[<>:"/\\|?*]/g, '_');
     const uniqueFileName = `${baseName}-${Date.now()}${extension}`;
     
     // Choose storage method based on environment
@@ -190,7 +193,7 @@ export async function processFileUpload(
       filePath = await uploadFileToStorage(buffer, uniqueFileName, file.type);
     } else {
       // Use local storage for development
-      filePath = await saveLocalFile(buffer, uniqueFileName, './public/uploads/evidence');
+      filePath = await saveLocalFile(buffer, uniqueFileName, 'public/uploads/documents');
     }
 
     return { success: true, filePath };
@@ -226,7 +229,7 @@ export async function processEvidenceUploads(
 
     // Generate a unique file name with report ID
     const extension = path.extname(file.name);
-    const baseName = path.basename(file.name, extension);
+    const baseName = path.basename(file.name, extension).replace(/[<>:"/\\|?*]/g, '_');
     const uniqueFileName = `${reportId}-${baseName}-${Date.now()}${extension}`;
     
     // Choose storage method based on environment
@@ -237,7 +240,7 @@ export async function processEvidenceUploads(
       filePath = await uploadFileToStorage(buffer, uniqueFileName, file.type);
     } else {
       // Use local storage for development
-      filePath = await saveLocalFile(buffer, uniqueFileName, './public/uploads/evidence');
+      filePath = await saveLocalFile(buffer, uniqueFileName, 'public/uploads/documents');
     }
     
     uploadedFilePaths.push(filePath);

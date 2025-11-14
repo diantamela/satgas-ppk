@@ -26,6 +26,8 @@ interface Member {
 }
 
 export default function SatgasMemberManagementPage() {
+  console.log('SatgasMemberManagementPage - Component rendered');
+
   const [members, setMembers] = useState<Member[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -42,17 +44,25 @@ export default function SatgasMemberManagementPage() {
 
   // Fetch members
   const fetchMembers = async () => {
+    console.log('fetchMembers - Starting API call');
     try {
       const response = await fetch('/api/admin/user-roles');
+      console.log('fetchMembers - Response status:', response.status);
       const data = await response.json();
+      console.log('fetchMembers - Response data:', data);
+
       if (data.users) {
         // Filter to show only Satgas-related roles or all users that Satgas can manage
         setMembers(data.users);
+        console.log('fetchMembers - Members set:', data.users.length);
+      } else {
+        console.log('fetchMembers - No users in response');
       }
     } catch (error) {
       console.error("Error fetching members:", error);
     } finally {
       setIsLoading(false);
+      console.log('fetchMembers - Loading set to false');
     }
   };
 
@@ -132,25 +142,22 @@ export default function SatgasMemberManagementPage() {
 
   if (isLoading) {
     return (
-      <RoleGuard requiredRoles={['SATGAS']}>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          <div className="flex items-center gap-2 mb-8">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Kelola Anggota Satgas</h1>
-              <p className="text-gray-600 dark:text-gray-400">Mengelola anggota dan membuat akun baru</p>
-            </div>
-          </div>
-          <div className="animate-pulse">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-4 h-20"></div>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-4 h-20"></div>
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex items-center gap-2 mb-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Kelola Anggota Satgas</h1>
+            <p className="text-gray-600 dark:text-gray-400">Mengelola anggota dan membuat akun baru</p>
           </div>
         </div>
-      </RoleGuard>
+        <div className="animate-pulse">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-4 h-20"></div>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-4 h-20"></div>
+        </div>
+      </div>
     );
   }
 
   return (
-    <RoleGuard requiredRoles={['SATGAS']}>
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
@@ -352,6 +359,5 @@ export default function SatgasMemberManagementPage() {
             )}
           </div>
       </div>
-    </RoleGuard>
   );
 }

@@ -68,7 +68,7 @@ export default function UserSettingsPage() {
 
       // Redirect to dashboard after success
       setTimeout(() => {
-        router.push("/user/dashboard");
+        router.push("/satgas/dashboard");
       }, 2000);
     } catch (error: any) {
       setError(error?.message || "Terjadi kesalahan saat mengubah password");
@@ -78,13 +78,13 @@ export default function UserSettingsPage() {
   };
 
   return (
-    <RoleGuard requiredRoles={['USER']}>
+    <RoleGuard requiredRoles={['SATGAS']}>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">
             <Button variant="outline" size="sm" asChild>
-              <Link href="/user/dashboard">
+              <Link href="/satgas/dashboard">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Kembali ke Dashboard
               </Link>

@@ -6,6 +6,8 @@ export default function SatgasLayout({
 }: {
   children: React.ReactNode
 }) {
+  console.log('SatgasLayout - Rendering layout');
+
   return (
     <SidebarProvider>
       <AppSidebar />

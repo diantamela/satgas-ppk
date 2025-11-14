@@ -1,40 +1,60 @@
 import { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth/auth';
 import { processFileUpload } from '@/lib/utils/file-upload';
 import { db } from '@/db';
 import { getNormalizedRoleFromSession } from '@/lib/auth/auth-utils';
+import crypto from 'crypto';
+
+const sha256 = (s: string) => crypto.createHash('sha256').update(s).digest('hex');
+
+// Helper function to get user from session
+async function getUserFromSession(request: NextRequest) {
+  try {
+    const sessionToken = request.cookies.get('session')?.value;
+    if (!sessionToken) return null;
+
+    const tokenHash = sha256(sessionToken);
+    const session = await db.session.findFirst({
+      where: {
+        tokenHash,
+        expiresAt: { gt: new Date() }
+      },
+      include: { user: true }
+    });
+
+    return session?.user || null;
+  } catch (error) {
+    console.error('Error getting user from session:', error);
+    return null;
+  }
+}
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify user session
-    const session = await (auth as any)
-      .$get('session', { headers: request.headers })
-      .then((r: any) => r.json())
-      .catch((e: any) => null);
+    // Parse form data once at the beginning
+    const formData = await request.formData();
+    const reportId = formData.get('reportId') as string | null;
+    const file = formData.get('file') as File | null;
 
-    if (!session) {
+    // Verify user session
+    const user = await getUserFromSession(request);
+    if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Check if user has permission to upload evidence (normalize role)
-    const role = getNormalizedRoleFromSession(session);
+    const role = getNormalizedRoleFromSession({ user });
     if (role !== 'SATGAS' && role !== 'USER') {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Process the file upload
-    const result = await processFileUpload(request);
+    const result = await processFileUpload(formData);
 
     if (!result.success) {
       return Response.json({ error: result.error }, { status: 400 });
     }
-
-    // Get report ID from form data if provided
-    const formData = await request.formData();
-    const reportId = formData.get('reportId') as string | null;
-    const file = formData.get('file') as File | null;
 
     // If report ID is provided, create an investigation document
     if (reportId && file) {
@@ -50,8 +70,8 @@ export async function POST(request: NextRequest) {
 
       // Only report creator or satgas can add evidence
       if (
-        getNormalizedRoleFromSession(session) !== 'SATGAS' &&
-        session.user.email !== report.reporter.email
+        getNormalizedRoleFromSession({ user }) !== 'SATGAS' &&
+        user.email !== report.reporter.email
       ) {
         return Response.json({ error: 'Forbidden' }, { status: 403 });
       }
@@ -66,7 +86,7 @@ export async function POST(request: NextRequest) {
           fileSize: file.size,
           storagePath: result.filePath!,
           description: `Uploaded evidence for report ${report.reportNumber}`,
-          uploadedById: session.user.id
+          uploadedById: user.id
         }
       });
     }
