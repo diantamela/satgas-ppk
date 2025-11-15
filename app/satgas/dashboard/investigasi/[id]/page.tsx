@@ -71,7 +71,9 @@ export default function InvestigationDetailPage() {
     switch (status) {
       case "IN_PROGRESS":
         return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">Dalam Investigasi</Badge>;
-      case "completed":
+      case "SCHEDULED":
+        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Terjadwal</Badge>;
+      case "COMPLETED":
         return <Badge className="bg-green-500 hover:bg-green-600 text-white">Selesai</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -159,6 +161,33 @@ export default function InvestigationDetailPage() {
     }
   };
 
+  const handleStartInvestigation = async () => {
+    if (!id) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/reports/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'IN_PROGRESS' }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setReport(data.report);
+        setAlertMessage({ type: 'success', message: 'Investigasi berhasil dimulai' });
+        setTimeout(() => setAlertMessage(null), 3000);
+      } else {
+        setAlertMessage({ type: 'error', message: data.message || 'Gagal memulai investigasi' });
+      }
+    } catch (error) {
+      console.error('Start investigation error:', error);
+      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat memulai investigasi' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
@@ -218,13 +247,23 @@ export default function InvestigationDetailPage() {
             </div>
           </div>
           <div className="flex gap-2">
+            {report.status === 'SCHEDULED' && (
+              <Button
+                onClick={handleStartInvestigation}
+                disabled={isSubmitting}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Clock className="w-4 h-4 mr-2" />
+                Mulai Investigasi
+              </Button>
+            )}
             <Button onClick={() => setShowNotesDialog(true)} disabled={isSubmitting}>
               <MessageSquare className="w-4 h-4 mr-2" />
               Tambah Catatan
             </Button>
             <Button
               onClick={handleCompleteInvestigation}
-              disabled={isSubmitting || report.status === 'completed'}
+              disabled={isSubmitting || report.status === 'COMPLETED'}
               className="bg-green-600 hover:bg-green-700"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
@@ -267,6 +306,39 @@ export default function InvestigationDetailPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Scheduling Information */}
+        {report.scheduledDate && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Informasi Penjadwalan
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Mulai Dijadwalkan</h3>
+                  <p className="text-gray-900 dark:text-white">
+                    {new Date(report.scheduledDate).toLocaleDateString('id-ID', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+                {report.scheduledNotes && (
+                  <div>
+                    <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan Penjadwalan</h3>
+                    <p className="text-gray-900 dark:text-white">{report.scheduledNotes}</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="flex flex-col md:flex-row gap-6">
           {/* Main Content */}

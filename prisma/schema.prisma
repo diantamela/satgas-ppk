@@ -17,6 +17,7 @@ enum Role {
 enum ReportStatus {
   PENDING
   VERIFIED
+  SCHEDULED
   IN_PROGRESS
   COMPLETED
   REJECTED
@@ -125,6 +126,9 @@ model Report {
    assigneeId             String?
    recommendation         String?
    evidenceCount          Int?                @default(0) // Number of evidence files uploaded
+   scheduledDate          DateTime?           // Date when investigation is scheduled to start
+   scheduledBy            String?             // User ID who scheduled the investigation
+   scheduledNotes         String?             // Notes about the scheduling
    createdAt              DateTime            @default(now())
    updatedAt              DateTime            @updatedAt
 

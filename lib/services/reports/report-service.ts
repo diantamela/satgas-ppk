@@ -179,6 +179,26 @@ export const reportService = {
       throw error;
     }
   },
+
+  // Schedule investigation
+  async scheduleInvestigation(id: string, scheduledDate: Date, scheduledBy: string, scheduledNotes?: string) {
+    try {
+      const updatedReport = await db.report.update({
+        where: { id },
+        data: {
+          status: ReportStatus.SCHEDULED,
+          scheduledDate,
+          scheduledBy,
+          scheduledNotes
+        }
+      });
+
+      return updatedReport;
+    } catch (error) {
+      console.error("Error in reportService.scheduleInvestigation:", error);
+      throw error;
+    }
+  },
 };
 
 // Investigation Document Service

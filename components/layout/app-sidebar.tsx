@@ -19,6 +19,7 @@ import {
   IconSettings,
   IconUsers,
   IconBell,
+  IconHome,
 } from "@tabler/icons-react";
 
 import { NavDocuments } from "@/components/navigation/nav-documents";
@@ -96,34 +97,39 @@ const staticData = {
   ],
   navUser: [
     {
-      title: "Beranda",
-      url: "/",
+      title: "Dashboard",
+      url: "/user/dashboard",
       icon: IconDashboard,
     },
     {
       title: "Laporkan Kasus",
-      url: "/laporkan-kasus",
+      url: "/user/laporkan-kasus",
       icon: IconReport,
     },
     {
       title: "Cek Status",
-      url: "/cek-status",
+      url: "/user/cek-status",
       icon: IconSearch,
     },
     {
       title: "Edukasi",
-      url: "/edukasi",
+      url: "/user/edukasi",
       icon: IconFileAi,
     },
     {
       title: "Tentang Kami",
-      url: "/tentang",
+      url: "/user/tentang",
       icon: IconFolder,
     },
     {
       title: "Kontak",
-      url: "/kontak",
+      url: "/user/kontak",
       icon: IconHelp,
+    },
+    {
+      title: "Pengaturan",
+      url: "/user/settings",
+      icon: IconSettings,
     },
   ],
 };

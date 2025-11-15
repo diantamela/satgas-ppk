@@ -180,6 +180,25 @@ export default function ReportDetailPage() {
     handleUpdateStatus('IN_PROGRESS');
   };
 
+  const handleViewEvidence = async (documentId: string) => {
+    try {
+      const response = await fetch(`/api/documents/${documentId}/download`);
+      const data = await response.json();
+
+      if (data.success) {
+        // Open the file in a new tab
+        window.open(data.url, '_blank');
+      } else {
+        setAlertMessage({ type: 'error', message: data.message || 'Gagal membuka file' });
+        setTimeout(() => setAlertMessage(null), 3000);
+      }
+    } catch (error) {
+      console.error('Error viewing evidence:', error);
+      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat membuka file' });
+      setTimeout(() => setAlertMessage(null), 3000);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
@@ -337,7 +356,7 @@ export default function ReportDetailPage() {
               </CardContent>
             </Card>
 
-            {report.evidenceFiles && (
+            {report.documents && report.documents.filter((doc: any) => doc.documentType === 'EVIDENCE').length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -347,18 +366,22 @@ export default function ReportDetailPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {JSON.parse(report.evidenceFiles).map((file: any, index: number) => (
-                      <div key={index} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                    {report.documents.filter((doc: any) => doc.documentType === 'EVIDENCE').map((file: any, index: number) => (
+                      <div key={file.id || index} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
                             <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                           </div>
                           <div>
-                            <p className="font-medium">{file.name}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{file.type} • {(file.size / 1024).toFixed(1)} KB</p>
+                            <p className="font-medium">{file.fileName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{file.fileType} • {(file.fileSize / 1024).toFixed(1)} KB</p>
                           </div>
                         </div>
-                        <Button variant="outline" size="sm">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleViewEvidence(file.id)}
+                        >
                           <Eye className="w-4 h-4 mr-1" />
                           Lihat
                         </Button>

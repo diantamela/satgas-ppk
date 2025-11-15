@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from "react"; // Tambahkan 'type 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import Link from "next/link";
 import {
     FileText,
@@ -24,6 +25,7 @@ import {
     FileImage,
     Loader2
 } from "lucide-react";
+import ScheduleInvestigationModal from "@/components/schedule-investigation-modal";
 
 // Perbaikan: Placeholder untuk RoleGuard dengan tipe eksplisit untuk children
 const RoleGuard = ({ children }: { children: ReactNode }) => children;
@@ -34,6 +36,13 @@ export default function InvestigationPage() {
     const [reports, setReports] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    // Modal states
+    const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [selectedReport, setSelectedReport] = useState<any>(null);
+    const [isScheduling, setIsScheduling] = useState(false);
+    const [pendingReports, setPendingReports] = useState<any[]>([]);
+    const [showReportSelection, setShowReportSelection] = useState(false);
+
     // Fetch reports from the API
     useEffect(() => {
         const fetchReports = async () => {
@@ -41,11 +50,34 @@ export default function InvestigationPage() {
                 const response = await fetch('/api/reports');
                 const data = await response.json();
                 if (data.success) {
-                    // Filter only reports that are in investigation (IN_PROGRESS status)
-                    const investigationReports = data.reports.filter((report: any) =>
-                        report.status === 'IN_PROGRESS'
-                    );
-                    setReports(investigationReports);
+                    let filteredReports = [];
+
+                    switch (activeTab) {
+                        case "active":
+                            // Filter reports that are in active investigation (IN_PROGRESS status)
+                            filteredReports = data.reports.filter((report: any) =>
+                                report.status === 'IN_PROGRESS'
+                            );
+                            break;
+                        case "scheduled":
+                            // Filter reports that are scheduled for investigation
+                            filteredReports = data.reports.filter((report: any) =>
+                                report.status === 'SCHEDULED'
+                            );
+                            break;
+                        case "completed":
+                            // Filter reports that are completed
+                            filteredReports = data.reports.filter((report: any) =>
+                                report.status === 'COMPLETED'
+                            );
+                            break;
+                        default:
+                            filteredReports = data.reports.filter((report: any) =>
+                                report.status === 'IN_PROGRESS'
+                            );
+                    }
+
+                    setReports(filteredReports);
                 } else {
                     console.error("Error fetching reports:", data.message);
                 }
@@ -57,7 +89,7 @@ export default function InvestigationPage() {
         };
 
         fetchReports();
-    }, []);
+    }, [activeTab]);
 
     /**
      * Fungsi helper untuk mendapatkan Badge status dengan warna yang sesuai
@@ -66,15 +98,77 @@ export default function InvestigationPage() {
      */
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case "in_progress":
+            case "IN_PROGRESS":
                 return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">Dalam Investigasi</Badge>;
-            case "completed":
+            case "SCHEDULED":
+                return <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Terjadwal</Badge>;
+            case "COMPLETED":
                 return <Badge className="bg-green-500 hover:bg-green-600 text-white">Selesai</Badge>;
             default:
                 return <Badge variant="outline">{status}</Badge>;
         }
     };
 
+    // Handle opening schedule modal
+    const handleOpenScheduleModal = async () => {
+        try {
+            const response = await fetch('/api/reports');
+            const data = await response.json();
+            if (data.success) {
+                // Filter pending reports that can be scheduled
+                const pending = data.reports.filter((report: any) =>
+                    report.status === 'VERIFIED' || report.status === 'PENDING'
+                );
+                setPendingReports(pending);
+                setShowReportSelection(true);
+            }
+        } catch (error) {
+            console.error('Error fetching pending reports:', error);
+            alert('Gagal memuat laporan yang dapat dijadwalkan');
+        }
+    };
+
+    // Handle scheduling investigation
+    const handleScheduleInvestigation = async (scheduledDate: string, notes: string) => {
+        if (!selectedReport) return;
+
+        setIsScheduling(true);
+        try {
+            const response = await fetch('/api/reports/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reportId: selectedReport.id,
+                    scheduledDate,
+                    notes
+                }),
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                // Refresh the reports list
+                const reportsResponse = await fetch('/api/reports');
+                const reportsData = await reportsResponse.json();
+                if (reportsData.success) {
+                    const filteredReports = reportsData.reports.filter((report: any) =>
+                        activeTab === "scheduled" ? report.status === 'SCHEDULED' : report.status === 'IN_PROGRESS'
+                    );
+                    setReports(filteredReports);
+                }
+
+                setShowScheduleModal(false);
+                setSelectedReport(null);
+                alert('Investigasi berhasil dijadwalkan');
+            } else {
+                alert(data.message || 'Gagal menjadwalkan investigasi');
+            }
+        } catch (error) {
+            console.error('Schedule investigation error:', error);
+            alert('Terjadi kesalahan saat menjadwalkan investigasi');
+        } finally {
+            setIsScheduling(false);
+        }
+    };
 
     return (
         <RoleGuard>
@@ -85,7 +179,10 @@ export default function InvestigationPage() {
                         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Investigasi</h1>
                         <p className="text-gray-600 dark:text-gray-400">Kelola proses investigasi laporan kekerasan</p>
                     </div>
-                    <Button className="mt-4 md:mt-0 shadow-md transition-shadow hover:shadow-lg bg-red-600 hover:bg-red-700">
+                    <Button
+                        className="mt-4 md:mt-0 shadow-md transition-shadow hover:shadow-lg bg-red-600 hover:bg-red-700"
+                        onClick={handleOpenScheduleModal}
+                    >
                         <FilePlus className="w-4 h-4 mr-2" />
                         Jadwalkan Investigasi
                     </Button>
@@ -217,7 +314,77 @@ export default function InvestigationPage() {
                         ))
                     )}
                 </div>
-                
+
+                {/* Report Selection Modal */}
+                <Dialog open={showReportSelection} onOpenChange={setShowReportSelection}>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Pilih Laporan untuk Dijadwalkan</DialogTitle>
+                            <DialogDescription>
+                                Pilih laporan yang akan dijadwalkan untuk investigasi.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4">
+                            {pendingReports.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                    <p className="text-gray-500">Tidak ada laporan yang dapat dijadwalkan</p>
+                                </div>
+                            ) : (
+                                pendingReports.map((report) => (
+                                    <Card key={report.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                                          onClick={() => {
+                                              setSelectedReport(report);
+                                              setShowReportSelection(false);
+                                              setShowScheduleModal(true);
+                                          }}>
+                                        <CardContent className="p-4">
+                                            <div className="flex items-start gap-3">
+                                                <AlertTriangle className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                                                        {report.title}
+                                                    </h3>
+                                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                                                        <span className="font-mono text-xs">{report.reportNumber}</span>
+                                                        <span>•</span>
+                                                        <span>{report.category || 'N/A'}</span>
+                                                        <span>•</span>
+                                                        <span className="font-semibold text-red-500">{report.severity || 'N/A'}</span>
+                                                        <span>•</span>
+                                                        <span>{report.reporter?.name || 'N/A'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowReportSelection(false)}>
+                                Batal
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Schedule Investigation Modal */}
+                {selectedReport && (
+                    <ScheduleInvestigationModal
+                        isOpen={showScheduleModal}
+                        onClose={() => {
+                            setShowScheduleModal(false);
+                            setSelectedReport(null);
+                        }}
+                        onSchedule={handleScheduleInvestigation}
+                        reportTitle={selectedReport.title}
+                        isLoading={isScheduling}
+                    />
+                )}
+
             </div>
         </RoleGuard>
     );

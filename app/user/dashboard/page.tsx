@@ -4,33 +4,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import {
-  User,
-  FileText,
-  Clock,
-  CheckCircle,
-  Eye,
-  Plus,
-  AlertTriangle,
-  MessageSquare,
-  BookOpen,
-  Phone,
-  Settings,
-  Bell,
-  LogOut,
-  Mail,
-  Shield,
-  Loader2 // Tambahkan Loader2 untuk loading state
-} from "lucide-react";
+import { User, FileText, Clock, CheckCircle, Eye, Plus, AlertTriangle, MessageSquare, BookOpen, Phone, Settings, Bell, LogOut, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { signOut, useSession } from "@/lib/auth/auth-client";
 
-
-
 export default function UserDashboardPage() {
-  const [activeTab, setActiveTab] = useState("overview"); // Tidak digunakan di tampilan ini, tapi dipertahankan
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [userStats, setUserStats] = useState({
     totalReports: 0,
@@ -41,13 +20,12 @@ export default function UserDashboardPage() {
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
-  const { data: session } = useSession(); // Dibiarkan
+  const { data: session } = useSession();
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
       await signOut();
-      // Redirect to sign in page (assuming this is handled by signOut or context)
     } catch (error) {
       console.error("Sign out error:", error);
     } finally {
@@ -66,10 +44,9 @@ export default function UserDashboardPage() {
 
         if (reportsData.success) {
           const reports = reportsData.reports;
-          // Sort reports by creation date descending
           reports.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-          setRecentReports(reports.slice(0, 5)); // Show latest 5 reports
+          setRecentReports(reports.slice(0, 5)); 
 
           // Calculate stats
           const totalReports = reports.length;
@@ -80,11 +57,10 @@ export default function UserDashboardPage() {
             totalReports,
             pendingReports,
             resolvedReports: completedReports,
-            unreadMessages: 0 // TODO: implement notifications
+            unreadMessages: 0 
           });
         }
 
-        // Set profile data from session
         setProfileData({
           name: session.user.name || 'N/A',
           email: session.user.email || 'N/A',
@@ -100,64 +76,29 @@ export default function UserDashboardPage() {
     fetchUserData();
   }, [session]);
 
-  const quickActions = [
-    {
-      title: "Laporkan Kasus Baru",
-      description: "Ajukan laporan kekerasan baru",
-      icon: Plus,
-      href: "/user/laporkan-kasus",
-      color: "bg-red-600 hover:bg-red-700" // Warna Merah Solid (Primary)
-    },
-    {
-      title: "Cek Status Laporan",
-      description: "Lacak status dan lihat detail laporan",
-      icon: Eye,
-      href: "/user/cek-status",
-      color: "bg-blue-600 hover:bg-blue-700" // Warna Sekunder
-    },
-    {
-      title: "Panduan PPK",
-      description: "Baca panduan pencegahan & penanganan",
-      icon: BookOpen,
-      href: "/panduan",
-      color: "bg-purple-600 hover:bg-purple-700" // Warna Pelengkap
-    },
-    {
-      title: "Kontak Darurat",
-      description: "Hubungi Satgas atau layanan darurat",
-      icon: Phone,
-      href: "/kontak-darurat",
-      color: "bg-amber-600 hover:bg-amber-700" // Warna Peringatan/Aksi
-    }
-  ];
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":
-        return <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">Menunggu Verifikasi</Badge>;
+        return <Badge className="bg-yellow-500 text-white">Menunggu Verifikasi</Badge>;
       case "IN_PROGRESS":
-        return <Badge className="bg-blue-500 text-white hover:bg-blue-600">Sedang Ditangani</Badge>;
+        return <Badge className="bg-blue-500 text-white">Sedang Ditangani</Badge>;
       case "COMPLETED":
-        return <Badge className="bg-green-500 text-white hover:bg-green-600">Selesai</Badge>;
+        return <Badge className="bg-green-500 text-white">Selesai</Badge>;
       case "REJECTED":
         return <Badge variant="destructive">Ditolak</Badge>;
       case "VERIFIED":
-        return <Badge className="bg-purple-500 text-white hover:bg-purple-600">Terverifikasi</Badge>;
+        return <Badge className="bg-purple-500 text-white">Terverifikasi</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
-  // Warna Aksen Utama Merah
-  const primaryColor = "text-red-600";
-  const primaryBg = "bg-red-600";
-
   return (
     <RoleGuard requiredRoles={['USER']}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8 font-['Inter']">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header Dashboard & Aksi Cepat */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b pb-4 border-gray-200 dark:border-gray-700">
+          {/* Header Dashboard */}
+          <div className="flex flex-col md:flex-row justify-between items-start mb-8 border-b pb-4 border-gray-200 dark:border-gray-700">
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white">
                 Selamat Datang Kembali{profileData?.name ? `, ${profileData.name.split(' ')[0]}` : ''}!
@@ -166,12 +107,12 @@ export default function UserDashboardPage() {
             </div>
             <div className="flex gap-2 mt-4 md:mt-0">
               {/* Notifikasi */}
-              <Button variant="outline" size="sm" className={`border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20`}>
+              <Button variant="outline" size="sm" className="border-red-500 text-red-600 hover:bg-red-50">
                 <Bell className="w-4 h-4 mr-2" />
                 Notifikasi ({userStats.unreadMessages})
               </Button>
               {/* Pengaturan */}
-              <Button variant="outline" size="sm" asChild className={`border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20`}>
+              <Button variant="outline" size="sm" asChild className="border-red-500 text-red-600 hover:bg-red-50">
                 <Link href="/user/settings" className="flex items-center">
                   <Settings className="w-4 h-4 mr-2" />
                   Pengaturan
@@ -179,7 +120,7 @@ export default function UserDashboardPage() {
               </Button>
               {/* Keluar */}
               <Button
-                variant="default" // Menggunakan default untuk Log Out (Merah)
+                variant="default"
                 className="bg-red-600 hover:bg-red-700 text-white"
                 size="sm"
                 onClick={handleSignOut}
@@ -191,10 +132,10 @@ export default function UserDashboardPage() {
             </div>
           </div>
 
-          {/* Stats Cards - Menggunakan Merah/Maroon sebagai aksen utama */}
+          {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Total Laporan (Aksen Merah Utama) */}
-            <Card className="border-l-4 border-l-red-600 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {/* Total Laporan */}
+            <Card className="border-l-4 border-l-red-600 bg-white dark:bg-gray-800 shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardDescription className="text-red-600 font-semibold">Total Laporan</CardDescription>
                 <FileText className="w-5 h-5 text-red-600" />
@@ -205,8 +146,8 @@ export default function UserDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Sedang Diproses (Aksen Kuning/Amber) */}
-            <Card className="border-l-4 border-l-amber-500 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {/* Sedang Diproses */}
+            <Card className="border-l-4 border-l-amber-500 bg-white dark:bg-gray-800 shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardDescription className="text-amber-600 font-semibold">Sedang Diproses</CardDescription>
                 <Clock className="w-5 h-5 text-amber-500" />
@@ -217,8 +158,8 @@ export default function UserDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Selesai (Aksen Hijau) */}
-            <Card className="border-l-4 border-l-green-600 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {/* Selesai */}
+            <Card className="border-l-4 border-l-green-600 bg-white dark:bg-gray-800 shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardDescription className="text-green-600 font-semibold">Selesai</CardDescription>
                 <CheckCircle className="w-5 h-5 text-green-600" />
@@ -229,8 +170,8 @@ export default function UserDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Pesan (Aksen Ungu) */}
-            <Card className="border-l-4 border-l-purple-600 bg-white dark:bg-gray-800 shadow-lg hover:shadow-xl transition-shadow duration-300">
+            {/* Pesan */}
+            <Card className="border-l-4 border-l-purple-600 bg-white dark:bg-gray-800 shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardDescription className="text-purple-600 font-semibold">Pesan Baru</CardDescription>
                 <MessageSquare className="w-5 h-5 text-purple-600" />
@@ -242,99 +183,57 @@ export default function UserDashboardPage() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* Recent Reports */}
-            <div className="lg:col-span-2">
-              <Card className="shadow-lg dark:bg-gray-800">
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-xl font-bold">Aktivitas Laporan Terbaru</CardTitle>
-                    <Button variant="outline" size="sm" asChild className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20">
-                      <Link href="/user/cek-status">
-                        Lihat Semua ({userStats.totalReports})
-                      </Link>
-                    </Button>
+          {/* Recent Reports */}
+          <div className="lg:col-span-2">
+            <Card className="shadow-lg dark:bg-gray-800">
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-xl font-bold">Aktivitas Laporan Terbaru</CardTitle>
+                  <Button variant="outline" size="sm" asChild className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20">
+                    <Link href="/user/cek-status">
+                      Lihat Semua ({userStats.totalReports})
+                    </Link>
+                  </Button>
+                </div>
+                <CardDescription>Lima laporan terakhir yang telah Anda ajukan.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="text-center py-8 flex items-center justify-center text-red-600">
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Memuat laporan...
                   </div>
-                  <CardDescription>Lima laporan terakhir yang telah Anda ajukan.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="text-center py-8 flex items-center justify-center text-red-600">
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        Memuat laporan...
-                    </div>
-                  ) : recentReports.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400 border border-dashed rounded-lg p-6">
-                      <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-red-500" />
-                      <p className="font-semibold">Belum ada laporan yang diajukan.</p>
-                      <p className="text-sm mt-1">Silakan gunakan tombol "Laporkan Kasus Baru" untuk memulai.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {recentReports.map((report) => (
-                        <div
-                          key={report.id}
-                          className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center">
-                              <div className="bg-red-100 dark:bg-red-900/20 p-3 rounded-xl mr-4">
-                                <FileText className="w-5 h-5 text-red-600 dark:text-red-400" />
-                              </div>
-                              <div>
-                                <h3 className="font-bold text-gray-900 dark:text-white">
-                                    {report.title} <span className="text-xs font-normal text-gray-400 ml-2">({report.id})</span>
-                                </h3>
-                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                                  {report.incidentLocation || 'Lokasi tidak ditentukan'} &bull; Diajukan pada {new Date(report.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </p>
-                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                                  Kode Laporan: {report.reportNumber}
-                                </p>
-                              </div>
+                ) : recentReports.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400 border border-dashed rounded-lg p-6">
+                    <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-red-500" />
+                    <p className="font-semibold">Belum ada laporan yang diajukan.</p>
+                    <p className="text-sm mt-1">Silakan gunakan tombol "Laporkan Kasus Baru" untuk memulai.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentReports.map((report) => (
+                      <div key={report.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center">
+                            <div className="bg-red-100 dark:bg-red-900/20 p-3 rounded-xl mr-4">
+                              <FileText className="w-5 h-5 text-red-600 dark:text-red-400" />
                             </div>
-                            <div className="flex items-center gap-3 ml-4">
-                              {getStatusBadge(report.status)}
+                            <div>
+                              <h3 className="font-bold text-gray-900 dark:text-white">{report.title} <span className="text-xs font-normal text-gray-400 ml-2">({report.id})</span></h3>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{report.incidentLocation || 'Lokasi tidak ditentukan'} &bull; Diajukan pada {new Date(report.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Kode Laporan: {report.reportNumber}</p>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Quick Actions */}
-            <div>
-              <Card className="shadow-lg dark:bg-gray-800">
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold">Aksi Cepat</CardTitle>
-                  <CardDescription>Lompat ke fitur yang paling sering digunakan.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 gap-4">
-                    {quickActions.map((action, index) => (
-                      <Link
-                        key={index}
-                        href={action.href}
-                        className={`flex items-center p-4 rounded-xl shadow-md transition-all duration-200 ease-in-out ${action.color} text-white hover:opacity-90`}
-                      >
-                        <div className="p-2 rounded-full mr-4 bg-white/20">
-                          <action.icon className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="text-left">
-                          <div className="font-bold text-lg">{action.title}</div>
-                          <div className="text-sm opacity-90">
-                            {action.description}
+                          <div className="flex items-center gap-3 ml-4">
+                            {getStatusBadge(report.status)}
                           </div>
                         </div>
-                      </Link>
+                      </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
