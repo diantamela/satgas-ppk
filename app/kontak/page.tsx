@@ -1,11 +1,29 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mail, Phone, MapPin, Clock, MessageCircle } from "lucide-react";
-import { prisma } from '@/lib/database/prisma'
+import { Button } from "@/components/ui/button";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  Clock,
+  MessageCircle,
+  ArrowLeft,
+} from "lucide-react";
+import { prisma } from "@/lib/database/prisma";
 
 export default function ContactPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
       <div className="max-w-4xl mx-auto">
+        {/* Tombol kembali ke beranda */}
+        <div className="mb-6">
+          <Button variant="ghost" asChild>
+            <a href="/" className="flex items-center gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Kembali ke Beranda
+            </a>
+          </Button>
+        </div>
+
         <Card className="mb-8">
           <CardHeader className="text-center">
             <CardTitle className="text-3xl font-bold">Kontak Satgas PPK</CardTitle>
@@ -16,7 +34,7 @@ export default function ContactPage() {
             </p>
           </CardContent>
         </Card>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <Card>
             <CardHeader>
@@ -32,17 +50,17 @@ export default function ContactPage() {
                 <h4 className="font-semibold">Email</h4>
                 <p className="text-blue-600 dark:text-blue-400">satgasppk@universitas.ac.id</p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold">Telepon</h4>
                 <p className="text-blue-600 dark:text-blue-400">+62 123 4567 890</p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold">WhatsApp</h4>
                 <p className="text-blue-600 dark:text-blue-400">+62 812 3456 7890</p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold">Alamat</h4>
                 <p className="text-gray-600 dark:text-gray-300">
@@ -54,7 +72,7 @@ export default function ContactPage() {
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -68,11 +86,11 @@ export default function ContactPage() {
               <div>
                 <h4 className="font-semibold">Layanan Pelaporan</h4>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Layanan pelaporan tersedia 24/7 melalui platform digital ini. 
+                  Layanan pelaporan tersedia 24/7 melalui platform digital ini.
                   Laporan akan diproses sesuai prosedur operasional standar.
                 </p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold">Konsultasi Langsung</h4>
                 <p className="text-gray-600 dark:text-gray-300">
@@ -80,7 +98,7 @@ export default function ContactPage() {
                   Sabtu: 09.00 - 12.00 WIB
                 </p>
               </div>
-              
+
               <div>
                 <h4 className="font-semibold">Waktu Respon</h4>
                 <p className="text-gray-600 dark:text-gray-300">
@@ -92,7 +110,7 @@ export default function ContactPage() {
             </CardContent>
           </Card>
         </div>
-        
+
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="text-lg">Formulir Kontak</CardTitle>
@@ -101,47 +119,55 @@ export default function ContactPage() {
             <form className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium mb-1">Nama Lengkap</label>
-                  <input 
-                    type="text" 
-                    id="name" 
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800" 
-                    placeholder="Nama Anda" 
+                  <label htmlFor="name" className="block text-sm font-medium mb-1">
+                    Nama Lengkap
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+                    placeholder="Nama Anda"
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium mb-1">Email</label>
-                  <input 
-                    type="email" 
-                    id="email" 
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800" 
-                    placeholder="Alamat email" 
+                  <label htmlFor="email" className="block text-sm font-medium mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+                    placeholder="Alamat email"
                   />
                 </div>
               </div>
-              
+
               <div>
-                <label htmlFor="subject" className="block text-sm font-medium mb-1">Subjek</label>
-                <input 
-                  type="text" 
-                  id="subject" 
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800" 
-                  placeholder="Subjek pertanyaan" 
+                <label htmlFor="subject" className="block text-sm font-medium mb-1">
+                  Subjek
+                </label>
+                <input
+                  type="text"
+                  id="subject"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
+                  placeholder="Subjek pertanyaan"
                 />
               </div>
-              
+
               <div>
-                <label htmlFor="message" className="block text-sm font-medium mb-1">Pesan</label>
-                <textarea 
-                  id="message" 
-                  rows={4} 
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800" 
+                <label htmlFor="message" className="block text-sm font-medium mb-1">
+                  Pesan
+                </label>
+                <textarea
+                  id="message"
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800"
                   placeholder="Tulis pesan Anda di sini..."
                 ></textarea>
               </div>
-              
-              <button 
-                type="submit" 
+
+              <button
+                type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition-colors"
               >
                 Kirim Pesan
@@ -149,7 +175,7 @@ export default function ContactPage() {
             </form>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">

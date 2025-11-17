@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -69,10 +70,17 @@ export default function SignUpPage() {
         style={{ backgroundColor: "#C53C3C" }}
       >
         <div className="flex items-center space-x-3 mb-20">
-          <div className="relative w-12 h-12" />
+          <div className="relative w-12 h-12">
+            <Image
+              src="/images/icons/Logo_UIN_Imam_Bonjol.png"
+              alt="Logo UIN Imam Bonjol"
+              fill
+              className="object-contain"
+            />
+          </div>
           <div className="text-white">
             <p className="text-sm font-light">UIN IMAM BONJOL</p>
-            <h1 className="text-xl font-bold">SIMPEL - PK</h1>
+            <h1 className="text-xl font-bold">SATGAS - PPK</h1>
           </div>
         </div>
         <h2 className="text-white text-4xl font-extrabold mb-6 leading-snug">

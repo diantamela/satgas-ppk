@@ -123,7 +123,7 @@ const staticData = {
     },
     {
       title: "Kontak",
-      url: "/user/kontak",
+      url: "/kontak",
       icon: IconHelp,
     },
     {
