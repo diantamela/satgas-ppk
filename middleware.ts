@@ -55,6 +55,9 @@ export function middleware(req: NextRequest) {
     "/edukasi",
     "/kontak",
     "/tentang",
+    "/profil",
+    "/galeri",
+    "/unduh-materi",
   ];
   const isPublic = publicRoutes.some((r) => pathname === r || pathname.startsWith(r + "/"));
 

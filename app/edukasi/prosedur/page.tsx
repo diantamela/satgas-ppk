@@ -358,7 +358,7 @@ export default function ProsedurLaporanPage() {
                 href="/sign-in?next=/laporkan-kasus"
                 className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
               >
-                Laporkan Kasus Sekarang
+                Laporkan Kasus
               </Link>
               <Link
                 href="/kontak"

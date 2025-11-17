@@ -373,7 +373,7 @@ export default function HakKorbanPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href="/laporkan-kasus"
+                href="/sign-in?next=/laporkan-kasus"
                 className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors font-semibold"
               >
                 Laporkan Kasus
