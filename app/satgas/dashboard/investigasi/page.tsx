@@ -291,32 +291,60 @@ export default function InvestigationPage() {
                 </div>
               ) : (
                 pendingReports.map((report) => (
-                  <Card key={report.id} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                        onClick={() => {
-                          setSelectedReport(report);
-                          setShowReportSelection(false);
-                          setShowScheduleModal(true);
-                        }}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-yellow-500 mt-1 flex-shrink-0" />
+                <Card key={report.id} className="hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 rounded-xl">
+                <CardContent className="p-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="mt-1 flex-shrink-0">
+                        <AlertTriangle className="w-5 h-5 text-orange-500" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                            {report.title}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="text-lg font-bold truncate max-w-full md:max-w-md text-gray-900 dark:text-white">{report.title}</h3>
+                            {getStatusBadge(report.status)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
                             <span className="font-mono text-xs">{report.reportNumber}</span>
                             <span>•</span>
-                            <span>{report.category || 'N/A'}</span>
+                            <span className="flex items-center gap-1">
+                            <BookOpen className="w-3 h-3" /> {report.category || 'N/A'}
+                            </span>
                             <span>•</span>
-                            <span className="font-semibold text-red-500">{report.severity || 'N/A'}</span>
+                            <span className="font-semibold text-red-500 dark:text-red-400">{report.severity || 'N/A'}</span>
                             <span>•</span>
-                            <span>{report.reporter?.name || 'N/A'}</span>
-                          </div>
+                            <span className="flex items-center gap-1">
+                            <User className="w-3 h-3" /> {report.reporter?.name || 'N/A'}
+                            </span>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+
+                        {/* Progress Bar */}
+                        <div className="mt-3 w-full max-w-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Progres {report.investigationProgress || 0}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div
+                                className="bg-red-600 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${report.investigationProgress || 0}%` }}
+                            ></div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
+                        <Button variant="outline" size="sm" asChild>
+                        <Link href={`/satgas/dashboard/investigasi/${report.id}`} className="flex items-center gap-1">
+                            <Eye className="w-4 h-4" />
+                            Detail
+                        </Link>
+                        </Button>
+                        {/* Removed the "Catatan" button */}
+                    </div>
+                    </div>
+                </CardContent>
+                </Card>
                 ))
               )}
             </div>

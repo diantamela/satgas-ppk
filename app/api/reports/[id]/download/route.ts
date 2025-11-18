@@ -44,7 +44,6 @@ async function loadImageForPDF(storagePath: string, fileType: string): Promise<{
     } else if (fileType.includes('webp')) {
       format = 'WEBP';
     }
-
     return { data: base64Data, format };
   } catch (error) {
     console.error(`Error loading image ${storagePath}:`, error);
