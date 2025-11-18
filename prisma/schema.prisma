@@ -65,6 +65,23 @@ enum Affiliation {
   GUEST
 }
 
+model Gallery {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  date        String
+  location    String
+  category    String
+  image       String   // Path to image
+  uploadedBy  User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([uploadedById])
+  @@index([createdAt])
+}
+
 model User {
   id            String                  @id @default(cuid())
   // Email diset ke unique case-insensitive (tanpa citext untuk kompatibilitas)
@@ -86,6 +103,7 @@ model User {
   timelineEntries       ReportTimeline[]        @relation(name: "UserTimelineEntries")
   uploadedDocuments     InvestigationDocument[] @relation(name: "UserDocuments")
   activityLogs          ActivityLog[]
+  uploadedGallery       Gallery[]
 
   @@index([email])
 }

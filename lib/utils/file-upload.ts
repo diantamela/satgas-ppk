@@ -155,7 +155,8 @@ export function validateFileUpload(
 
 // Function to process file upload from Next.js API route
 export async function processFileUpload(
-  formData: FormData
+  formData: FormData,
+  folder: string = 'evidence'
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
   try {
     // Get file from form data
@@ -193,7 +194,7 @@ export async function processFileUpload(
       filePath = await uploadFileToStorage(buffer, uniqueFileName, file.type);
     } else {
       // Use local storage for development
-      filePath = await saveLocalFile(buffer, uniqueFileName, 'public/uploads/evidence');
+      filePath = await saveLocalFile(buffer, uniqueFileName, `public/uploads/${folder}`);
     }
 
     return { success: true, filePath };

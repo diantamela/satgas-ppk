@@ -212,23 +212,18 @@ export default function ReportsPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
                       <div>
                         {getStatusBadge(report.status)}
                       </div>
                       <div className="flex gap-2">
+                        {/* Lihat button with icon and text aligned horizontally */}
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/satgas/dashboard/laporan/${report.id}`}>
-                            <Eye className="w-4 h-4 mr-1" />
-                            Lihat
+                          <Link href={`/satgas/dashboard/laporan/${report.id}`} className="flex items-center gap-1">
+                            <Eye className="w-4 h-4" />
+                            <span>Lihat</span>
                           </Link>
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <MoreHorizontal className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>

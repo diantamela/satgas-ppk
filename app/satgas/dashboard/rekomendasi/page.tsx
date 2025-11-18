@@ -1,75 +1,108 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  FileText,
-  AlertTriangle,
-  CheckCircle,
   User,
   Calendar,
-  Download,
-  Edit,
-  MessageSquare,
-  FilePlus,
-  Shield,
-  Mail,
-  Eye
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
-import Link from "next/link";
 import { RoleGuard } from "../../../../components/auth/role-guard";
 
-export default function RecommendationPage() {
-  const [activeTab, setActiveTab] = useState("pending");
+interface GalleryItem {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  location: string;
+  category: string;
+  image: string;
+  uploadedBy?: { name: string };
+}
 
-  // Mock data for recommendations
-  const recommendationReports = [
-    {
-      id: 1,
-      reportNumber: "SPPK-20241015-1001",
-      title: "Dugaan Pelecehan Seksual",
-      status: "recommendation_pending",
-      category: "Pelecehan Seksual",
-      severity: "Tinggi",
-      reporterName: "Anonim",
-      respondentName: "Budi Santoso",
-      createdAt: "2024-10-15",
-      recommendationStatus: "pending",
-      investigationCompletedAt: "2024-10-18",
-      assignedTo: "Ketua Satgas"
-    },
-    {
-      id: 2,
-      reportNumber: "SPPK-20241014-2002",
-      title: "Kekerasan Verbal",
-      status: "recommendation_submitted",
-      category: "Kekerasan Verbal",
-      severity: "Sedang",
-      reporterName: "Ahmad Kurniawan",
-      respondentName: "Rina Wijaya",
-      createdAt: "2024-10-14",
-      recommendationStatus: "submitted",
-      recommendation: "Sanksi penulisan surat pernyataan dan pembinaan",
-      investigationCompletedAt: "2024-10-17",
-      assignedTo: "Ketua Satgas"
-    },
-  ];
+export default function GalleryUploadPage() {
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    date: "",
+    location: "",
+    category: "Edukasi"
+  });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "recommendation_pending":
-        return <Badge variant="secondary">Menunggu Rekomendasi</Badge>;
-      case "recommendation_submitted":
-        return <Badge variant="default">Rekomendasi Diajukan</Badge>;
-      case "recommendation_approved":
-        return <Badge variant="success">Rekomendasi Disetujui</Badge>;
-      case "recommendation_rejected":
-        return <Badge variant="destructive">Rekomendasi Ditolak</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+  useEffect(() => {
+    fetchGalleryItems();
+  }, []);
+
+  const fetchGalleryItems = async () => {
+    try {
+      const response = await fetch('/api/gallery');
+      if (response.ok) {
+        const data = await response.json();
+        setGalleryItems(data);
+      }
+    } catch (error) {
+      console.error('Error fetching gallery:', error);
     }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    setUploading(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', selectedFile);
+      uploadFormData.append('title', formData.title);
+      uploadFormData.append('description', formData.description);
+      uploadFormData.append('date', formData.date);
+      uploadFormData.append('location', formData.location);
+      uploadFormData.append('category', formData.category);
+
+      const response = await fetch('/api/gallery', {
+        method: 'POST',
+        body: uploadFormData
+      });
+
+      if (response.ok) {
+        setShowUploadForm(false);
+        setFormData({
+          title: "",
+          description: "",
+          date: "",
+          location: "",
+          category: "Edukasi"
+        });
+        setSelectedFile(null);
+        fetchGalleryItems();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    if (dateStr.includes('-')) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    return dateStr;
   };
 
   return (
@@ -77,174 +110,152 @@ export default function RecommendationPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Rekomendasi</h1>
-            <p className="text-gray-600 dark:text-gray-400">Kelola rekomendasi hasil investigasi</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Galeri</h1>
+            <p className="text-gray-600 dark:text-gray-400">Kelola galeri kegiatan Satgas PPK</p>
           </div>
-          <Button className="mt-4 md:mt-0">
-            <FilePlus className="w-4 h-4 mr-2" />
-            Buat Rekomendasi
+          <Button onClick={() => setShowUploadForm(!showUploadForm)}>
+            <Upload className="w-4 h-4 mr-2" />
+            {showUploadForm ? 'Batal Upload' : 'Upload Foto'}
           </Button>
         </div>
 
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="border-b">
-              <nav className="flex space-x-8">
-                <button
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === "pending"
-                      ? "border-blue-500 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-                  }`}
-                  onClick={() => setActiveTab("pending")}
-                >
-                  Menunggu
-                </button>
-                <button
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === "submitted"
-                      ? "border-blue-500 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-                  }`}
-                  onClick={() => setActiveTab("submitted")}
-                >
-                  Diajukan
-                </button>
-                <button
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === "completed"
-                      ? "border-blue-500 text-blue-600 dark:text-blue-400 dark:border-blue-400"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-                  }`}
-                  onClick={() => setActiveTab("completed")}
-                >
-                  Selesai
-                </button>
-              </nav>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="space-y-4">
-          {recommendationReports.map((report) => (
-            <Card key={report.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-1">
-                      {report.recommendationStatus === "pending" && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
-                      {report.recommendationStatus === "submitted" && <CheckCircle className="w-4 h-4 text-blue-500" />}
-                      {report.recommendationStatus === "approved" && <CheckCircle className="w-4 h-4 text-green-500" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-medium truncate max-w-[200px] md:max-w-md">{report.title}</h3>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{report.reportNumber}</span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{report.category}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{report.severity}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          Investigasi selesai: {report.investigationCompletedAt}
-                        </span>
-                      </div>
-                      
-                      {report.recommendation && (
-                        <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm">
-                          <p className="text-gray-700 dark:text-gray-300"><strong>Rekomendasi:</strong> {report.recommendation}</p>
-                        </div>
-                      )}
-                    </div>
+        {showUploadForm && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Upload Foto Galeri</CardTitle>
+              <CardDescription>
+                Tambahkan foto kegiatan Satgas PPK ke galeri
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleUpload} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Judul
+                  </label>
+                  <Input
+                    value={formData.title}
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Deskripsi
+                  </label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tanggal
+                    </label>
+                    <Input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData({...formData, date: e.target.value})}
+                      required
+                    />
                   </div>
-                  
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
-                    <div>
-                      {getStatusBadge(report.status)}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/laporan/${report.id}`}>
-                          <Eye className="w-4 h-4 mr-1" />
-                          Detail
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm">
-                        <MessageSquare className="w-4 h-4 mr-1" />
-                        Catatan
-                      </Button>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Lokasi
+                    </label>
+                    <Input
+                      value={formData.location}
+                      onChange={(e) => setFormData({...formData, location: e.target.value})}
+                      required
+                    />
                   </div>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Kategori
+                  </label>
+                  <Select value={formData.category} onValueChange={(value) => setFormData({...formData, category: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Edukasi">Edukasi</SelectItem>
+                      <SelectItem value="Pelatihan">Pelatihan</SelectItem>
+                      <SelectItem value="Sosialisasi">Sosialisasi</SelectItem>
+                      <SelectItem value="Kampanye">Kampanye</SelectItem>
+                      <SelectItem value="Diskusi">Diskusi</SelectItem>
+                      <SelectItem value="Infrastruktur">Infrastruktur</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Foto
+                  </label>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    required
+                  />
+                </div>
+                <Button type="submit" disabled={uploading}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  {uploading ? 'Mengupload...' : 'Upload'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {galleryItems.map((item) => (
+            <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow">
+              <div className="aspect-video bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute top-2 right-2">
+                  <Badge variant="secondary">{item.category}</Badge>
+                </div>
+              </div>
+              <CardContent className="p-4">
+                <h3 className="font-semibold text-lg mb-2">{item.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  {item.description}
+                </p>
+                <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <Calendar className="w-4 h-4" />
+                    <span>{formatDate(item.date)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <User className="w-4 h-4" />
+                    <span>{item.location}</span>
+                  </div>
+                </div>
+                {item.uploadedBy && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Diupload oleh: {item.uploadedBy.name}
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5" />
-              Proses Rekomendasi
-            </CardTitle>
-            <CardDescription>
-              Buat dan kelola rekomendasi untuk ditetapkan oleh pimpinan
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Status Rekomendasi
-                  </label>
-                  <select className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800">
-                    <option value="pending">Dalam Proses</option>
-                    <option value="submitted">Diajukan ke Rektor</option>
-                    <option value="approved">Disetujui Rektor</option>
-                    <option value="rejected">Ditolak Rektor</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Ditugaskan Kepada
-                  </label>
-                  <select className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800">
-                    <option value="">Pilih Penanggung Jawab</option>
-                    <option value="ketua">Ketua Satgas</option>
-                    <option value="anggota1">Siti Rahayu</option>
-                    <option value="anggota2">Budi Santoso</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Rekomendasi
-                </label>
-                <textarea
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 h-32"
-                  placeholder="Tulis rekomendasi berdasarkan hasil investigasi..."
-                ></textarea>
-              </div>
-              
-              <div className="flex gap-3">
-                <Button>
-                  <FilePlus className="w-4 h-4 mr-2" />
-                  Simpan Rekomendasi
-                </Button>
-                <Button variant="outline">
-                  <Mail className="w-4 h-4 mr-2" />
-                  Kirim ke Rektor
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {galleryItems.length === 0 && (
+          <Card className="mt-8">
+            <CardContent className="pt-6 text-center">
+              <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Belum ada foto di galeri</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </RoleGuard>
   );

@@ -1,9 +1,43 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Image, Calendar, MapPin, ArrowLeft } from "lucide-react";
+import { useSession } from "@/lib/auth/auth-client";
+
+interface GalleryItem {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  location: string;
+  category: string;
+  image: string;
+  uploadedBy?: { name: string };
+}
 
 export default function GaleriPage() {
-  const galleryItems = [
+  const { data: session } = useSession();
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+
+  useEffect(() => {
+    fetchGalleryItems();
+  }, []);
+
+  const fetchGalleryItems = async () => {
+    try {
+      const response = await fetch('/api/gallery');
+      if (response.ok) {
+        const data = await response.json();
+        setGalleryItems(data);
+      }
+    } catch (error) {
+      console.error('Error fetching gallery:', error);
+    }
+  };
+
+  const staticGalleryItems = [
     {
       id: 1,
       title: "Workshop Pencegahan Kekerasan Seksual",
@@ -62,6 +96,14 @@ export default function GaleriPage() {
 
   const categories = ["Semua", "Edukasi", "Pelatihan", "Sosialisasi", "Kampanye", "Diskusi", "Infrastruktur"];
 
+  const formatDate = (dateStr: string) => {
+    if (dateStr.includes('-')) {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    return dateStr;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
       <div className="max-w-7xl mx-auto">
@@ -104,7 +146,7 @@ export default function GaleriPage() {
 
         {/* Grid Galeri */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {galleryItems.map((item) => (
+          {[...staticGalleryItems, ...galleryItems].map((item) => (
             <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer">
               <div className="aspect-video bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
                 <img
@@ -126,7 +168,7 @@ export default function GaleriPage() {
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    <span>{item.date}</span>
+                    <span>{formatDate(item.date)}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <MapPin className="w-4 h-4" />

@@ -53,7 +53,7 @@ const staticData = {
       icon: IconListDetails,
     },
     {
-      title: "Rekomendasi",
+      title: "Gallery",
       url: "/satgas/dashboard/rekomendasi",
       icon: IconFileDescription,
     },
