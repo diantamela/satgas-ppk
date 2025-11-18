@@ -95,7 +95,7 @@ export default function ReportDetailPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `laporan-${report?.reportNumber || id}.txt`;
+        a.download = `laporan-${report?.reportNumber || id}.pdf`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);

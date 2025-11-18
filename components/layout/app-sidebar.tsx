@@ -112,21 +112,6 @@ const staticData = {
       icon: IconSearch,
     },
     {
-      title: "Edukasi",
-      url: "/user/edukasi",
-      icon: IconFileAi,
-    },
-    {
-      title: "Tentang Kami",
-      url: "/user/tentang",
-      icon: IconFolder,
-    },
-    {
-      title: "Kontak",
-      url: "/kontak",
-      icon: IconHelp,
-    },
-    {
       title: "Pengaturan",
       url: "/user/settings",
       icon: IconSettings,
