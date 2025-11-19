@@ -3,11 +3,16 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Image, Calendar, MapPin, ArrowLeft } from "lucide-react";
-import { useSession } from "@/lib/auth/auth-client";
+import {
+  Image as ImageIcon,
+  Calendar,
+  MapPin,
+  ArrowLeft,
+  Filter,
+} from "lucide-react";
 
 interface GalleryItem {
-  id: string;
+  id: string | number;
   title: string;
   description: string;
   date: string;
@@ -17,9 +22,21 @@ interface GalleryItem {
   uploadedBy?: { name: string };
 }
 
+const CATEGORIES = [
+  "Semua",
+  "Edukasi",
+  "Pelatihan",
+  "Sosialisasi",
+  "Kampanye",
+  "Diskusi",
+  "Infrastruktur",
+];
+
 export default function GaleriPage() {
-  const { data: session } = useSession();
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("Semua");
+  const [visibleCount, setVisibleCount] = useState<number>(6);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     fetchGalleryItems();
@@ -27,165 +44,239 @@ export default function GaleriPage() {
 
   const fetchGalleryItems = async () => {
     try {
-      const response = await fetch('/api/gallery');
+      setIsLoading(true);
+      const response = await fetch("/api/gallery");
       if (response.ok) {
         const data = await response.json();
         setGalleryItems(data);
       }
     } catch (error) {
-      console.error('Error fetching gallery:', error);
+      console.error("Error fetching gallery:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const staticGalleryItems = [
+  const staticGalleryItems: GalleryItem[] = [
     {
       id: 1,
       title: "Workshop Pencegahan Kekerasan Seksual",
-      description: "Kegiatan workshop edukasi pencegahan kekerasan seksual untuk mahasiswa baru UIN Imam Bonjol Padang.",
+      description:
+        "Kegiatan workshop edukasi pencegahan kekerasan seksual untuk mahasiswa baru UIN Imam Bonjol Padang.",
       date: "15 November 2024",
       location: "Aula Utama Kampus III",
-      image: "/images/icons/Logo_UIN_Imam_Bonjol.png", // Placeholder
-      category: "Edukasi"
+      image: "/images/icons/Logo_UIN_Imam_Bonjol.png",
+      category: "Edukasi",
     },
     {
       id: 2,
       title: "Pelatihan Tim Satgas PPK",
-      description: "Pelatihan intensif untuk meningkatkan kompetensi anggota Satgas dalam penanganan kasus kekerasan.",
+      description:
+        "Pelatihan intensif untuk meningkatkan kompetensi anggota Satgas dalam penanganan kasus kekerasan.",
       date: "20 Oktober 2024",
       location: "Ruang Rapat Rektorat",
-      image: "/images/icons/peta_uin.png", // Placeholder
-      category: "Pelatihan"
+      image: "/images/icons/peta_uin.png",
+      category: "Pelatihan",
     },
     {
       id: 3,
       title: "Sosialisasi Permendikbudristek No. 55",
-      description: "Sosialisasi peraturan terbaru tentang pencegahan dan penanganan kekerasan seksual di perguruan tinggi.",
+      description:
+        "Sosialisasi peraturan terbaru tentang pencegahan dan penanganan kekerasan seksual di perguruan tinggi.",
       date: "5 Oktober 2024",
       location: "Auditorium Kampus I",
-      image: "/images/icons/Logo_UIN_Imam_Bonjol.png", // Placeholder
-      category: "Sosialisasi"
+      image: "/images/icons/Logo_UIN_Imam_Bonjol.png",
+      category: "Sosialisasi",
     },
     {
       id: 4,
       title: "Kampanye 16 Hari Anti Kekerasan Terhadap Perempuan",
-      description: "Kegiatan kampanye internasional untuk meningkatkan kesadaran tentang kekerasan terhadap perempuan.",
+      description:
+        "Kegiatan kampanye internasional untuk meningkatkan kesadaran tentang kekerasan terhadap perempuan.",
       date: "25 November 2024",
       location: "Lapangan Kampus II",
-      image: "/images/icons/peta_uin.png", // Placeholder
-      category: "Kampanye"
+      image: "/images/icons/peta_uin.png",
+      category: "Kampanye",
     },
     {
       id: 5,
       title: "Diskusi Panel dengan Alumni Korban",
-      description: "Diskusi panel bersama alumni yang pernah menjadi korban kekerasan untuk berbagi pengalaman dan solusi.",
+      description:
+        "Diskusi panel bersama alumni yang pernah menjadi korban kekerasan untuk berbagi pengalaman dan solusi.",
       date: "10 September 2024",
       location: "Ruang Seminar Fakultas Ushuluddin",
-      image: "/images/icons/Logo_UIN_Imam_Bonjol.png", // Placeholder
-      category: "Diskusi"
+      image: "/images/icons/Logo_UIN_Imam_Bonjol.png",
+      category: "Diskusi",
     },
     {
       id: 6,
       title: "Pembentukan Posko Pengaduan",
-      description: "Peresmian posko pengaduan kekerasan seksual yang beroperasi 24 jam di kampus.",
+      description:
+        "Peresmian posko pengaduan kekerasan seksual yang beroperasi 24 jam di kampus.",
       date: "1 Agustus 2024",
       location: "Gedung Rektorat Lt. 1",
-      image: "/images/icons/peta_uin.png", // Placeholder
-      category: "Infrastruktur"
-    }
+      image: "/images/icons/peta_uin.png",
+      category: "Infrastruktur",
+    },
   ];
 
-  const categories = ["Semua", "Edukasi", "Pelatihan", "Sosialisasi", "Kampanye", "Diskusi", "Infrastruktur"];
-
   const formatDate = (dateStr: string) => {
-    if (dateStr.includes('-')) {
+    if (dateStr.includes("-")) {
       const date = new Date(dateStr);
-      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      return date.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
     }
     return dateStr;
   };
 
+  const allItems = [...staticGalleryItems, ...galleryItems];
+
+  const filteredItems =
+    selectedCategory === "Semua"
+      ? allItems
+      : allItems.filter((item) => item.category === selectedCategory);
+
+  const visibleItems = filteredItems.slice(0, visibleCount);
+  const canLoadMore = visibleCount < filteredItems.length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 py-12 px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-6">
-          <Button variant="ghost" asChild className="mb-4">
-            <a href="/" className="flex items-center gap-2">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-yellow-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-900 py-10">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6">
+        {/* Back + badge */}
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" asChild className="px-0">
+            <a href="/" className="flex items-center gap-2 text-sm">
               <ArrowLeft className="w-4 h-4" />
               Kembali ke Beranda
             </a>
           </Button>
+
+          <div className="hidden sm:flex items-center gap-2 text-xs rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 px-4 py-1">
+            <Filter className="w-4 h-4" />
+            Dokumentasi kegiatan Satgas sepanjang tahun
+          </div>
         </div>
-        <Card className="mb-8">
-          <CardHeader className="text-center">
-            <CardTitle className="text-3xl font-bold flex items-center justify-center gap-3">
-              <Image className="w-8 h-8 text-purple-600" />
+
+        {/* Hero / Intro */}
+        <Card className="mb-8 border border-red-100/70 dark:border-red-900/40 bg-white/95 dark:bg-gray-950/90 shadow-xl overflow-hidden">
+          <div className="pointer-events-none absolute -top-24 -right-24 h-48 w-48 rounded-full bg-red-300/30 dark:bg-red-900/40 blur-3xl" />
+          <CardHeader className="relative text-center space-y-3 pt-8 pb-6">
+            <CardTitle className="text-3xl font-extrabold flex items-center justify-center gap-3 text-gray-900 dark:text-white">
+              <ImageIcon className="w-8 h-8 text-red-600" />
               Galeri Kegiatan Satgas PPK
             </CardTitle>
+            <p className="text-sm md:text-base max-w-2xl mx-auto text-gray-600 dark:text-gray-300">
+              Rekam jejak kegiatan Satgas PPK UIN Imam Bonjol dalam
+              pencegahan, penanganan, dan edukasi terkait kekerasan di
+              lingkungan kampus.
+            </p>
           </CardHeader>
-          <CardContent>
-            <div className="prose prose-purple dark:prose-invert max-w-none text-center">
-              <p className="text-lg">
-                Dokumentasi kegiatan-kegiatan Satgas PPK UIN Imam Bonjol dalam upaya
-                pencegahan dan penanganan kekerasan di lingkungan kampus.
-              </p>
-            </div>
-          </CardContent>
         </Card>
 
         {/* Filter Kategori */}
         <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {categories.map((category) => (
-            <button
-              key={category}
-              className="px-4 py-2 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-full text-sm font-medium hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-colors"
-            >
-              {category}
-            </button>
-          ))}
+          {CATEGORIES.map((category) => {
+            const isActive = selectedCategory === category;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setVisibleCount(6); // reset jumlah visible saat ganti filter
+                }}
+                className={[
+                  "px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium border transition-all",
+                  isActive
+                    ? "bg-red-600 text-white border-red-600 shadow-md shadow-red-500/30"
+                    : "bg-white/90 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-red-50 dark:hover:bg-gray-800",
+                ].join(" ")}
+              >
+                {category}
+              </button>
+            );
+          })}
         </div>
 
         {/* Grid Galeri */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...staticGalleryItems, ...galleryItems].map((item) => (
-            <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow group cursor-pointer">
-              <div className="aspect-video bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                <img
-                  src={item.image}
-                  alt={item.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="absolute top-2 right-2">
-                  <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full">
-                    {item.category}
-                  </span>
-                </div>
-              </div>
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-lg mb-2 line-clamp-2">{item.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-3">
-                  {item.description}
-                </p>
-                <div className="flex items-center gap-4 text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="w-4 h-4" />
-                    <span>{formatDate(item.date)}</span>
+        {filteredItems.length === 0 ? (
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-10">
+            Belum ada dokumentasi untuk kategori ini.
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {visibleItems.map((item) => (
+                <Card
+                  key={String(item.id)}
+                  className="overflow-hidden bg-white/95 dark:bg-gray-950/95 border border-gray-200/80 dark:border-gray-800 hover:border-red-400 dark:hover:border-red-500 hover:shadow-xl transition-all duration-300 group"
+                >
+                  <div className="aspect-video bg-gray-200 dark:bg-gray-800 relative overflow-hidden">
+                    <img
+                      src={item.image}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-transparent opacity-70 group-hover:opacity-90 transition-opacity" />
+                    <div className="absolute top-3 left-3">
+                      <span className="px-3 py-1 rounded-full bg-red-600/90 text-white text-[11px] font-semibold">
+                        {item.category}
+                      </span>
+                    </div>
+                    <div className="absolute bottom-3 left-3 right-3">
+                      <h3 className="text-sm sm:text-base font-semibold text-white line-clamp-2 drop-shadow">
+                        {item.title}
+                      </h3>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    <span>{item.location}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
 
-        {/* Load More Button */}
-        <div className="text-center mt-8">
-          <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors">
-            Muat Lebih Banyak
-          </button>
-        </div>
+                  <CardContent className="p-4 space-y-3">
+                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+                      {item.description}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-4 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>{formatDate(item.date)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span className="line-clamp-1">{item.location}</span>
+                      </div>
+                      {item.uploadedBy?.name && (
+                        <div className="ml-auto text-[10px] italic">
+                          Diunggah oleh {item.uploadedBy.name}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Load More Button */}
+            <div className="text-center mt-8">
+              {canLoadMore && (
+                <Button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + 6)}
+                  disabled={isLoading}
+                  className="rounded-full px-8 py-2 bg-red-700 hover:bg-red-800 text-sm font-semibold"
+                >
+                  {isLoading ? "Memuat..." : "Muat Lebih Banyak"}
+                </Button>
+              )}
+              {!canLoadMore && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Semua dokumentasi untuk kategori ini sudah ditampilkan.
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

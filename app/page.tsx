@@ -191,6 +191,7 @@ export default function Home(): React.ReactElement {
         </div>
       </header>
 
+
       {/* HERO SECTION */}
       <section className="relative pt-20 pb-10 sm:pt-24 sm:pb-12 text-center overflow-hidden bg-gradient-to-br from-red-50/70 via-white to-yellow-50/70 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         <div className="absolute inset-0 z-0 opacity-60 dark:opacity-40">
@@ -219,10 +220,20 @@ export default function Home(): React.ReactElement {
             penanganan, dan hak-hak korban di lingkungan kampus kami.
           </p>
 
-          <div className="flex flex-col sm:flex-row justify-center mt-10 gap-4">
+          {/* Tombol Lapor Sekarang */}
+          <div className="flex justify-center mt-6">
+            <CustomButton
+              variant="primary"
+              size="lg"
+              href="/sign-in"
+              className="px-8 py-3 text-white font-bold rounded-full"
+            >
+              Lapor Sekarang
+            </CustomButton>
           </div>
         </div>
       </section>
+
 
       {/* MAIN CONTENT */}
       <main className="container mx-auto px-6 pb-16 max-w-7xl">
