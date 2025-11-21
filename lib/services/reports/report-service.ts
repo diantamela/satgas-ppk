@@ -77,7 +77,17 @@ export const reportService = {
     try {
       const report = await db.report.findUnique({
         where: { reportNumber },
-        include: {
+        select: {
+          id: true,
+          reportNumber: true,
+          title: true,
+          description: true,
+          incidentDate: true,
+          incidentLocation: true,
+          status: true,
+          investigationProgress: true,
+          createdAt: true,
+          updatedAt: true,
           documents: {
             where: { documentType: 'EVIDENCE' },
             include: {
@@ -133,7 +143,17 @@ export const reportService = {
 
       const reports = await db.report.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          reportNumber: true,
+          title: true,
+          description: true,
+          incidentDate: true,
+          incidentLocation: true,
+          status: true,
+          investigationProgress: true,
+          createdAt: true,
+          updatedAt: true,
           reporter: {
             select: { name: true, email: true }
           }

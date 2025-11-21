@@ -23,7 +23,7 @@ export default function StatusCheckPage() {
       statusText: "Dalam Investigasi",
       createdAt: "2024-10-01",
       updatedAt: "2024-10-10",
-      progress: 60,
+      investigationProgress: 60,
       description: "Laporan terkait dugaan pelecehan seksual yang terjadi di area kampus",
       category: "Sexual Harassment",
       severity: "High",
@@ -39,7 +39,7 @@ export default function StatusCheckPage() {
       statusText: "Selesai",
       createdAt: "2024-09-15",
       updatedAt: "2024-10-05",
-      progress: 100,
+      investigationProgress: 100,
       description: "Laporan terkait kekerasan verbal dari dosen terhadap mahasiswa",
       category: "Verbal Abuse",
       severity: "Medium",
@@ -167,13 +167,13 @@ export default function StatusCheckPage() {
                   <CardContent>
                     <div className="mb-4">
                       <div className="flex justify-between mb-1">
-                        <span className="text-sm font-medium">Progres: {reportStatus.progress}%</span>
+                        <span className="text-sm font-medium">Progres: {reportStatus.investigationProgress || 0}%</span>
                         <span className="text-sm font-medium">{reportStatus.statusText}</span>
                       </div>
                       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                        <div 
-                          className="bg-blue-600 h-2.5 rounded-full" 
-                          style={{ width: `${reportStatus.progress}%` }}
+                        <div
+                          className="bg-blue-600 h-2.5 rounded-full"
+                          style={{ width: `${reportStatus.investigationProgress || 0}%` }}
                         ></div>
                       </div>
                     </div>

@@ -13,9 +13,6 @@ import {
   Eye,
   Download,
   Upload,
-  AlertTriangle,
-  Clock,
-  CheckCircle,
   File,
   FileImage,
   FileAudio,
@@ -27,7 +24,6 @@ import {
 import Link from "next/link";
 import { RoleGuard } from "../../../../components/auth/role-guard";
 
-// Enum for Document Types
 enum DocumentType {
   EVIDENCE = "EVIDENCE",
   INVESTIGATION_REPORT = "INVESTIGATION_REPORT",
@@ -74,11 +70,12 @@ export default function DocumentManagementPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
-  // Fetch documents on component mount
+  const [showUploadForm, setShowUploadForm] = useState(false); // ⭐ state untuk show/hide form
+
   useEffect(() => {
     const fetchDocuments = async () => {
       try {
-        const response = await fetch('/api/documents');
+        const response = await fetch("/api/documents");
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
@@ -86,7 +83,7 @@ export default function DocumentManagementPage() {
           }
         }
       } catch (error) {
-        console.error('Error fetching documents:', error);
+        console.error("Error fetching documents:", error);
       } finally {
         setLoading(false);
       }
@@ -95,35 +92,31 @@ export default function DocumentManagementPage() {
     fetchDocuments();
   }, []);
 
-  
-  // Apply filters when search term, type filter, or documents change
   useEffect(() => {
     let result = documents;
 
-    // Apply search filter
     if (searchTerm) {
-      result = result.filter(doc =>
+      result = result.filter((doc) =>
         doc.fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.report.reportNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Apply type filter
     if (typeFilter !== "all") {
-      result = result.filter(doc => doc.documentType === typeFilter as DocumentType);
+      result = result.filter((doc) => doc.documentType === (typeFilter as DocumentType));
     }
 
     setFilteredDocuments(result);
   }, [documents, searchTerm, typeFilter]);
 
   const getDocumentIcon = (fileName: string) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext || '')) {
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    if (["jpg", "jpeg", "png", "gif"].includes(ext || "")) {
       return <FileImage className="w-5 h-5 text-blue-500" />;
-    } else if (['mp3', 'wav', 'ogg'].includes(ext || '')) {
+    } else if (["mp3", "wav", "ogg"].includes(ext || "")) {
       return <FileAudio className="w-5 h-5 text-green-500" />;
-    } else if (['mp4', 'avi', 'mov'].includes(ext || '')) {
+    } else if (["mp4", "avi", "mov"].includes(ext || "")) {
       return <FileVideo className="w-5 h-5 text-purple-500" />;
     } else {
       return <File className="w-5 h-5 text-gray-500" />;
@@ -161,23 +154,21 @@ export default function DocumentManagementPage() {
   };
 
   const handleFileSelect = (file: File) => {
-    // Validate file size (max 50MB)
     if (file.size > 50 * 1024 * 1024) {
       alert("File terlalu besar. Maksimal 50MB.");
       return;
     }
 
-    // Validate file type
     const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'image/jpeg',
-      'image/png',
-      'image/jpg',
-      'application/zip'
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "image/jpeg",
+      "image/png",
+      "image/jpg",
+      "application/zip"
     ];
 
     if (!allowedTypes.includes(file.type)) {
@@ -185,7 +176,7 @@ export default function DocumentManagementPage() {
       return;
     }
 
-    setUploadForm(prev => ({ ...prev, selectedFile: file }));
+    setUploadForm((prev) => ({ ...prev, selectedFile: file }));
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -219,7 +210,6 @@ export default function DocumentManagementPage() {
 
     setUploading(true);
     try {
-      // First, find the report by report number
       const reportResponse = await fetch(`/api/reports?reportNumber=${uploadForm.reportNumber}`);
       if (!reportResponse.ok) {
         throw new Error("Laporan tidak ditemukan");
@@ -232,14 +222,12 @@ export default function DocumentManagementPage() {
 
       const report = reportData.reports[0];
 
-      // Create FormData for file upload
       const formData = new FormData();
-      formData.append('file', uploadForm.selectedFile);
-      formData.append('reportId', report.id);
+      formData.append("file", uploadForm.selectedFile);
+      formData.append("reportId", report.id);
 
-      // Upload file using the upload API
-      const uploadResponse = await fetch('/api/upload', {
-        method: 'POST',
+      const uploadResponse = await fetch("/api/upload", {
+        method: "POST",
         body: formData
       });
 
@@ -247,14 +235,13 @@ export default function DocumentManagementPage() {
         try {
           const errorData = await uploadResponse.json();
           throw new Error(errorData.error || "Gagal mengunggah file");
-        } catch (parseError) {
+        } catch {
           throw new Error("Gagal mengunggah file: Server error");
         }
       }
 
       const uploadResult = await uploadResponse.json();
 
-      // Now create the document record with the actual storage path
       const documentData = {
         reportId: report.id,
         fileName: uploadForm.selectedFile.name,
@@ -265,11 +252,10 @@ export default function DocumentManagementPage() {
         description: uploadForm.title || undefined
       };
 
-      // Create document record
-      const documentResponse = await fetch('/api/documents', {
-        method: 'POST',
+      const documentResponse = await fetch("/api/documents", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json"
         },
         body: JSON.stringify(documentData)
       });
@@ -280,8 +266,7 @@ export default function DocumentManagementPage() {
 
       const documentResult = await documentResponse.json();
       if (documentResult.success) {
-        // Refresh documents list
-        const fetchResponse = await fetch('/api/documents');
+        const fetchResponse = await fetch("/api/documents");
         if (fetchResponse.ok) {
           const data = await fetchResponse.json();
           if (data.success) {
@@ -289,7 +274,6 @@ export default function DocumentManagementPage() {
           }
         }
 
-        // Reset form
         setUploadForm({
           documentType: "" as DocumentType,
           reportNumber: "",
@@ -316,7 +300,7 @@ export default function DocumentManagementPage() {
 
     try {
       const response = await fetch(`/api/documents/${documentId}`, {
-        method: 'DELETE'
+        method: "DELETE"
       });
 
       if (!response.ok) {
@@ -325,8 +309,7 @@ export default function DocumentManagementPage() {
 
       const result = await response.json();
       if (result.success) {
-        // Refresh documents list
-        const fetchResponse = await fetch('/api/documents');
+        const fetchResponse = await fetch("/api/documents");
         if (fetchResponse.ok) {
           const data = await fetchResponse.json();
           if (data.success) {
@@ -345,7 +328,6 @@ export default function DocumentManagementPage() {
 
   const handleDownloadDocument = async (documentId: string, fileName: string) => {
     try {
-      // Get document info first
       const response = await fetch(`/api/documents/${documentId}`);
       if (!response.ok) {
         throw new Error("Gagal mengambil informasi dokumen");
@@ -354,15 +336,11 @@ export default function DocumentManagementPage() {
       const result = await response.json();
       if (result.success) {
         const doc = result.data;
-
-        // Create download link based on storage path
         let downloadUrl: string;
 
-        if (doc.storagePath.startsWith('/uploads/')) {
-          // Local storage - serve from public directory
+        if (doc.storagePath.startsWith("/uploads/")) {
           downloadUrl = doc.storagePath;
-        } else if (doc.storagePath.startsWith('evidence/')) {
-          // S3 storage - get signed URL
+        } else if (doc.storagePath.startsWith("evidence/")) {
           const signedUrlResponse = await fetch(`/api/documents/${documentId}/download`);
           if (signedUrlResponse.ok) {
             const signedUrlResult = await signedUrlResponse.json();
@@ -374,11 +352,10 @@ export default function DocumentManagementPage() {
           throw new Error("Format path penyimpanan tidak didukung");
         }
 
-        // Create and trigger download
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = downloadUrl;
         link.download = fileName;
-        link.target = '_blank';
+        link.target = "_blank";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -393,7 +370,6 @@ export default function DocumentManagementPage() {
 
   const handleViewDocument = async (documentId: string, fileName: string) => {
     try {
-      // Get document info first
       const response = await fetch(`/api/documents/${documentId}`);
       if (!response.ok) {
         throw new Error("Gagal mengambil informasi dokumen");
@@ -402,15 +378,11 @@ export default function DocumentManagementPage() {
       const result = await response.json();
       if (result.success) {
         const doc = result.data;
-
-        // Create view URL based on storage path
         let viewUrl: string;
 
-        if (doc.storagePath.startsWith('/uploads/')) {
-          // Local storage - serve from public directory
+        if (doc.storagePath.startsWith("/uploads/")) {
           viewUrl = doc.storagePath;
-        } else if (doc.storagePath.startsWith('evidence/')) {
-          // S3 storage - get signed URL
+        } else if (doc.storagePath.startsWith("evidence/")) {
           const signedUrlResponse = await fetch(`/api/documents/${documentId}/download`);
           if (signedUrlResponse.ok) {
             const signedUrlResult = await signedUrlResponse.json();
@@ -422,7 +394,6 @@ export default function DocumentManagementPage() {
           throw new Error("Format path penyimpanan tidak didukung");
         }
 
-        // Open in modal
         setCurrentViewDocument({ url: viewUrl, fileName });
         setViewError(null);
         setIsViewModalOpen(true);
@@ -438,22 +409,165 @@ export default function DocumentManagementPage() {
   return (
     <RoleGuard>
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        {/* HEADER + TOMBOL UPLOAD DOKUMEN ⭐ */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dokumen Investigasi</h1>
-            <p className="text-gray-600 dark:text-gray-400">Kelola dokumen hasil pemeriksaan dan bukti investigasi</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+              Dokumen Investigasi
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Kelola dokumen hasil pemeriksaan dan bukti investigasi
+            </p>
           </div>
+
           <div className="flex gap-2 mt-4 md:mt-0">
+            {/* input file tetap hidden, dipakai oleh form */}
             <input
               type="file"
               ref={fileInputRef}
               className="hidden"
               onChange={handleFileChange}
-              multiple
             />
+
+            <Button
+              className="inline-flex items-center gap-2"
+              onClick={() => setShowUploadForm((prev) => !prev)}
+            >
+              <Upload className="w-4 h-4" />
+              {showUploadForm ? "Tutup Form Dokumen" : "Upload Dokumen"}
+            </Button>
           </div>
         </div>
 
+        {/* FORM UNGGAH DOKUMEN DI ATAS, BISA SHOW/HIDE ⭐ */}
+        {showUploadForm && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="w-5 h-5" />
+                Unggah Dokumen Baru
+              </CardTitle>
+              <CardDescription>
+                Unggah dokumen hasil pemeriksaan, bukti, atau dokumen pendukung lainnya
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Jenis Dokumen *
+                    </label>
+                    <select
+                      className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
+                      value={uploadForm.documentType}
+                      onChange={(e) =>
+                        setUploadForm((prev) => ({
+                          ...prev,
+                          documentType: e.target.value as DocumentType
+                        }))
+                      }
+                    >
+                      <option value="">Pilih Jenis Dokumen</option>
+                      <option value={DocumentType.EVIDENCE}>Bukti Dokumentasi</option>
+                      <option value={DocumentType.INVESTIGATION_REPORT}>Laporan Investigasi</option>
+                      <option value={DocumentType.OFFICIAL_LETTER}>Surat Resmi</option>
+                      <option value={DocumentType.PROCEEDINGS}>Berita Acara</option>
+                      <option value={DocumentType.RECOMMENDATION}>Rekomendasi</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Nomor Laporan Terkait *
+                    </label>
+                    <Input
+                      placeholder="Masukkan nomor laporan (contoh: LPN-241234)"
+                      value={uploadForm.reportNumber}
+                      onChange={(e) =>
+                        setUploadForm((prev) => ({ ...prev, reportNumber: e.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Deskripsi Dokumen
+                  </label>
+                  <Input
+                    placeholder="Deskripsi singkat tentang dokumen ini"
+                    value={uploadForm.title}
+                    onChange={(e) =>
+                      setUploadForm((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    File Dokumen *
+                  </label>
+                  <div
+                    ref={dropZoneRef}
+                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                      isDragOver
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                        : "border-gray-300 dark:border-gray-600"
+                    }`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={handleFileUpload}
+                  >
+                    <Upload
+                      className={`w-12 h-12 mx-auto mb-3 ${
+                        isDragOver ? "text-blue-500" : "text-gray-400"
+                      }`}
+                    />
+                    <p
+                      className={`mb-2 ${
+                        isDragOver
+                          ? "text-blue-600 dark:text-blue-400"
+                          : "text-gray-600 dark:text-gray-300"
+                      }`}
+                    >
+                      {uploadForm.selectedFile
+                        ? `File dipilih: ${uploadForm.selectedFile.name}`
+                        : "Seret dan lepas file di sini, atau klik untuk memilih"}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Format didukung: PDF, DOCX, XLSX, JPG, PNG, ZIP (max 50MB)
+                    </p>
+                    <Button variant="outline" disabled={uploading}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      Pilih File
+                    </Button>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full md:w-auto"
+                  onClick={handleUpload}
+                  disabled={
+                    uploading ||
+                    !uploadForm.selectedFile ||
+                    !uploadForm.documentType ||
+                    !uploadForm.reportNumber
+                  }
+                >
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
+                  {uploading ? "Mengunggah..." : "Simpan Dokumen"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* FILTER & PENCARIAN */}
         <Card className="mb-6">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row gap-4">
@@ -490,6 +604,7 @@ export default function DocumentManagementPage() {
           </CardContent>
         </Card>
 
+        {/* GRID DOKUMEN */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {loading ? (
             <div className="col-span-full text-center py-12">
@@ -499,7 +614,9 @@ export default function DocumentManagementPage() {
           ) : filteredDocuments.length === 0 ? (
             <div className="col-span-full text-center py-12">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Tidak ada dokumen</h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
+                Tidak ada dokumen
+              </h3>
               <p className="text-gray-500 dark:text-gray-400">
                 {documents.length === 0
                   ? "Belum ada dokumen yang diunggah."
@@ -511,14 +628,14 @@ export default function DocumentManagementPage() {
               <Card key={doc.id}>
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="mt-1">
-                      {getDocumentIcon(doc.fileName)}
-                    </div>
+                    <div className="mt-1">{getDocumentIcon(doc.fileName)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium truncate">{doc.fileName}</h3>
                       </div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{doc.description || 'Tidak ada deskripsi'}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {doc.description || "Tidak ada deskripsi"}
+                      </p>
 
                       <div className="mt-2 flex flex-wrap gap-2">
                         <Badge variant="outline" className="text-xs">
@@ -572,108 +689,7 @@ export default function DocumentManagementPage() {
           )}
         </div>
 
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="w-5 h-5" />
-              Unggah Dokumen Baru
-            </CardTitle>
-            <CardDescription>
-              Unggah dokumen hasil pemeriksaan, bukti, atau dokumen pendukung lainnya
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Jenis Dokumen *
-                  </label>
-                  <select
-                    className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
-                    value={uploadForm.documentType}
-                    onChange={(e) => setUploadForm(prev => ({ ...prev, documentType: e.target.value as DocumentType }))}
-                  >
-                    <option value="">Pilih Jenis Dokumen</option>
-                    <option value={DocumentType.EVIDENCE}>Bukti Dokumentasi</option>
-                    <option value={DocumentType.INVESTIGATION_REPORT}>Laporan Investigasi</option>
-                    <option value={DocumentType.OFFICIAL_LETTER}>Surat Resmi</option>
-                    <option value={DocumentType.PROCEEDINGS}>Berita Acara</option>
-                    <option value={DocumentType.RECOMMENDATION}>Rekomendasi</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Nomor Laporan Terkait *
-                  </label>
-                  <Input
-                    placeholder="Masukkan nomor laporan (contoh: LPN-241234)"
-                    value={uploadForm.reportNumber}
-                    onChange={(e) => setUploadForm(prev => ({ ...prev, reportNumber: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Deskripsi Dokumen
-                </label>
-                <Input
-                  placeholder="Deskripsi singkat tentang dokumen ini"
-                  value={uploadForm.title}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  File Dokumen *
-                </label>
-                <div
-                  ref={dropZoneRef}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                    isDragOver
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                      : 'border-gray-300 dark:border-gray-600'
-                  }`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <Upload className={`w-12 h-12 mx-auto mb-3 ${isDragOver ? 'text-blue-500' : 'text-gray-400'}`} />
-                  <p className={`mb-2 ${isDragOver ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-300'}`}>
-                    {uploadForm.selectedFile
-                      ? `File dipilih: ${uploadForm.selectedFile.name}`
-                      : "Seret dan lepas file di sini, atau klik untuk memilih"
-                    }
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Format didukung: PDF, DOCX, XLSX, JPG, PNG, ZIP (max 50MB)
-                  </p>
-                  <Button variant="outline" onClick={handleFileUpload} disabled={uploading}>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Pilih File
-                  </Button>
-                </div>
-              </div>
-
-              <Button
-                className="w-full md:w-auto"
-                onClick={handleUpload}
-                disabled={uploading || !uploadForm.selectedFile || !uploadForm.documentType || !uploadForm.reportNumber}
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4 mr-2" />
-                )}
-                {uploading ? "Mengunggah..." : "Simpan Dokumen"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* View Document Modal */}
+        {/* MODAL VIEW DOKUMEN */}
         <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
           <DialogContent className="max-w-4xl max-h-[80vh]">
             <DialogHeader>
@@ -690,7 +706,9 @@ export default function DocumentManagementPage() {
                     src={currentViewDocument.url}
                     className="w-full h-full border rounded"
                     title={currentViewDocument.fileName}
-                    onError={() => setViewError("File tidak ditemukan atau tidak dapat ditampilkan")}
+                    onError={() =>
+                      setViewError("File tidak ditemukan atau tidak dapat ditampilkan")
+                    }
                   />
                 )}
               </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { User, FileText, Clock, CheckCircle, Eye, Plus, AlertTriangle, MessageSquare, BookOpen, Phone, Settings, Bell, LogOut, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
@@ -91,6 +92,10 @@ export default function UserDashboardPage() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  const getProgress = (report: any) => {
+    return report.investigationProgress || 0;
   };
 
   return (
@@ -224,8 +229,14 @@ export default function UserDashboardPage() {
                               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Kode Laporan: {report.reportNumber}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3 ml-4">
+                          <div className="text-right">
                             {getStatusBadge(report.status)}
+                            {report.status !== "PENDING" && (
+                              <div className="mt-2">
+                                <Progress value={getProgress(report)} className="w-20 h-2" />
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{getProgress(report)}% Progres</p>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
