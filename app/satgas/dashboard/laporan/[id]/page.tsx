@@ -69,15 +69,15 @@ export default function ReportDetailPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "PENDING":
         return <Badge variant="secondary">Menunggu Verifikasi</Badge>;
-      case "verified":
+      case "VERIFIED":
         return <Badge variant="default">Terverifikasi</Badge>;
       case "IN_PROGRESS":
         return <Badge variant="default">Dalam Investigasi</Badge>;
-      case "rejected":
+      case "REJECTED":
         return <Badge variant="destructive">Ditolak</Badge>;
-      case "completed":
+      case "COMPLETED":
         return <Badge variant="success">Selesai</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -483,12 +483,12 @@ export default function ReportDetailPage() {
                   <MessageSquare className="w-4 h-4 mr-2" />
                   Tambah Catatan
                 </Button>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setShowRejectDialog(true)}
-                    disabled={isSubmitting || report.status === 'rejected'}
+                    disabled={isSubmitting || report.status === 'REJECTED'}
                   >
                     Tolak
                   </Button>
@@ -497,7 +497,7 @@ export default function ReportDetailPage() {
                     onClick={handleForward}
                     disabled={isSubmitting || report.status === 'IN_PROGRESS' || report.status === 'COMPLETED'}
                   >
-                    Teruskan
+                    Tindak Lanjut
                   </Button>
                 </div>
               </CardContent>

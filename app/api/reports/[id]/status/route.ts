@@ -29,8 +29,20 @@ export async function PUT(
       );
     }
 
+    // Map status to enum values
+    const statusMap: { [key: string]: string } = {
+      'pending': 'PENDING',
+      'verified': 'VERIFIED',
+      'scheduled': 'SCHEDULED',
+      'in_progress': 'IN_PROGRESS',
+      'completed': 'COMPLETED',
+      'rejected': 'REJECTED'
+    };
+
+    const mappedStatus = statusMap[status.toLowerCase()] || status.toUpperCase();
+
     // Prepare update data
-    const updateData: any = { status };
+    const updateData: any = { status: mappedStatus };
 
     // Add notes based on status - use decisionNotes for all status-related notes
     if (notes) {

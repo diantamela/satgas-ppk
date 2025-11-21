@@ -75,13 +75,13 @@ export default function StatusCheckPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "PENDING":
         return <Badge variant="secondary">Menunggu Verifikasi</Badge>;
-      case "under_investigation":
+      case "IN_PROGRESS":
         return <Badge variant="default">Dalam Investigasi</Badge>;
-      case "rejected":
+      case "REJECTED":
         return <Badge variant="destructive">Ditolak</Badge>;
-      case "completed":
+      case "COMPLETED":
         return <Badge variant="success">Selesai</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -190,6 +190,22 @@ export default function StatusCheckPage() {
                   </CardContent>
                 </Card>
                 
+                {reportStatus.status === "REJECTED" && reportStatus.decisionNotes && (
+                  <Card className="border-red-200 dark:border-red-700">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                        <AlertCircle className="w-5 h-5" />
+                        Alasan Penolakan
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
+                        <p className="text-red-800 dark:text-red-200">{reportStatus.decisionNotes}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {reportStatus.documents && reportStatus.documents.length > 0 && (
                   <Card>
                     <CardHeader>

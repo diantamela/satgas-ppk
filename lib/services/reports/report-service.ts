@@ -86,6 +86,7 @@ export const reportService = {
           incidentLocation: true,
           status: true,
           investigationProgress: true,
+          decisionNotes: true,
           createdAt: true,
           updatedAt: true,
           documents: {
@@ -112,6 +113,19 @@ export const reportService = {
     try {
       const reports = await db.report.findMany({
         where: { reporterId: userId },
+        select: {
+          id: true,
+          reportNumber: true,
+          title: true,
+          description: true,
+          incidentDate: true,
+          incidentLocation: true,
+          status: true,
+          investigationProgress: true,
+          decisionNotes: true,
+          createdAt: true,
+          updatedAt: true
+        },
         orderBy: { createdAt: 'desc' },
         take: 10 // Limit to recent reports
       });

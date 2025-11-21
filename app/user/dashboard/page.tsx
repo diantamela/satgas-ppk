@@ -227,11 +227,16 @@ export default function UserDashboardPage() {
                               <h3 className="font-bold text-gray-900 dark:text-white">{report.title} <span className="text-xs font-normal text-gray-400 ml-2">({report.id})</span></h3>
                               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{report.incidentLocation || 'Lokasi tidak ditentukan'} &bull; Diajukan pada {new Date(report.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">Kode Laporan: {report.reportNumber}</p>
+                              {report.status === "REJECTED" && report.decisionNotes && (
+                                <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded">
+                                  <p className="text-xs text-red-800 dark:text-red-200"><strong>Alasan Penolakan:</strong> {report.decisionNotes}</p>
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="text-right">
                             {getStatusBadge(report.status)}
-                            {report.status !== "PENDING" && (
+                            {report.status !== "PENDING" && report.status !== "REJECTED" && (
                               <div className="mt-2">
                                 <Progress value={getProgress(report)} className="w-20 h-2" />
                                 <p className="text-xs text-gray-500 dark:text-gray-400">{getProgress(report)}% Progres</p>
