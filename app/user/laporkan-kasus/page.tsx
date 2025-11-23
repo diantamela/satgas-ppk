@@ -13,24 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSession } from "@/lib/auth/auth-client";
 
-// Styling
-const styles = {
-  root: `min-h-screen bg-[#FAF9F6] p-6`,
-  wrap: `max-w-[900px] mx-auto`,
-  topbar: `bg-[#A13D3D] text-[#E9B44C] p-3 rounded-lg text-center font-bold mb-4 shadow-md`,
-  card: `bg-white p-6 rounded-xl shadow-lg`,
-  heading: `text-[#A13D3D] text-2xl font-bold mb-2`,
-  lead: `text-[#666666] mb-4`,
-  row: `flex flex-col md:flex-row gap-3 mb-3`,
-  col: `flex-1`,
-  label: `text-sm text-gray-700 mb-1.5 font-semibold`,
-  required: `text-[#b00020]`,
-  small: `text-xs text-[#666666] mt-1.5`,
-  note: `mt-3 p-2.5 border-l-4 border-[#E9B44C] bg-[#fffaf0] rounded-md text-[#5b3f00] text-sm`,
-  result: `mt-4 p-3 rounded-lg bg-[#f3fff0] border-l-6 border-[#2f8a3a] text-[#1f5d2b]`,
-  filesList: `mt-2 text-sm`,
-  error: `text-[#b00020] text-xs mt-1.5`
-};
+import { reportFormStyles as styles } from '@/lib/styles/report-form-styles';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Isi email yang valid" }),

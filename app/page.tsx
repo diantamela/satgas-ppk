@@ -8,14 +8,11 @@ import {
   Mail,
   Shield,
   ArrowRight,
-  LogIn,
-  UserPlus,
-  Sun,
-  Moon,
   Phone,
   MapPin,
 } from "lucide-react";
 import { useSession } from "@/lib/auth/auth-client";
+import { useRouter } from "next/navigation";
 
 // =======================================================
 // Komponen Dasar & Helper Mandiri
@@ -71,7 +68,6 @@ const CustomButton: React.FC<CustomButtonProps> = ({
     variantStyles =
       "bg-transparent text-red-600 dark:text-red-400 font-bold hover:no-underline p-0 h-auto";
   } else {
-    // fallback kalau ada variant aneh
     variantStyles =
       "bg-red-700 hover:bg-red-800 text-white shadow-md shadow-red-500/50 border border-red-700";
   }
@@ -90,108 +86,13 @@ const CustomButton: React.FC<CustomButtonProps> = ({
   );
 };
 
-const ThemeToggle = () => {
-  const [isDark, setIsDark] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      document.documentElement.classList.contains("dark")
-  );
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDark]);
-
-  return (
-    <CustomButton
-      variant="ghost"
-      size="sm"
-      onClick={() => setIsDark((prev: boolean) => !prev)}
-      className="p-2 !h-auto"
-      aria-label="Toggle Theme"
-    >
-      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-    </CustomButton>
-  );
-};
-
-const AuthButtons = ({ session }: { session: any }) => {
-  return (
-    <>
-      <CustomButton
-        variant="ghost"
-        size="sm"
-        href="/sign-in"
-        className="flex items-center"
-      >
-        <LogIn className="w-4 h-4 mr-2" />
-        Sign In
-      </CustomButton>
-      <CustomButton
-        variant="primary"
-        size="sm"
-        href="/sign-up"
-        className="flex items-center"
-      >
-        <UserPlus className="w-4 h-4 mr-2" />
-        Sign Up
-      </CustomButton>
-    </>
-  );
-};
 
 export default function Home(): React.ReactElement {
   const { data: session } = useSession();
+  const router = useRouter();
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 font-inter">
-      {/* NAVBAR */}
-      <header className="sticky top-0 z-50 w-full border-b border-gray-100/70 dark:border-gray-800/70 backdrop-blur-md bg-white/90 dark:bg-gray-950/90 shadow-sm">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between max-w-7xl">
-          <a
-            href="/"
-            className="flex items-center space-x-2 font-extrabold text-xl text-red-700 dark:text-red-400 hover:text-red-600 transition"
-          >
-            <Shield className="w-6 h-6 fill-red-200 dark:fill-red-900" />
-            <span>SATGAS PPK</span>
-          </a>
-
-          <div className="flex items-center gap-2">
-            <CustomButton
-              variant="ghost"
-              size="sm"
-              href="/profil"
-              className="text-sm"
-            >
-              Profil
-            </CustomButton>
-            <CustomButton
-              variant="ghost"
-              size="sm"
-              href="/galeri"
-              className="text-sm"
-            >
-              Galeri
-            </CustomButton>
-            <CustomButton
-              variant="ghost"
-              size="sm"
-              href="/unduh-materi"
-              className="text-sm"
-            >
-              Unduh Materi
-            </CustomButton>
-
-            <AuthButtons session={session} />
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
-
-
       {/* HERO SECTION */}
       <section className="relative pt-20 pb-10 sm:pt-24 sm:pb-12 text-center overflow-hidden bg-gradient-to-br from-red-50/70 via-white to-yellow-50/70 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
         <div className="absolute inset-0 z-0 opacity-60 dark:opacity-40">
@@ -233,7 +134,6 @@ export default function Home(): React.ReactElement {
           </div>
         </div>
       </section>
-
 
       {/* MAIN CONTENT */}
       <main className="container mx-auto px-6 pb-16 max-w-7xl">
@@ -459,7 +359,8 @@ export default function Home(): React.ReactElement {
 
           {/* COPYRIGHT */}
           <div className="pt-2 text-center text-[11px] sm:text-xs text-red-100">
-            &copy; {new Date().getFullYear()} Satgas Pencegahan dan Penanganan Kekerasan UIN Imam Bonjol Padang. Dibangun dengan Next.js.
+            &copy; {new Date().getFullYear()} Satgas Pencegahan dan Penanganan
+            Kekerasan UIN Imam Bonjol Padang. Dibangun dengan Next.js.
           </div>
         </div>
       </footer>

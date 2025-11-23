@@ -9,6 +9,7 @@ import { User, FileText, Clock, CheckCircle, Eye, Plus, AlertTriangle, MessageSq
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { signOut, useSession } from "@/lib/auth/auth-client";
+import { reportFormStyles as styles } from '@/lib/styles/report-form-styles';
 
 export default function UserDashboardPage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -100,8 +101,11 @@ export default function UserDashboardPage() {
 
   return (
     <RoleGuard requiredRoles={['USER']}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
+      <div className={styles.root}>
+        <div className={styles.wrap}>
+          <div className={styles.topbar}>
+            SISTEM INFORMASI PENGADUAN SATGAS PPKS
+          </div>
           {/* Header Dashboard */}
           <div className="flex flex-col md:flex-row justify-between items-start mb-8 border-b pb-4 border-gray-200 dark:border-gray-700">
             <div>
@@ -126,7 +130,7 @@ export default function UserDashboardPage() {
               {/* Keluar */}
               <Button
                 variant="default"
-                className="bg-red-600 hover:bg-red-700 text-white"
+                style={{ background: "#A13D3D", color: "#E9B44C" }}
                 size="sm"
                 onClick={handleSignOut}
                 disabled={isSigningOut}

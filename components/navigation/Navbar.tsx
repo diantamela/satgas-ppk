@@ -1,43 +1,230 @@
-// Komponen Navigasi Utama
-import Link from 'next/link';
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { LogIn, UserPlus, Sun, Moon, Menu, Shield } from "lucide-react";
+import { useSession } from "@/lib/auth/auth-client";
+
+// =======================================================
+// Komponen Dasar & Helper Mandiri
+// =======================================================
+
+interface CustomButtonProps {
+  children: React.ReactNode;
+  href?: string;
+  variant?: string;
+  size?: string;
+  className?: string;
+  [key: string]: any;
+}
+
+const CustomButton: React.FC<CustomButtonProps> = ({
+  children,
+  href,
+  variant = "primary",
+  size = "md",
+  className = "",
+  ...props
+}) => {
+  const baseStyles =
+    "inline-flex items-center justify-center font-semibold rounded-full transition-all duration-300 transform hover:scale-[1.03] active:scale-[0.98]";
+  const sizeStyles =
+    size === "lg" ? "px-7 py-2 text-lg" : "px-4 py-1.5 text-sm";
+
+  let variantStyles;
+
+  if (variant === "primary" || variant === "default") {
+    variantStyles =
+      "bg-red-700 hover:bg-red-800 text-white shadow-md shadow-red-500/50 border border-red-700";
+  } else if (variant === "outline") {
+    variantStyles =
+      "bg-transparent border border-red-600 text-red-700 dark:border-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700";
+  } else if (variant === "ghost") {
+    variantStyles =
+      "bg-transparent text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent";
+  } else if (variant === "link") {
+    variantStyles =
+      "bg-transparent text-red-600 dark:text-red-400 font-bold hover:no-underline p-0 h-auto";
+  } else {
+    variantStyles =
+      "bg-red-700 hover:bg-red-800 text-white shadow-md shadow-red-500/50 border border-red-700";
+  }
+
+  const Element: any = href ? "a" : "button";
+  const linkProps = href ? { href } : {};
+
+  return (
+    <Element
+      className={`${baseStyles} ${sizeStyles} ${variantStyles} ${className}`}
+      {...linkProps}
+      {...props}
+    >
+      {children}
+    </Element>
+  );
+};
+
+const ThemeToggle = () => {
+  const [isDark, setIsDark] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      document.documentElement.classList.contains("dark")
+  );
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDark]);
+
+  return (
+    <CustomButton
+      variant="ghost"
+      size="sm"
+      onClick={() => setIsDark((prev: boolean) => !prev)}
+      className="p-2 !h-auto"
+      aria-label="Toggle Theme"
+    >
+      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+    </CustomButton>
+  );
+};
+
+const AuthButtons = ({ session }: { session: any }) => {
+  return (
+    <>
+      <CustomButton
+        variant="ghost"
+        size="sm"
+        href="/sign-in"
+        className="flex items-center"
+      >
+        <LogIn className="w-4 h-4 mr-2" />
+        Sign In
+      </CustomButton>
+      <CustomButton
+        variant="primary"
+        size="sm"
+        href="/sign-up"
+        className="flex items-center"
+      >
+        <UserPlus className="w-4 h-4 mr-2" />
+        Sign Up
+      </CustomButton>
+    </>
+  );
+};
 
 export const Navbar = () => {
+  const { data: session } = useSession();
+  const [menuOpen, setMenuOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("menuOpen") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("menuOpen", menuOpen.toString());
+  }, [menuOpen]);
+
+  const closeMenu = () => setMenuOpen(false);
+
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-100">
-      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-        {/* Logo/Judul Aplikasi */}
-        <Link href="/" className="flex items-center space-x-2">
-          <span className="text-xl font-bold text-red-700">SATGAS PPKS</span>
-        </Link>
+    <header className="sticky top-0 z-50 w-full border-b border-gray-100/70 dark:border-gray-800/70 backdrop-blur-md bg-white/90 dark:bg-gray-950/90 shadow-sm">
+      <div className="container mx-auto px-6 h-16 flex items-center justify-between max-w-7xl">
+        {/* Logo */}
+        <a
+          href="/"
+          className="flex items-center space-x-2 font-extrabold text-xl text-red-700 dark:text-red-400 hover:text-red-600 transition"
+        >
+          <Shield className="w-6 h-6 fill-red-200 dark:fill-red-900" />
+          <span>SATGAS PPK</span>
+        </a>
 
-        {/* Menu Navigasi */}
-        <nav className="hidden md:flex space-x-8">
-          <Link href="/" className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium">
-            Beranda
-          </Link>
-          <Link href="/laporan" className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium">
-            Lapor Online
-          </Link>
-          <Link href="/edukasi" className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium">
-            Edukasi
-          </Link>
-          <Link href="/tentang" className="text-gray-700 hover:text-red-600 transition-colors duration-200 font-medium">
-            Tentang
-          </Link>
-        </nav>
+        {/* Tombol Menu Mobile */}
+        <CustomButton
+          variant="ghost"
+          size="sm"
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="md:hidden p-2"
+          aria-label="Toggle Menu"
+        >
+          <Menu className="w-5 h-5" />
+        </CustomButton>
 
-        {/* Tombol Login (Akses Dashboard Satgas) */}
-        <div className="flex items-center space-x-4">
-          <Link
-            href="/satgas"
-            className="bg-red-600 text-white py-2 px-4 rounded-lg text-sm hover:bg-red-700 transition duration-300 font-medium"
+        {/* Menu Desktop */}
+        <div className="hidden md:flex items-center gap-2">
+          <CustomButton
+            variant="ghost"
+            size="sm"
+            href="/profil"
+            className="text-sm"
           >
-            Login Satgas
-          </Link>
-        </div>
+            Profil
+          </CustomButton>
+          <CustomButton
+            variant="ghost"
+            size="sm"
+            href="/galeri"
+            className="text-sm"
+          >
+            Galeri
+          </CustomButton>
+          <CustomButton
+            variant="ghost"
+            size="sm"
+            href="/unduh-materi"
+            className="text-sm"
+          >
+            Unduh Materi
+          </CustomButton>
 
-        {/* Tambahkan ikon hamburger/menu untuk mobile di sini jika perlu */}
+          <AuthButtons session={session} />
+          <ThemeToggle />
+        </div>
       </div>
+
+      {/* Menu Mobile (header tetap, menu muncul di bawahnya) */}
+      {menuOpen && (
+        <div className="md:hidden bg-white dark:bg-gray-950 border-t border-gray-100/70 dark:border-gray-800/70 shadow-md">
+          <div className="container mx-auto max-w-7xl px-6 py-3 flex flex-col gap-2">
+            <CustomButton
+              variant="ghost"
+              size="sm"
+              href="/profil"
+              className="text-sm w-full justify-start"
+              onClick={closeMenu}
+            >
+              Profil
+            </CustomButton>
+            <CustomButton
+              variant="ghost"
+              size="sm"
+              href="/galeri"
+              className="text-sm w-full justify-start"
+              onClick={closeMenu}
+            >
+              Galeri
+            </CustomButton>
+            <CustomButton
+              variant="ghost"
+              size="sm"
+              href="/unduh-materi"
+              className="text-sm w-full justify-start"
+              onClick={closeMenu}
+            >
+              Unduh Materi
+            </CustomButton>
+
+            <div className="flex items-center gap-2 pt-2 mt-2 border-t border-gray-100 dark:border-gray-800">
+              <AuthButtons session={session} />
+              <ThemeToggle />
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
