@@ -1,286 +1,267 @@
 "use client";
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { 
-  Users, 
-  FileText, 
-  Clock, 
-  CheckCircle, 
-  Eye, 
-  Download, 
-  BarChart3,
-  User,
-  Shield,
-  TrendingUp,
-  AlertTriangle,
-  XCircle
-} from "lucide-react";
-import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  FileText,
+  ClipboardList,
+  CheckCircle2,
+  XCircle,
+  Shield,
+} from "lucide-react";
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from "recharts";
 
 export default function RektorDashboardPage() {
-  const [activeTab, setActiveTab] = useState("overview");
-
-  // Mock data for rektor dashboard
-  const reportStats = {
-    total: 42,
-    pendingReview: 5,
-    approved: 12,
-    rejected: 3,
-    underReview: 8
+  // --------- MOCK DATA (ganti nanti dengan data dari API) ----------
+  const summaryStats = {
+    newReports: 5,
+    underInvestigation: 5,
+    finished: 5,
+    rejected: 5,
   };
 
-  const pendingReports = [
-    {
-      id: 1,
-      reportNumber: "SPPK-20241015-1001",
-      title: "Dugaan Pelecehan Seksual",
-      category: "Pelecehan Seksual",
-      severity: "Tinggi",
-      submittedDate: "2024-10-17",
-      recommendation: "Sanksi pemecatan",
-      status: "recommendation_submitted"
-    },
-    {
-      id: 2,
-      reportNumber: "SPPK-20241014-2002",
-      title: "Kekerasan Verbal",
-      category: "Kekerasan Verbal",
-      severity: "Sedang",
-      submittedDate: "2024-10-16",
-      recommendation: "Sanksi pembinaan",
-      status: "recommendation_submitted"
-    }
+  // data pie chart tipe laporan
+  const reportTypeData = [
+    { name: "Kekerasan Fisik", value: 5, color: "#8B0000" },        // merah tua
+    { name: "Kekerasan Verbal", value: 4, color: "#B75C5C" },       // merah muda
+    { name: "Kekerasan Seksual", value: 3, color: "#000000" },      // hitam
+    { name: "Kekerasan Berbasis Gender", value: 6, color: "#333333" }, // abu gelap
+    { name: "Kekerasan Psikologis", value: 7, color: "#FFC233" },   // kuning
   ];
 
-  const recentApprovals = [
-    {
-      id: 3,
-      reportNumber: "SPPK-20241013-3003",
-      title: "Bullying Online",
-      category: "Cyberbullying",
-      severity: "Rendah",
-      decision: "Disetujui",
-      decisionDate: "2024-10-15"
-    },
-    {
-      id: 4,
-      reportNumber: "SPPK-20241012-4004",
-      title: "Kekerasan Fisik",
-      category: "Kekerasan Fisik",
-      severity: "Tinggi",
-      decision: "Ditolak",
-      decisionDate: "2024-10-14"
-    }
+  const totalReports = reportTypeData.reduce((acc, cur) => acc + cur.value, 0);
+
+  // Mock data for weekly and monthly statistics
+  const weeklyStats = [
+    { week: "Minggu 1", count: 12 },
+    { week: "Minggu 2", count: 8 },
+    { week: "Minggu 3", count: 15 },
+    { week: "Minggu 4", count: 10 },
   ];
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "recommendation_submitted":
-        return <Badge variant="secondary">Menunggu Persetujuan</Badge>;
-      case "approved":
-        return <Badge variant="success">Disetujui</Badge>;
-      case "rejected":
-        return <Badge variant="destructive">Ditolak</Badge>;
-      case "revised":
-        return <Badge variant="default">Direvisi</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-  
-  const getDecisionBadge = (decision: string) => {
-    if (decision === "Disetujui") {
-        return <Badge variant="success">Disetujui</Badge>;
-    }
-    if (decision === "Ditolak") {
-        return <Badge variant="destructive">Ditolak</Badge>;
-    }
-    return <Badge variant="outline">{decision}</Badge>;
-  };
+  const monthlyStats = [
+    { month: "Januari", count: 45 },
+    { month: "Februari", count: 52 },
+    { month: "Maret", count: 38 },
+    { month: "April", count: 61 },
+    { month: "Mei", count: 49 },
+    { month: "Juni", count: 55 },
+  ];
 
   return (
-    <RoleGuard requiredRoles={['REKTOR']}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-start mb-8">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Dashboard Rektor</h1>
-              <p className="text-gray-600 dark:text-gray-400">Tinjau dan setujui rekomendasi hasil investigasi</p>
-            </div>
-            <Button asChild className="mt-4 md:mt-0">
-              <Link href="/dashboard/rektor/laporan-menunggu">
-                <FileText className="w-4 h-4 mr-2" />
-                Laporan Menunggu Tinjauan
-              </Link>
-            </Button>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Total Laporan */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Total Laporan</CardDescription>
-                <FileText className="w-5 h-5 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportStats.total}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Semua laporan yang masuk</p>
-              </CardContent>
-            </Card>
-
-            {/* Menunggu Tinjauan */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Menunggu Tinjauan</CardDescription>
-                <Clock className="w-5 h-5 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportStats.pendingReview}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Rekomendasi perlu ditinjau</p>
-              </CardContent>
-            </Card>
-
-            {/* Disetujui */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Disetujui</CardDescription>
-                <CheckCircle className="w-5 h-5 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportStats.approved}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Rekomendasi yang disetujui</p>
-              </CardContent>
-            </Card>
-
-            {/* Revisi */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>Revisi</CardDescription>
-                <AlertTriangle className="w-5 h-5 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reportStats.rejected}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Rekomendasi direvisi/tolak</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Laporan Menunggu Persetujuan */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Laporan Menunggu Persetujuan</CardTitle>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href="/dashboard/rektor/laporan-menunggu">
-                      Lihat Semua
-                    </Link>
-                  </Button>
-                </div>
-                <CardDescription>Rekomendasi hasil investigasi yang menunggu persetujuan Anda</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {pendingReports.map((report) => (
-                    <div key={report.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                      <div className="flex items-center">
-                        <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded-lg mr-4">
-                          <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <h3 className="font-medium">{report.title}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{report.reportNumber} • {report.category}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right hidden md:block">
-                          <p className="text-sm font-medium">{report.severity}</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">{report.submittedDate}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(report.status)}
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`/dashboard/rektor/review/${report.id}`}>
-                              <Eye className="w-4 h-4 mr-1" />
-                              Tinjau
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Riwayat Keputusan */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Riwayat Keputusan
-                </CardTitle>
-                <CardDescription>Keputusan yang telah Anda buat</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentApprovals.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
-                      <div>
-                        <p className="text-sm font-medium">
-                          <span className="font-semibold">{item.reportNumber}</span>: {item.title}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{item.decisionDate}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getDecisionBadge(item.decision)}
-                        <Button variant="ghost" size="icon" asChild>
-                          <Link href={`/dashboard/rektor/keputusan/${item.id}`}>
-                            <Eye className="w-4 h-4" />
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Kebijakan */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
-                Kebijakan
-              </CardTitle>
-              <CardDescription>Kebijakan terkait PPK</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Permendikbudristek No. 55 Tahun 2024
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Pedoman PPK Universitas
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Laporan Tahunan PPK
-                </Button>
+    <RoleGuard requiredRoles={["REKTOR"]}>
+      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+        {/* Header Dashboard */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <SidebarTrigger className="sm:flex hidden" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Shield className="w-6 h-6 text-primary" />
               </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                  Dashboard Rektor
+                </h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  Ringkasan laporan kekerasan dan distribusi jenis kasus.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* KARTU STAT ATAS: mirip gambar (4 kotak besar angka 5) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {/* Laporan Baru */}
+          <Card className="shadow-sm border border-gray-200">
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <FileText className="w-10 h-10 mb-2 text-gray-800" />
+              <div className="text-4xl font-bold text-gray-900">
+                {summaryStats.newReports}
+              </div>
+              <p className="mt-2 text-base font-semibold text-gray-800">
+                Laporan Baru
+              </p>
             </CardContent>
           </Card>
 
+          {/* Dalam Investigasi */}
+          <Card className="shadow-sm border border-gray-200">
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <ClipboardList className="w-10 h-10 mb-2 text-gray-800" />
+              <div className="text-4xl font-bold text-gray-900">
+                {summaryStats.underInvestigation}
+              </div>
+              <p className="mt-2 text-base font-semibold text-gray-800">
+                Dalam Investigasi
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Selesai */}
+          <Card className="shadow-sm border border-gray-200">
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <CheckCircle2 className="w-10 h-10 mb-2 text-gray-800" />
+              <div className="text-4xl font-bold text-gray-900">
+                {summaryStats.finished}
+              </div>
+              <p className="mt-2 text-base font-semibold text-gray-800">
+                Selesai
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Ditolak */}
+          <Card className="shadow-sm border border-gray-200">
+            <CardContent className="flex flex-col items-center justify-center py-6">
+              <XCircle className="w-10 h-10 mb-2 text-gray-800" />
+              <div className="text-4xl font-bold text-gray-900">
+                {summaryStats.rejected}
+              </div>
+              <p className="mt-2 text-base font-semibold text-gray-800">
+                Ditolak
+              </p>
+            </CardContent>
+          </Card>
         </div>
+
+        {/* PIE CHART TIPE LAPORAN */}
+        <Card className="shadow-sm border border-gray-200">
+          <CardHeader className="border-b border-gray-200">
+            <CardTitle className="text-lg font-semibold">
+              Pie Chart Tipe Laporan
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              {/* Chart */}
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Tooltip
+                      formatter={(value: any, name: any) => [
+                        `${value} laporan`,
+                        name,
+                      ]}
+                    />
+                    <Pie
+                      data={reportTypeData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={70}
+                      outerRadius={110}
+                      paddingAngle={2}
+                    >
+                      {reportTypeData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Legend di tengah */}
+              <div className="space-y-3">
+                {reportTypeData.map((item) => (
+                  <div
+                    key={item.name}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="inline-block w-4 h-4 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                      />
+                      <span className="text-sm md:text-base text-gray-800">
+                        {item.name}
+                      </span>
+                    </div>
+                    <Badge variant="outline" className="text-xs md:text-sm">
+                      {item.value} laporan
+                    </Badge>
+                  </div>
+                ))}
+
+                <p className="mt-4 text-xs text-gray-500">
+                  Total laporan tercatat:{" "}
+                  <span className="font-semibold">{totalReports}</span>
+                </p>
+              </div>
+
+              {/* Statistik Mingguan dan Bulanan */}
+              <div className="space-y-6">
+                {/* Statistik Mingguan */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-800 mb-3">
+                    Laporan per Minggu
+                  </h4>
+                  <div className="h-32">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={weeklyStats}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="week"
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                        />
+                        <YAxis
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                        />
+                        <Tooltip
+                          formatter={(value: any) => [`${value} laporan`, 'Jumlah']}
+                        />
+                        <Bar dataKey="count" fill="#8884d8" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Statistik Bulanan */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-800 mb-3">
+                    Laporan per Bulan
+                  </h4>
+                  <div className="h-32">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={monthlyStats.slice(0, 4)}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="month"
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                        />
+                        <YAxis
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                        />
+                        <Tooltip
+                          formatter={(value: any) => [`${value} laporan`, 'Jumlah']}
+                        />
+                        <Bar dataKey="count" fill="#82ca9d" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </RoleGuard>
   );

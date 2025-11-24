@@ -81,17 +81,17 @@ const staticData = {
   navRektor: [
     {
       title: "Dashboard Rektor",
-      url: "/dashboard/rektor",
+      url: "/rektor/dashboard",
       icon: IconDashboard,
     },
     {
       title: "Laporan Akhir",
-      url: "/dashboard/rektor/laporan-akhir",
+      url: "/rektor/dashboard/laporan-akhir",
       icon: IconReport,
     },
     {
       title: "Rekomendasi",
-      url: "/dashboard/rektor/rekomendasi",
+      url: "/rektor/dashboard/rekomendasi",
       icon: IconFileDescription,
     },
   ],

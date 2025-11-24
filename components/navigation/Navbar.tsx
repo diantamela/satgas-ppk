@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { LogIn, UserPlus, Sun, Moon, Menu, Shield } from "lucide-react";
+import { LogIn, UserPlus, Menu, Shield } from "lucide-react";
 import { useSession } from "@/lib/auth/auth-client";
+import { SimpleThemeToggle } from "@/components/layout/theme-toggle";
 
 // =======================================================
 // Komponen Dasar & Helper Mandiri
@@ -63,33 +64,6 @@ const CustomButton: React.FC<CustomButtonProps> = ({
   );
 };
 
-const ThemeToggle = () => {
-  const [isDark, setIsDark] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      document.documentElement.classList.contains("dark")
-  );
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDark]);
-
-  return (
-    <CustomButton
-      variant="ghost"
-      size="sm"
-      onClick={() => setIsDark((prev: boolean) => !prev)}
-      className="p-2 !h-auto"
-      aria-label="Toggle Theme"
-    >
-      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-    </CustomButton>
-  );
-};
 
 const AuthButtons = ({ session }: { session: any }) => {
   return (
@@ -118,16 +92,20 @@ const AuthButtons = ({ session }: { session: any }) => {
 
 export const Navbar = () => {
   const { data: session } = useSession();
-  const [menuOpen, setMenuOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("menuOpen") === "true";
-    }
-    return false;
-  });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("menuOpen", menuOpen.toString());
-  }, [menuOpen]);
+    setMounted(true);
+    const stored = localStorage.getItem("menuOpen") === "true";
+    setMenuOpen(stored);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      localStorage.setItem("menuOpen", menuOpen.toString());
+    }
+  }, [menuOpen, mounted]);
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -182,12 +160,12 @@ export const Navbar = () => {
           </CustomButton>
 
           <AuthButtons session={session} />
-          <ThemeToggle />
+          <SimpleThemeToggle />
         </div>
       </div>
 
       {/* Menu Mobile (header tetap, menu muncul di bawahnya) */}
-      {menuOpen && (
+      {mounted && menuOpen && (
         <div className="md:hidden bg-white dark:bg-gray-950 border-t border-gray-100/70 dark:border-gray-800/70 shadow-md">
           <div className="container mx-auto max-w-7xl px-6 py-3 flex flex-col gap-2">
             <CustomButton
@@ -220,7 +198,7 @@ export const Navbar = () => {
 
             <div className="flex items-center gap-2 pt-2 mt-2 border-t border-gray-100 dark:border-gray-800">
               <AuthButtons session={session} />
-              <ThemeToggle />
+              <SimpleThemeToggle />
             </div>
           </div>
         </div>
