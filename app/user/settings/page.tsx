@@ -11,6 +11,7 @@ import { useSession } from "@/lib/auth/auth-client";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { Loader2, Eye, EyeOff, ArrowLeft, Lock } from "lucide-react";
 import Link from "next/link";
+import { reportFormStyles as styles } from '@/lib/styles/report-form-styles';
 
 export default function UserSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -79,16 +80,13 @@ export default function UserSettingsPage() {
 
   return (
     <RoleGuard requiredRoles={['USER']}>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 md:p-8">
-        <div className="max-w-2xl mx-auto">
+      <div className={styles.root}>
+        <div className={styles.wrap}>
+          <div className={styles.topbar}>
+            SISTEM INFORMASI PENGADUAN SATGAS PPKS
+          </div>
           {/* Header */}
           <div className="flex items-center gap-4 mb-8">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/user/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Kembali ke Dashboard
-              </Link>
-            </Button>
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Pengaturan Akun</h1>
               <p className="text-gray-600 dark:text-gray-400">Kelola informasi dan keamanan akun Anda</p>
@@ -249,7 +247,7 @@ export default function UserSettingsPage() {
                   <Button
                     type="submit"
                     disabled={isLoading || !currentPassword || !newPassword || !confirmPassword}
-                    className="bg-red-700 hover:bg-red-800 text-white"
+                    style={{ background: "#A13D3D", color: "#E9B44C" }}
                   >
                     {isLoading ? (
                       <>

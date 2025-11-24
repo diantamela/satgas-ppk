@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DIRECT_URL")    // pakai direct untuk runtime to avoid pgbouncer cache
-  directUrl = env("DIRECT_URL")    // pakai port 5432 untuk migrate
+  provider = "postgresql"
 }
 
 enum Role {

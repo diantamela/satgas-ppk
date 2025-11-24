@@ -27,9 +27,6 @@
     "docker:down": "docker compose -f docker-compose-postgres.yaml down",
     "docker:logs": "docker compose -f docker-compose-postgres.yaml logs -f"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.913.0",
     "@aws-sdk/s3-request-presigner": "^3.913.0",
