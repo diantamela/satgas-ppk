@@ -49,49 +49,16 @@ export function getNormalizedRoleFromSession(session: any): string | null {
   }
 }
 
-// --- Fungsi untuk Middleware ---
-
-/**
- * Helper function to get session from request headers (Used by middleware)
- */
-export async function getSessionFromRequest(request: Request): Promise<any | null> {
-  try {
-    // Menggunakan Type Assertion pada auth untuk mengakses properti api
-    const authInstance: any = auth;
-    const session = await authInstance.api.getSession({
-      headers: request.headers,
-    });
-    if (session && session.user) {
-      return session;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting session from request:', error);
-    return null;
-  }
-}
-
-// --- Fungsi Baru untuk Route Handlers (API) dan Server Components ---
+// --- Client-safe utility functions ---
 
 /**
  * Helper function to get the current session directly in Route Handlers or Server Components.
+ * NOTE: This is now handled by server-session.ts for server-side operations
  */
 export async function getSession(): Promise<any | null> {
-    try {
-        // Mendapatkan session dari instance auth
-        const authInstance: any = auth;
-        const session = await authInstance.api.getSession({
-            headers: new Headers(),
-        });
-        
-        if (session && session.user) {
-            return session;
-        }
-        return null;
-    } catch (error) {
-        console.error('Error getting session:', error);
-        return null;
-    }
+    // This function is deprecated - use server-session.ts for server operations
+    console.warn('getSession() is deprecated. Use server-session.ts functions for server-side session validation.');
+    return null;
 }
 
 // --- Helper Role Extraction dan Guards ---

@@ -99,7 +99,7 @@ export default function InvestigationPage() {
   };
 
   // Handle scheduling an investigation
-  const handleScheduleInvestigation = async (scheduledDate: string, notes: string) => {
+  const handleScheduleInvestigation = async (scheduleData: any) => {
     if (!selectedReport) return;
     setIsScheduling(true);
 
@@ -107,7 +107,7 @@ export default function InvestigationPage() {
       const response = await fetch('/api/reports/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportId: selectedReport.id, scheduledDate, notes }),
+        body: JSON.stringify({ reportId: selectedReport.id, ...scheduleData }),
       });
 
       const data = await response.json();
@@ -145,13 +145,6 @@ export default function InvestigationPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Investigasi</h1>
             <p className="text-gray-600 dark:text-gray-400">Kelola proses investigasi laporan kekerasan</p>
           </div>
-          <Button
-            className="mt-4 md:mt-0 shadow-md transition-shadow hover:shadow-lg bg-red-600 hover:bg-red-700"
-            onClick={handleOpenScheduleModal}
-          >
-            <FilePlus className="w-4 h-4 mr-2" />
-            Jadwalkan Investigasi
-          </Button>
         </div>
 
         {/* Tab Navigation */}

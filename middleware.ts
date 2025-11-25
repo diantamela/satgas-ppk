@@ -71,7 +71,8 @@ export function middleware(req: NextRequest) {
   // Proteksi API non-auth (JSON response, bukan redirect)
   if (pathname.startsWith("/api/")) {
     // API publik tertentu
-    if (pathname.startsWith("/api/reports/check-status")) {
+    if (pathname.startsWith("/api/reports/check-status") ||
+        pathname === "/api/upload") {
       return NextResponse.next();
     }
 

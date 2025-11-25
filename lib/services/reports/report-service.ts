@@ -1,6 +1,6 @@
 // lib/services/reports/report-service.ts
 import { db } from "@/db";
-import { ReportStatus, DocumentType } from "@prisma/client";
+import { ReportStatus, DocumentType, InvestigationMethod, InvestigationParty, AccessLevel } from "@prisma/client";
 
 // Report Service
 export const reportService = {
@@ -214,7 +214,7 @@ export const reportService = {
     }
   },
 
-  // Schedule investigation
+  // Schedule investigation (legacy method)
   async scheduleInvestigation(id: string, scheduledDate: Date, scheduledBy: string, scheduledNotes?: string) {
     try {
       const updatedReport = await db.report.update({
@@ -230,6 +230,123 @@ export const reportService = {
       return updatedReport;
     } catch (error) {
       console.error("Error in reportService.scheduleInvestigation:", error);
+      throw error;
+    }
+  },
+
+  // Create detailed investigation schedule
+  async createDetailedInvestigationSchedule(data: {
+    reportId: string;
+    startDateTime: Date;
+    endDateTime: Date;
+    location: string;
+    methods: string[];
+    partiesInvolved: string[];
+    otherPartiesDetails?: string;
+    teamMembers: Array<{
+      userId: string;
+      role: string;
+      customRole?: string;
+    }>;
+    consentObtained: boolean;
+    consentDocumentation?: string;
+    riskNotes?: string;
+    planSummary?: string;
+    followUpAction?: string;
+    followUpDate?: Date;
+    followUpNotes?: string;
+    accessLevel: string;
+    createdById: string;
+  }) {
+    try {
+      // Create the detailed schedule
+      const schedule = await db.investigationSchedule.create({
+        data: {
+          reportId: data.reportId,
+          startDateTime: data.startDateTime,
+          endDateTime: data.endDateTime,
+          location: data.location,
+          methods: data.methods as InvestigationMethod[],
+          partiesInvolved: data.partiesInvolved as InvestigationParty[],
+          otherPartiesDetails: data.otherPartiesDetails,
+          consentObtained: data.consentObtained,
+          consentDocumentation: data.consentDocumentation,
+          riskNotes: data.riskNotes,
+          planSummary: data.planSummary,
+          followUpAction: data.followUpAction,
+          followUpDate: data.followUpDate,
+          followUpNotes: data.followUpNotes,
+          accessLevel: data.accessLevel as AccessLevel,
+          createdById: data.createdById,
+          teamMembers: {
+            create: data.teamMembers.map(member => ({
+              userId: member.userId,
+              role: member.role as any,
+              customRole: member.customRole
+            }))
+          }
+        },
+        include: {
+          teamMembers: {
+            include: {
+              user: {
+                select: { name: true, email: true }
+              }
+            }
+          },
+          createdBy: {
+            select: { name: true }
+          }
+        }
+      });
+
+      // Update report status to SCHEDULED
+      await db.report.update({
+        where: { id: data.reportId },
+        data: {
+          status: ReportStatus.SCHEDULED,
+          scheduledDate: data.startDateTime
+        }
+      });
+
+      return schedule;
+    } catch (error) {
+      console.error("Error in reportService.createDetailedInvestigationSchedule:", error);
+      throw error;
+    }
+  },
+
+  // Get investigation schedule by report ID
+  async getInvestigationScheduleByReportId(reportId: string) {
+    try {
+      const schedule = await db.investigationSchedule.findFirst({
+        where: { reportId },
+        include: {
+          teamMembers: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true }
+              }
+            }
+          },
+          attachments: {
+            include: {
+              uploadedBy: {
+                select: { name: true }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
+          },
+          createdBy: {
+            select: { name: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return schedule;
+    } catch (error) {
+      console.error("Error in reportService.getInvestigationScheduleByReportId:", error);
       throw error;
     }
   },

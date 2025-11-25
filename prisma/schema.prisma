@@ -63,6 +63,55 @@ enum Affiliation {
   GUEST
 }
 
+enum InvestigationMethod {
+  INTERVIEW
+  WRITTEN_CLARIFICATION
+  LOCATION_OBSERVATION
+  DIGITAL_EVIDENCE_COLLECTION
+  MEDIATION
+  OTHER
+}
+
+enum InvestigationParty {
+  VICTIM_SURVIVOR
+  REPORTED_PERSON
+  WITNESS
+  OTHER_PARTY
+}
+
+enum TeamRole {
+  TEAM_LEADER
+  NOTE_TAKER
+  PSYCHOLOGICAL_SUPPORT
+  LEGAL_SUPPORT
+  INVESTIGATOR
+  OTHER
+}
+
+enum ScheduleStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  RESCHEDULED
+}
+
+enum AccessLevel {
+  CORE_TEAM_ONLY
+  FULL_SATGAS
+  LEADERSHIP_ONLY
+}
+
+enum ActivityType {
+  INTERVIEW_CONDUCTED
+  EVIDENCE_COLLECTED
+  SITE_VISIT
+  DOCUMENT_REVIEW
+  WITNESS_STATEMENT
+  MEDIATION_SESSION
+  FOLLOW_UP_ACTION
+  OTHER_ACTIVITY
+}
+
 model Gallery {
   id          String   @id @default(cuid())
   title       String
@@ -71,7 +120,7 @@ model Gallery {
   location    String
   category    String
   image       String   // Path to image
-  uploadedBy  User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedBy  User?                 @relation(name: "UserUploadedGallery", fields: [uploadedById], references: [id], onDelete: SetNull)
   uploadedById String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -101,7 +150,12 @@ model User {
   timelineEntries       ReportTimeline[]        @relation(name: "UserTimelineEntries")
   uploadedDocuments     InvestigationDocument[] @relation(name: "UserDocuments")
   activityLogs          ActivityLog[]
-  uploadedGallery       Gallery[]
+  uploadedGallery       Gallery[] @relation(name: "UserUploadedGallery")
+  createdSchedules      InvestigationSchedule[] @relation(name: "UserCreatedSchedules")
+  teamMemberships       InvestigationTeamMember[]
+  uploadedAttachments   InvestigationAttachment[] @relation(name: "UserUploadedAttachments")
+  conductedActivities   InvestigationActivity[]
+  activityAttachments   InvestigationActivityAttachment[] @relation(name: "ActivityAttachmentUploader")
 
   @@index([email])
 }
@@ -152,6 +206,8 @@ model Report {
    timelines    ReportTimeline[]
    documents    InvestigationDocument[]
    activityLogs ActivityLog[] @relation(name: "ReportActivityLogs")
+   schedules    InvestigationSchedule[]
+   activities     InvestigationActivity[]
 
    @@index([reporterId])
    @@index([assigneeId])
@@ -159,6 +215,133 @@ model Report {
    @@index([createdAt])
    @@index([status, updatedAt])
    @@index([recommendationStatus])
+}
+
+model InvestigationSchedule {
+  id                    String                @id @default(cuid())
+  report                Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId              String
+
+  // Block 1: Info Dasar Sesi
+  startDateTime         DateTime              // Tanggal & jam mulai
+  endDateTime           DateTime              // Tanggal & jam selesai
+  location              String                // Lokasi investigasi
+  methods               InvestigationMethod[] // Metode/bentuk kegiatan (multi-select)
+  partiesInvolved       InvestigationParty[]  // Pihak yang dilibatkan (multi-select)
+  otherPartiesDetails   String?               // Detail pihak lain jika dipilih
+
+  // Block 2: Tim & Tugas
+  teamMembers           InvestigationTeamMember[]
+  consentObtained       Boolean               @default(false) // Persetujuan diperoleh
+  consentDocumentation  String?               // Cara dokumentasi persetujuan (tertulis/lisan terekam)
+  riskNotes             String?               // Catatan risiko & keamanan
+
+  // Block 3: Output & Status
+  planSummary           String?               // Ringkasan rencana
+  attachments           InvestigationAttachment[]
+  activities            InvestigationActivity[]
+  followUpAction        String?               // Tindakan lanjut (lanjut/stop)
+  followUpDate          DateTime?             // Jadwal tindak lanjut
+  followUpNotes         String?               // Catatan tindak lanjut
+  status                ScheduleStatus        @default(SCHEDULED)
+  accessLevel           AccessLevel           @default(CORE_TEAM_ONLY)
+
+  createdBy             User?                 @relation(name: "UserCreatedSchedules", fields: [createdById], references: [id], onDelete: SetNull)
+  createdById           String?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([reportId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model InvestigationTeamMember {
+  id              String      @id @default(cuid())
+  schedule        InvestigationSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduleId      String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  role            TeamRole
+  customRole      String?     // Jika role OTHER, isi custom role
+
+  @@index([scheduleId])
+  @@index([userId])
+  @@unique([scheduleId, userId]) // One user per schedule
+}
+
+model InvestigationAttachment {
+  id          String                @id @default(cuid())
+  schedule    InvestigationSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  scheduleId  String
+  fileName    String
+  fileType    String
+  fileSize    Int
+  storagePath String
+  description String?
+  uploadedBy  User?                 @relation(name: "UserUploadedAttachments", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedById String?
+  createdAt   DateTime              @default(now())
+
+  @@index([scheduleId])
+  @@index([uploadedById])
+}
+
+model InvestigationActivity {
+  id                String                @id @default(cuid())
+  report            Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId          String
+  schedule          InvestigationSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleId        String?
+
+  // Activity details
+  activityType      ActivityType
+  title             String                // Brief title of the activity
+  description       String                // Detailed description of what was done
+  location          String?               // Where the activity took place
+  startDateTime     DateTime              // When the activity started
+  endDateTime       DateTime?             // When the activity ended
+  duration          Int?                  // Duration in minutes
+
+  // Participants
+  participants      String[]              // Names/emails of people involved
+  conductedBy       User                  @relation(fields: [conductedById], references: [id], onDelete: Restrict)
+  conductedById     String
+
+  // Outcomes and notes
+  outcomes          String?               // What was accomplished/learned
+  challenges        String?               // Any challenges encountered
+  recommendations   String?               // Recommendations for next steps
+  attachments       InvestigationActivityAttachment[]
+
+  // Metadata
+  isConfidential    Boolean               @default(false)
+  accessLevel       AccessLevel           @default(CORE_TEAM_ONLY)
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@index([reportId])
+  @@index([scheduleId])
+  @@index([conductedById])
+  @@index([activityType])
+  @@index([createdAt])
+}
+
+model InvestigationActivityAttachment {
+  id            String                @id @default(cuid())
+  activity      InvestigationActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  activityId    String
+  fileName      String
+  fileType      String
+  fileSize      Int
+  storagePath   String
+  description   String?
+  uploadedBy    User?                 @relation(name: "ActivityAttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedById  String?
+  createdAt     DateTime              @default(now())
+
+  @@index([activityId])
+  @@index([uploadedById])
 }
 
 model ReportTimeline {

@@ -1,10 +1,10 @@
 import { defineConfig } from 'prisma/config'
 
 export default defineConfig({
-  datasources: {
+  database: {
     db: {
       provider: "postgresql",
-      url: process.env.DIRECT_URL,
+      url: process.env.DATABASE_URL,
     },
   },
 } as any)
