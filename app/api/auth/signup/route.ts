@@ -30,9 +30,10 @@ export async function POST(req: Request) {
         name,
         email: emailNorm,
         password: hash,
+        role: 'USER',
         // affiliation default STUDENT dari schema, jadi nggak perlu diisi
       },
-      select: { id: true, email: true, name: true, createdAt: true },
+      select: { id: true, email: true, name: true, role: true, createdAt: true },
     })
 
     return NextResponse.json({ ok: true, user })

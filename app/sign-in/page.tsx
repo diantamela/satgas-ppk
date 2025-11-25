@@ -62,7 +62,7 @@ export default function SignInPage() {
       {/* Kiri (Hero) */}
       <div
         className="relative hidden md:flex flex-col justify-start p-10 lg:p-16 w-1/2"
-        style={{ backgroundColor: "#C53C3C" }}
+        style={{ backgroundColor: "lab(40.4273% 67.2623 53.7441)" }}
       >
         <div className="flex items-center space-x-3 mb-20">
           <div className="relative w-12 h-12">

@@ -14,7 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
-import { signUp } from "@/lib/auth/auth-client";
+import { signUp, signIn } from "@/lib/auth/auth-client";
 
 const signUpSchema = z
   .object({
@@ -53,8 +53,11 @@ export default function SignUpPage() {
     try {
       await signUp(data.email.toLowerCase(), data.password, data.name);
 
-      // Berhasil daftar → arahkan ke halaman login
-      router.push("/sign-in");
+      // Auto sign in setelah daftar
+      await signIn(data.email.toLowerCase(), data.password);
+
+      // Berhasil daftar dan login → arahkan ke dashboard
+      router.push("/dashboard");
     } catch (error: any) {
       setError(error?.message || "Terjadi kesalahan tak terduga");
     } finally {
@@ -67,7 +70,7 @@ export default function SignUpPage() {
       {/* Kiri (Hero) */}
       <div
         className="relative hidden md:flex flex-col justify-start p-10 lg:p-16 w-1/2"
-        style={{ backgroundColor: "#C53C3C" }}
+        style={{ backgroundColor: "lab(40.4273% 67.2623 53.7441)" }}
       >
         <div className="flex items-center space-x-3 mb-20">
           <div className="relative w-12 h-12">
