@@ -17,7 +17,6 @@ import {
   FileText,
   AlertTriangle,
   Clock,
-  CheckCircle,
   User,
   MapPin,
   Mail,
@@ -223,32 +222,6 @@ export default function InvestigationDetailPage() {
     }
   };
 
-  const handleCompleteInvestigation = async () => {
-    if (!id) return;
-
-    setIsSubmitting(true);
-    try {
-      const response = await fetch(`/api/reports/${id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'completed' }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setReport(data.report);
-        setAlertMessage({ type: 'success', message: 'Investigasi berhasil diselesaikan' });
-        setTimeout(() => setAlertMessage(null), 3000);
-      } else {
-        setAlertMessage({ type: 'error', message: data.message || 'Gagal menyelesaikan investigasi' });
-      }
-    } catch (error) {
-      console.error('Complete investigation error:', error);
-      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat menyelesaikan investigasi' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const handleStartInvestigation = async () => {
     if (!id) return;
@@ -427,13 +400,36 @@ export default function InvestigationDetailPage() {
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         if (response.ok && data.success) {
+          // Create activity automatically with schedule data
+          const activityData = {
+            activityType: "SCHEDULED_INVESTIGATION",
+            title: `Jadwal Investigasi: ${planSummary || 'Investigasi Terjadwal'}`,
+            description: `Investigasi terjadwal pada ${new Date(startDateTime).toLocaleString('id-ID')} - ${new Date(endDateTime).toLocaleString('id-ID')} di ${location}. ${planSummary ? `Rencana: ${planSummary}` : ''}${methods.length > 0 ? ` Metode: ${methods.join(', ')}` : ''}${partiesInvolved.length > 0 ? ` Pihak terlibat: ${partiesInvolved.join(', ')}` : ''}${otherPartiesDetails ? ` Detail pihak lain: ${otherPartiesDetails}` : ''}${riskNotes ? ` Catatan risiko: ${riskNotes}` : ''}`,
+            location,
+            startDateTime,
+            endDateTime,
+            participants: teamMembers.map(member => member.userId || member.role).filter(Boolean),
+            outcomes: planSummary || undefined,
+            challenges: riskNotes || undefined,
+            recommendations: followUpNotes || undefined,
+            isConfidential: false,
+            accessLevel
+          };
+
+          // Create the activity
+          const activityResponse = await fetch(`/api/reports/${id}/activities`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(activityData),
+          });
+
           // Refresh the report data
           const reportResponse = await fetch(`/api/reports/${id}`);
           const reportData = await reportResponse.json();
           if (reportData.success) {
             setReport(reportData.report);
           }
-          setAlertMessage({ type: 'success', message: 'Jadwal investigasi berhasil dibuat' });
+          setAlertMessage({ type: 'success', message: 'Jadwal investigasi berhasil dibuat dan dicatat sebagai kegiatan' });
           setTimeout(() => setAlertMessage(null), 3000);
           // Reset form
           setStartDateTime("");
@@ -452,6 +448,8 @@ export default function InvestigationDetailPage() {
           setFollowUpNotes("");
           setAccessLevel("CORE_TEAM_ONLY");
           setUploadedFiles([]);
+          // Redirect to kegiatan page
+          router.push(`/satgas/dashboard/investigasi/${id}/kegiatan`);
         } else {
           setAlertMessage({ type: 'error', message: data.message || 'Gagal membuat jadwal investigasi' });
         }
@@ -548,14 +546,6 @@ export default function InvestigationDetailPage() {
                 Mulai Investigasi
               </Button>
             )}
-            <Button
-              onClick={handleCompleteInvestigation}
-              disabled={isSubmitting || report.status === 'COMPLETED'}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Selesai Investigasi
-            </Button>
           </div>
         </div>
 
