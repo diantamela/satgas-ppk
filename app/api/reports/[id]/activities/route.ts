@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 // GET /api/reports/[id]/activities - Get all activities for a report
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get current user session
@@ -21,7 +21,7 @@ export async function GET(
       );
     }
 
-    const reportId = params.id;
+    const { id: reportId } = await params;
 
     // Verify report exists and user has access
     const report = await prisma.report.findUnique({
@@ -81,7 +81,7 @@ export async function GET(
 // POST /api/reports/[id]/activities - Create a new investigation activity
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Get current user session
@@ -94,7 +94,7 @@ export async function POST(
       );
     }
 
-    const reportId = params.id;
+    const { id: reportId } = await params;
     const body = await request.json();
 
     const {

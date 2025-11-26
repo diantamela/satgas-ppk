@@ -3,8 +3,33 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
+interface UserWithInvalidRole {
+  id: string;
+  email: string;
+  role: string;
+}
+
+interface UserWithMissingFields {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+interface DataConsistencyData {
+  totalUsers: number;
+  isConsistent: boolean;
+  userCountByRole: {
+    USER: number;
+    SATGAS: number;
+    REKTOR: number;
+  };
+  invalidRoleUsers: UserWithInvalidRole[];
+  duplicateEmails: string[];
+  usersWithMissingFields: UserWithMissingFields[];
+}
+
 export default function DataConsistencyChecker() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DataConsistencyData | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -92,7 +117,7 @@ export default function DataConsistencyChecker() {
         <div className="mb-6 p-4 bg-red-50 rounded-lg">
           <h2 className="text-xl font-semibold mb-2">Users with Invalid Roles</h2>
           <ul>
-            {data.invalidRoleUsers.map((user: any) => (
+            {data.invalidRoleUsers.map((user: UserWithInvalidRole) => (
               <li key={user.id}>{user.email} (Role: {user.role})</li>
             ))}
           </ul>
@@ -117,7 +142,7 @@ export default function DataConsistencyChecker() {
         <div className="mb-6 p-4 bg-yellow-50 rounded-lg">
           <h2 className="text-xl font-semibold mb-2">Users with Missing Fields</h2>
           <ul>
-            {data.usersWithMissingFields.map((user: any) => (
+            {data.usersWithMissingFields.map((user: UserWithMissingFields) => (
               <li key={user.id}>{user.email} (Name: {user.name || 'N/A'})</li>
             ))}
           </ul>

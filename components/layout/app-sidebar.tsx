@@ -4,25 +4,17 @@ import * as React from "react";
 import Link from "next/link";
 import { useSession } from "@/lib/auth/auth-client";
 import {
-  IconCamera,
-  IconChartBar,
   IconDashboard,
   IconDatabase,
-  IconFileAi,
   IconFileDescription,
-  IconFileWord,
-  IconFolder,
-  IconHelp,
   IconListDetails,
   IconReport,
   IconSearch,
   IconSettings,
   IconUsers,
   IconBell,
-  IconHome,
 } from "@tabler/icons-react";
 
-import { NavDocuments } from "@/components/navigation/nav-documents";
 import { NavMain } from "@/components/navigation/nav-main";
 import { NavUser } from "@/components/navigation/nav-user";
 import {

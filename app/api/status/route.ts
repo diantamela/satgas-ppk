@@ -20,21 +20,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate progress based on status
-    const progress = report.status === 'completed' ? 100 : report.status === 'under_investigation' ? 60 : 20;
+    const progress = report.status === 'COMPLETED' ? 100 : report.status === 'IN_PROGRESS' ? 60 : 20;
 
     // Mock data for status text
     let statusText = '';
     switch (report.status) {
-      case 'pending':
+      case 'PENDING':
         statusText = 'Menunggu Verifikasi';
         break;
-      case 'under_investigation':
+      case 'IN_PROGRESS':
         statusText = 'Dalam Investigasi';
         break;
-      case 'rejected':
+      case 'REJECTED':
         statusText = 'Ditolak';
         break;
-      case 'completed':
+      case 'COMPLETED':
         statusText = 'Selesai';
         break;
       default:
@@ -50,18 +50,18 @@ export async function GET(request: NextRequest) {
       description: report.description,
       category: report.category,
       severity: report.severity,
-      assignedTo: report.assignedTo,
+      assignedTo: report.assigneeId,
       createdAt: report.createdAt,
       updatedAt: report.updatedAt,
       progress,
       statusText,
-      nextStep: report.status === 'completed' 
-        ? 'Rekomendasi disetujui Rektor' 
-        : report.status === 'under_investigation' 
-          ? 'Pemeriksaan terhadap pelapor dan terlapor' 
+      nextStep: report.status === 'COMPLETED'
+        ? 'Rekomendasi disetujui Rektor'
+        : report.status === 'IN_PROGRESS'
+          ? 'Pemeriksaan terhadap pelapor dan terlapor'
           : 'Verifikasi awal oleh tim Satgas',
-      estimatedCompletion: report.status === 'completed' 
-        ? report.updatedAt 
+      estimatedCompletion: report.status === 'COMPLETED'
+        ? report.updatedAt
         : new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 10 days from now
     };
 
