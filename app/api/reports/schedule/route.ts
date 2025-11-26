@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Check if this is detailed scheduling (new format) or simple scheduling (legacy format)
-    if (body.startDateTime && body.endDateTime && body.location) {
+    if (body.location) {
       // Detailed scheduling
       const {
         reportId,
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
         accessLevel
       } = body;
 
-      if (!reportId || !startDateTime || !endDateTime || !location) {
+      if (!reportId || !location) {
         return Response.json(
-          { success: false, message: "Report ID, start/end datetime, and location are required" },
+          { success: false, message: "Report ID and location are required" },
           { status: 400 }
         );
       }

@@ -102,6 +102,7 @@ enum AccessLevel {
 }
 
 enum ActivityType {
+  SCHEDULED_INVESTIGATION
   INTERVIEW_CONDUCTED
   EVIDENCE_COLLECTED
   SITE_VISIT
@@ -218,13 +219,13 @@ model Report {
 }
 
 model InvestigationSchedule {
-  id                    String                @id @default(cuid())
-  report                Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  reportId              String
+   id                    String                @id @default(cuid())
+   report                Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+   reportId              String
 
-  // Block 1: Info Dasar Sesi
-  startDateTime         DateTime              // Tanggal & jam mulai
-  endDateTime           DateTime              // Tanggal & jam selesai
+   // Block 1: Info Dasar Sesi
+   startDateTime         DateTime?             // Tanggal & jam mulai (opsional)
+   endDateTime           DateTime?             // Tanggal & jam selesai (opsional)
   location              String                // Lokasi investigasi
   methods               InvestigationMethod[] // Metode/bentuk kegiatan (multi-select)
   partiesInvolved       InvestigationParty[]  // Pihak yang dilibatkan (multi-select)

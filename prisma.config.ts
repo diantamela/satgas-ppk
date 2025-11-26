@@ -1,9 +1,9 @@
-import 'dotenv/config'
-import { defineConfig, env } from 'prisma/config'
+import "dotenv/config";
+import { defineConfig } from "@prisma/config";
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: "prisma/schema.prisma",
   datasource: {
-    url: env('DIRECT_URL'),
+    url: process.env.DATABASE_URL!, // atau process.env.DIRECT_URL kalau itu yang kamu pakai
   },
-})
+});

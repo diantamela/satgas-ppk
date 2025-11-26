@@ -1,6 +1,6 @@
 // lib/services/reports/report-service.ts
 import { db } from "@/db";
-import { ReportStatus, DocumentType, InvestigationMethod, InvestigationParty, AccessLevel } from "@prisma/client";
+import { ReportStatus, DocumentType, InvestigationMethod, InvestigationParty, AccessLevel, ActivityType } from "@prisma/client";
 
 // Report Service
 export const reportService = {
@@ -237,8 +237,8 @@ export const reportService = {
   // Create detailed investigation schedule
   async createDetailedInvestigationSchedule(data: {
     reportId: string;
-    startDateTime: Date;
-    endDateTime: Date;
+    startDateTime?: Date;
+    endDateTime?: Date;
     location: string;
     methods: string[];
     partiesInvolved: string[];
@@ -260,32 +260,40 @@ export const reportService = {
   }) {
     try {
       // Create the detailed schedule
+      const scheduleData: any = {
+        reportId: data.reportId,
+        location: data.location,
+        methods: data.methods as InvestigationMethod[],
+        partiesInvolved: data.partiesInvolved as InvestigationParty[],
+        otherPartiesDetails: data.otherPartiesDetails,
+        consentObtained: data.consentObtained,
+        consentDocumentation: data.consentDocumentation,
+        riskNotes: data.riskNotes,
+        planSummary: data.planSummary,
+        followUpAction: data.followUpAction,
+        followUpDate: data.followUpDate,
+        followUpNotes: data.followUpNotes,
+        accessLevel: data.accessLevel as AccessLevel,
+        createdById: data.createdById,
+        teamMembers: {
+          create: data.teamMembers.map(member => ({
+            userId: member.userId,
+            role: member.role as any,
+            customRole: member.customRole
+          }))
+        }
+      };
+
+      // Add optional date fields if provided
+      if (data.startDateTime) {
+        scheduleData.startDateTime = data.startDateTime;
+      }
+      if (data.endDateTime) {
+        scheduleData.endDateTime = data.endDateTime;
+      }
+
       const schedule = await db.investigationSchedule.create({
-        data: {
-          reportId: data.reportId,
-          startDateTime: data.startDateTime,
-          endDateTime: data.endDateTime,
-          location: data.location,
-          methods: data.methods as InvestigationMethod[],
-          partiesInvolved: data.partiesInvolved as InvestigationParty[],
-          otherPartiesDetails: data.otherPartiesDetails,
-          consentObtained: data.consentObtained,
-          consentDocumentation: data.consentDocumentation,
-          riskNotes: data.riskNotes,
-          planSummary: data.planSummary,
-          followUpAction: data.followUpAction,
-          followUpDate: data.followUpDate,
-          followUpNotes: data.followUpNotes,
-          accessLevel: data.accessLevel as AccessLevel,
-          createdById: data.createdById,
-          teamMembers: {
-            create: data.teamMembers.map(member => ({
-              userId: member.userId,
-              role: member.role as any,
-              customRole: member.customRole
-            }))
-          }
-        },
+        data: scheduleData,
         include: {
           teamMembers: {
             include: {
@@ -300,13 +308,48 @@ export const reportService = {
         }
       });
 
+      // Create an activity record for this scheduled investigation
+      const activityData: any = {
+        reportId: data.reportId,
+        scheduleId: schedule.id,
+        activityType: 'SCHEDULED_INVESTIGATION' as any,
+        title: `Jadwal Investigasi: ${data.planSummary || 'Investigasi Terjadwal'}`,
+        description: `Investigasi terjadwal${data.startDateTime && data.endDateTime ? ` pada ${data.startDateTime.toLocaleString('id-ID')} - ${data.endDateTime.toLocaleString('id-ID')}` : ''} di ${data.location}. ${data.planSummary ? `Rencana: ${data.planSummary}` : ''}${data.methods.length > 0 ? ` Metode: ${data.methods.join(', ')}` : ''}${data.partiesInvolved.length > 0 ? ` Pihak terlibat: ${data.partiesInvolved.join(', ')}` : ''}${data.otherPartiesDetails ? ` Detail pihak lain: ${data.otherPartiesDetails}` : ''}${data.riskNotes ? ` Catatan risiko: ${data.riskNotes}` : ''}`,
+        location: data.location,
+        participants: data.teamMembers.map(member => member.userId || member.role).filter(Boolean),
+        outcomes: data.planSummary || undefined,
+        challenges: data.riskNotes || undefined,
+        recommendations: data.followUpNotes || undefined,
+        isConfidential: false,
+        accessLevel: data.accessLevel as AccessLevel,
+        conductedById: data.createdById
+      };
+
+      // Add optional date fields if provided
+      if (data.startDateTime) {
+        activityData.startDateTime = data.startDateTime;
+      }
+      if (data.endDateTime) {
+        activityData.endDateTime = data.endDateTime;
+      }
+
+      const activity = await db.investigationActivity.create({
+        data: activityData
+      });
+
       // Update report status to SCHEDULED
+      const reportUpdateData: any = {
+        status: ReportStatus.SCHEDULED
+      };
+
+      // Add scheduledDate if startDateTime is provided
+      if (data.startDateTime) {
+        reportUpdateData.scheduledDate = data.startDateTime;
+      }
+
       await db.report.update({
         where: { id: data.reportId },
-        data: {
-          status: ReportStatus.SCHEDULED,
-          scheduledDate: data.startDateTime
-        }
+        data: reportUpdateData
       });
 
       return schedule;

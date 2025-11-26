@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/database/prisma";
+import { db } from "@/db";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
 
@@ -24,7 +24,7 @@ export async function GET(
     const { id: reportId } = await params;
 
     // Verify report exists and user has access
-    const report = await prisma.report.findUnique({
+    const report = await db.report.findUnique({
       where: { id: reportId },
       select: { id: true, assigneeId: true }
     });
@@ -36,34 +36,41 @@ export async function GET(
       );
     }
 
-    // TODO: Replace with actual database query once schema is migrated
-    // For now, return mock data
-    const activities = [
-      {
-        id: "activity-1",
-        activityType: "INTERVIEW_CONDUCTED",
-        title: "Wawancara dengan Korban",
-        description: "Melakukan wawancara mendalam dengan korban untuk mengumpulkan informasi detail tentang kejadian.",
-        location: "Ruang Konseling Lt. 2",
-        startDateTime: new Date("2025-11-25T10:00:00Z"),
-        endDateTime: new Date("2025-11-25T11:30:00Z"),
-        duration: 90,
-        participants: ["Ahmad Rahman", "Siti Nurhaliza"],
-        outcomes: "Informasi penting tentang kronologi kejadian berhasil dikumpulkan",
-        challenges: "Korban masih trauma dan membutuhkan pendekatan psikologis",
-        recommendations: "Perlu tindak lanjut dengan konseling psikologis",
-        isConfidential: false,
-        accessLevel: "CORE_TEAM_ONLY",
+    // Fetch activities from database
+    const activities = await db.investigationActivity.findMany({
+      where: { reportId },
+      include: {
         conductedBy: {
-          id: session.user.id,
-          name: session.user.name,
-          email: session.user.email,
-          role: session.user.role
+          select: { id: true, name: true, email: true, role: true }
         },
-        schedule: null,
-        attachments: []
-      }
-    ];
+        schedule: {
+          include: {
+            teamMembers: {
+              include: {
+                user: {
+                  select: { name: true, email: true }
+                }
+              }
+            },
+            attachments: {
+              include: {
+                uploadedBy: {
+                  select: { name: true }
+                }
+              }
+            }
+          }
+        },
+        attachments: {
+          include: {
+            uploadedBy: {
+              select: { name: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
     return Response.json({
       success: true,
@@ -114,7 +121,7 @@ export async function POST(
     } = body;
 
     // Verify report exists
-    const report = await prisma.report.findUnique({
+    const report = await db.report.findUnique({
       where: { id: reportId },
       select: { id: true }
     });
@@ -134,34 +141,50 @@ export async function POST(
       );
     }
 
-    // TODO: Replace with actual database creation once schema is migrated
-    // For now, return mock created activity
-    const activity = {
-      id: `activity-${Date.now()}`,
-      reportId,
-      scheduleId: scheduleId || null,
-      activityType,
-      title,
-      description,
-      location,
-      startDateTime: new Date(startDateTime),
-      endDateTime: endDateTime ? new Date(endDateTime) : null,
-      duration: endDateTime ? Math.round((new Date(endDateTime).getTime() - new Date(startDateTime).getTime()) / (1000 * 60)) : null,
-      participants: participants || [],
-      conductedBy: {
-        id: session.user.id,
-        name: session.user.name,
-        email: session.user.email,
-        role: session.user.role
+    // Create the activity in database
+    const activity = await db.investigationActivity.create({
+      data: {
+        reportId,
+        scheduleId: scheduleId || null,
+        activityType: activityType as any, // Cast to any due to enum sync issues
+        title,
+        description,
+        location,
+        startDateTime: new Date(startDateTime),
+        endDateTime: endDateTime ? new Date(endDateTime) : null,
+        duration: endDateTime ? Math.round((new Date(endDateTime).getTime() - new Date(startDateTime).getTime()) / (1000 * 60)) : null,
+        participants: participants || [],
+        conductedById: session.user.id,
+        outcomes,
+        challenges,
+        recommendations,
+        isConfidential: isConfidential || false,
+        accessLevel: accessLevel as any || 'CORE_TEAM_ONLY'
       },
-      outcomes,
-      challenges,
-      recommendations,
-      isConfidential: isConfidential || false,
-      accessLevel: accessLevel || 'CORE_TEAM_ONLY',
-      schedule: null,
-      attachments: []
-    };
+      include: {
+        conductedBy: {
+          select: { id: true, name: true, email: true, role: true }
+        },
+        schedule: {
+          include: {
+            teamMembers: {
+              include: {
+                user: {
+                  select: { name: true, email: true }
+                }
+              }
+            }
+          }
+        },
+        attachments: {
+          include: {
+            uploadedBy: {
+              select: { name: true }
+            }
+          }
+        }
+      }
+    });
 
     return Response.json({
       success: true,

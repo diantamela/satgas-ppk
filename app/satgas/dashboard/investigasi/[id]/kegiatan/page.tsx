@@ -48,7 +48,33 @@ interface InvestigationActivity {
   recommendations?: string;
   isConfidential: boolean;
   accessLevel: string;
-  schedule?: any;
+  schedule?: {
+    id: string;
+    startDateTime: Date;
+    endDateTime: Date;
+    location: string;
+    methods: string[];
+    partiesInvolved: string[];
+    otherPartiesDetails?: string;
+    teamMembers: Array<{
+      id: string;
+      user: {
+        name: string;
+        email: string;
+      };
+      role: string;
+      customRole?: string;
+    }>;
+    consentObtained: boolean;
+    consentDocumentation?: string;
+    riskNotes?: string;
+    planSummary?: string;
+    followUpAction?: string;
+    followUpDate?: Date;
+    followUpNotes?: string;
+    accessLevel: string;
+    attachments: any[];
+  };
   attachments: any[];
 }
 
@@ -121,6 +147,7 @@ export default function InvestigationActivitiesPage() {
 
   const getActivityTypeColor = (type: string) => {
     const colors: Record<string, string> = {
+      SCHEDULED_INVESTIGATION: "bg-cyan-100 text-cyan-800",
       INTERVIEW_CONDUCTED: "bg-blue-100 text-blue-800",
       EVIDENCE_COLLECTED: "bg-green-100 text-green-800",
       SITE_VISIT: "bg-purple-100 text-purple-800",
@@ -321,6 +348,155 @@ export default function InvestigationActivitiesPage() {
                               {participant}
                             </Badge>
                           ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Schedule Details for SCHEDULED_INVESTIGATION */}
+                  {activity.activityType === "SCHEDULED_INVESTIGATION" && activity.schedule && (
+                    <>
+                      <Separator />
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Detail Jadwal Investigasi</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Waktu Mulai</h4>
+                            <p className="text-gray-900 dark:text-white">
+                              {new Date(activity.schedule.startDateTime).toLocaleString('id-ID')}
+                            </p>
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Waktu Selesai</h4>
+                            <p className="text-gray-900 dark:text-white">
+                              {new Date(activity.schedule.endDateTime).toLocaleString('id-ID')}
+                            </p>
+                          </div>
+                          <div className="md:col-span-2">
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Lokasi</h4>
+                            <p className="text-gray-900 dark:text-white">{activity.schedule.location}</p>
+                          </div>
+                        </div>
+
+                        {activity.schedule.methods && activity.schedule.methods.length > 0 && (
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Metode Investigasi</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {activity.schedule.methods.map((method: string) => (
+                                <Badge key={method} variant="secondary">
+                                  {method.replace(/_/g, ' ').toLowerCase()}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {activity.schedule.partiesInvolved && activity.schedule.partiesInvolved.length > 0 && (
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Pihak Terlibat</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {activity.schedule.partiesInvolved.map((party: string) => (
+                                <Badge key={party} variant="outline">
+                                  {party.replace(/_/g, ' ').toLowerCase()}
+                                </Badge>
+                              ))}
+                            </div>
+                            {activity.schedule.otherPartiesDetails && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                                {activity.schedule.otherPartiesDetails}
+                              </p>
+                            )}
+                          </div>
+                        )}
+
+                        {activity.schedule.teamMembers && activity.schedule.teamMembers.length > 0 && (
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Tim Investigasi</h4>
+                            <div className="space-y-2">
+                              {activity.schedule.teamMembers.map((member: any) => (
+                                <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                                  <div>
+                                    <p className="font-medium text-gray-900 dark:text-white">{member.user.name}</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                                      {member.customRole || member.role.replace(/_/g, ' ').toLowerCase()}
+                                    </p>
+                                  </div>
+                                  <Badge variant="secondary">{member.role.replace(/_/g, ' ')}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Persetujuan Diperoleh</h4>
+                            <Badge variant={activity.schedule.consentObtained ? "default" : "destructive"}>
+                              {activity.schedule.consentObtained ? "Ya" : "Tidak"}
+                            </Badge>
+                          </div>
+                          {activity.schedule.consentDocumentation && (
+                            <div>
+                              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Dokumentasi Persetujuan</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {activity.schedule.consentDocumentation}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {activity.schedule.riskNotes && (
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan Risiko & Keamanan</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {activity.schedule.riskNotes}
+                            </p>
+                          </div>
+                        )}
+
+                        {activity.schedule.planSummary && (
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Ringkasan Rencana</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {activity.schedule.planSummary}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {activity.schedule.followUpAction && (
+                            <div>
+                              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Tindak Lanjut</h4>
+                              <Badge variant="outline">
+                                {activity.schedule.followUpAction.replace(/_/g, ' ').toLowerCase()}
+                              </Badge>
+                            </div>
+                          )}
+                          {activity.schedule.followUpDate && (
+                            <div>
+                              <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Target</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {new Date(activity.schedule.followUpDate).toLocaleDateString('id-ID')}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {activity.schedule.followUpNotes && (
+                          <div>
+                            <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan Tindak Lanjut</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                              {activity.schedule.followUpNotes}
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Level Akses</h4>
+                          <Badge variant="secondary">
+                            {activity.schedule.accessLevel.replace(/_/g, ' ').toLowerCase()}
+                          </Badge>
                         </div>
                       </div>
                     </>

@@ -4,7 +4,6 @@ import { useState, useEffect, type ReactNode } from "react"; // Add 'type ReactN
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"; // Import DialogDescription here
 import Link from "next/link";
 import {
   FileText,
@@ -16,7 +15,6 @@ import {
   Edit,
   FilePlus,
 } from "lucide-react";
-import ScheduleInvestigationModal from "@/components/schedule-investigation-modal";
 
 // RoleGuard component with explicit typing for children prop
 const RoleGuard = ({ children }: { children: ReactNode }) => children;
@@ -26,12 +24,7 @@ export default function InvestigationPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Modal and report scheduling state
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<any>(null);
-  const [isScheduling, setIsScheduling] = useState(false);
-  const [pendingReports, setPendingReports] = useState<any[]>([]);
-  const [showReportSelection, setShowReportSelection] = useState(false); // Define this state properly
+  // No longer need modal states since we have dedicated pages
 
   // Fetch reports when the active tab changes
   useEffect(() => {
@@ -82,59 +75,6 @@ export default function InvestigationPage() {
     }
   };
 
-  // Open schedule modal and fetch pending reports
-  const handleOpenScheduleModal = async () => {
-    try {
-      const response = await fetch('/api/reports');
-      const data = await response.json();
-      if (data.success) {
-        const pending = data.reports.filter((report: any) => report.status === 'VERIFIED' || report.status === 'PENDING');
-        setPendingReports(pending);
-        setShowReportSelection(true); // Set this state to true to show the modal
-      }
-    } catch (error) {
-      console.error('Error fetching pending reports:', error);
-      alert('Gagal memuat laporan yang dapat dijadwalkan');
-    }
-  };
-
-  // Handle scheduling an investigation
-  const handleScheduleInvestigation = async (scheduleData: any) => {
-    if (!selectedReport) return;
-    setIsScheduling(true);
-
-    try {
-      const response = await fetch('/api/reports/schedule', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportId: selectedReport.id, ...scheduleData }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        // Refresh reports
-        const reportsResponse = await fetch('/api/reports');
-        const reportsData = await reportsResponse.json();
-        if (reportsData.success) {
-          const filteredReports = reportsData.reports.filter((report: any) =>
-            activeTab === "scheduled" ? report.status === 'SCHEDULED' : report.status === 'IN_PROGRESS'
-          );
-          setReports(filteredReports);
-        }
-
-        setShowScheduleModal(false);
-        setSelectedReport(null);
-        alert('Investigasi berhasil dijadwalkan');
-      } else {
-        alert(data.message || 'Gagal menjadwalkan investigasi');
-      }
-    } catch (error) {
-      console.error('Schedule investigation error:', error);
-      alert('Terjadi kesalahan saat menjadwalkan investigasi');
-    } finally {
-      setIsScheduling(false);
-    }
-  };
 
   return (
     <RoleGuard>
@@ -250,13 +190,16 @@ export default function InvestigationPage() {
                     {/* Actions */}
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/satgas/dashboard/investigasi/${report.id}`} className="flex items-center gap-1">
+                        <Link href={`/satgas/dashboard/investigasi/${report.id}/rekapan`} className="flex items-center gap-1">
                           <Eye className="w-4 h-4" />
                           Detail
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" className="hover:bg-gray-200 dark:hover:bg-gray-700">
-                        <Edit className="w-4 h-4" />
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/satgas/dashboard/investigasi/${report.id}/proses`} className="hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-1">
+                          <Edit className="w-4 h-4" />
+                          Action
+                        </Link>
                       </Button>
                     </div>
                   </div>
@@ -266,100 +209,6 @@ export default function InvestigationPage() {
           )}
         </div>
 
-        {/* Report Selection Modal */}
-        <Dialog open={showReportSelection} onOpenChange={setShowReportSelection}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Pilih Laporan untuk Dijadwalkan</DialogTitle>
-              <DialogDescription>
-                Pilih laporan yang akan dijadwalkan untuk investigasi.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              {pendingReports.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">Tidak ada laporan yang dapat dijadwalkan</p>
-                </div>
-              ) : (
-                pendingReports.map((report) => (
-                <Card key={report.id} className="hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 rounded-xl">
-                <CardContent className="p-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className="mt-1 flex-shrink-0">
-                        <AlertTriangle className="w-5 h-5 text-orange-500" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <h3 className="text-lg font-bold truncate max-w-full md:max-w-md text-gray-900 dark:text-white">{report.title}</h3>
-                            {getStatusBadge(report.status)}
-                        </div>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                            <span className="font-mono text-xs">{report.reportNumber}</span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                            <BookOpen className="w-3 h-3" /> {report.category || 'N/A'}
-                            </span>
-                            <span>•</span>
-                            <span className="font-semibold text-red-500 dark:text-red-400">{report.severity || 'N/A'}</span>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" /> {report.reporter?.name || 'N/A'}
-                            </span>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="mt-3 w-full max-w-lg">
-                            <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Progres {report.investigationProgress || 0}%</span>
-                            </div>
-                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div
-                                className="bg-red-600 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${report.investigationProgress || 0}%` }}
-                            ></div>
-                            </div>
-                        </div>
-                        </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
-                        <Button variant="outline" size="sm" asChild>
-                        <Link href={`/satgas/dashboard/investigasi/${report.id}`} className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
-                            Detail
-                        </Link>
-                        </Button>
-                        {/* Removed the "Catatan" button */}
-                    </div>
-                    </div>
-                </CardContent>
-                </Card>
-                ))
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowReportSelection(false)}>
-                Batal
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Schedule Investigation Modal */}
-        {selectedReport && (
-          <ScheduleInvestigationModal
-            isOpen={showScheduleModal}
-            onClose={() => setShowScheduleModal(false)}
-            onSchedule={handleScheduleInvestigation}
-            reportTitle={selectedReport.title}
-            isLoading={isScheduling}
-          />
-        )}
       </div>
     </RoleGuard>
   );
