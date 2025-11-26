@@ -70,6 +70,7 @@ export default function SignInPage() {
               src="/images/icons/Logo_UIN_Imam_Bonjol.png"
               alt="Logo UIN Imam Bonjol"
               fill
+              sizes="48px"
               className="object-contain"
             />
           </div>
@@ -149,12 +150,6 @@ export default function SignInPage() {
                   >
                     Password
                   </Label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-xs text-red-700 hover:underline transition-colors"
-                  >
-                    Lupa Password?
-                  </Link>
                 </div>
                 <div className="relative">
                   <Input

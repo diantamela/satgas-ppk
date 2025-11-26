@@ -12,6 +12,7 @@
     "db:pull": "prisma db pull",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
     "db:up": "docker compose -f docker-compose-postgres.yaml up postgres -d",
     "db:down": "docker compose -f docker-compose-postgres.yaml down postgres",
     "db:dev": "docker compose -f docker-compose-postgres.yaml --profile dev up postgres-dev -d",

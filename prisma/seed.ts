@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../lib/database/prisma";
 import bcrypt from "bcryptjs";
-
-const prisma = new PrismaClient();
 
 async function main() {
   console.log("🌱 Seeding initial users...");
@@ -81,11 +79,7 @@ async function main() {
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error("❌ Error saat seeding:", e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+  .catch(async (e) => {
+     console.error("❌ Error saat seeding:", e);
+     process.exit(1);
+   });
