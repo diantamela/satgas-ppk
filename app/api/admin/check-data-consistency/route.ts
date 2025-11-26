@@ -19,15 +19,15 @@ export async function GET(request: NextRequest) {
     });
 
     // Check for any users with invalid role values
-    const invalidRoleUsers = allUsers.filter(user => 
+    const invalidRoleUsers = allUsers.filter((user: { role: string }) =>
       !['USER', 'SATGAS', 'REKTOR'].includes(user.role)
     );
 
     // Check for total user count by role
     const userCountByRole = {
-      USER: allUsers.filter(u => u.role === 'USER').length,
-      SATGAS: allUsers.filter(u => u.role === 'SATGAS').length,
-      REKTOR: allUsers.filter(u => u.role === 'REKTOR').length,
+      USER: allUsers.filter((u: { role: string }) => u.role === 'USER').length,
+      SATGAS: allUsers.filter((u: { role: string }) => u.role === 'SATGAS').length,
+      REKTOR: allUsers.filter((u: { role: string }) => u.role === 'REKTOR').length,
     };
 
     // Check for any duplicate emails (should not happen due to schema)
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check for users without required fields
-    const usersWithMissingFields = allUsers.filter(user => 
+    const usersWithMissingFields = allUsers.filter((user: { name: string | null; email: string }) =>
       !user.name || !user.email
     );
 
