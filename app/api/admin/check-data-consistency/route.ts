@@ -51,9 +51,9 @@ export async function GET(request: NextRequest) {
     const summary = {
       totalUsers: allUsers.length,
       userCountByRole,
-      invalidRoleUsers: invalidRoleUsers.map(u => ({ id: u.id, email: u.email, role: u.role })),
+      invalidRoleUsers: invalidRoleUsers.map((u: { id: string, email: string, role: string }) => ({ id: u.id, email: u.email, role: u.role })),
       duplicateEmails,
-      usersWithMissingFields: usersWithMissingFields.map(u => ({ id: u.id, email: u.email, name: u.name })),
+      usersWithMissingFields: usersWithMissingFields.map((u: { id: string, email: string, name: string }) => ({ id: u.id, email: u.email, name: u.name })),
       isConsistent: invalidRoleUsers.length === 0 && duplicateEmails.length === 0 && usersWithMissingFields.length === 0
     };
 
