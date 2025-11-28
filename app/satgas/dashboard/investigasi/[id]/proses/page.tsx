@@ -201,8 +201,9 @@ export default function InvestigationProsesPage() {
     if (!id || !location) return;
 
     setIsSubmitting(true);
+    let scheduleData: any = null;
     try {
-      const scheduleData: any = {
+      scheduleData = {
         location,
         methods,
         partiesInvolved,
@@ -227,33 +228,113 @@ export default function InvestigationProsesPage() {
         scheduleData.endDateTime = endDateTime;
       }
 
-      const response = await fetch('/api/reports/schedule', {
+      const response = await fetch(`/api/reports/${id}/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reportId: id,
-          ...scheduleData
-        }),
+        body: JSON.stringify(scheduleData),
       });
 
       const contentType = response.headers.get('content-type');
+      // Simpan data ke localStorage sebagai fallback agar rekapan dapat menampilkan hasil
+      try {
+        if (typeof window !== 'undefined' && id) {
+          const key = `investigation_process_${id}`;
+          const existingData = window.localStorage.getItem(key);
+          let processHistory = [];
+
+          if (existingData) {
+            try {
+              processHistory = JSON.parse(existingData);
+              // Pastikan ini adalah array, jika tidak maka buat array baru
+              if (!Array.isArray(processHistory)) {
+                processHistory = [processHistory];
+              }
+            } catch (e) {
+              // Jika parsing gagal, mulai dengan array kosong
+              processHistory = [];
+            }
+          }
+
+          // Tambahkan entry baru ke history
+          const newEntry = {
+            id: Date.now().toString(), // Unique ID untuk setiap entry
+            savedAt: new Date().toISOString(),
+            data: scheduleData
+          };
+          processHistory.push(newEntry);
+
+          // Simpan kembali sebagai array
+          window.localStorage.setItem(key, JSON.stringify(processHistory));
+        }
+      } catch (e) {
+        console.warn('Could not save fallback to localStorage', e);
+      }
+
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         if (response.ok && data.success) {
-          setAlertMessage({ type: 'success', message: 'Proses investigasi berhasil dibuat' });
+          setAlertMessage({ type: 'success', message: 'Proses investigasi berhasil dimulai' });
           setTimeout(() => {
             setAlertMessage(null);
             router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
-          }, 2000);
+          }, 1000);
         } else {
-          setAlertMessage({ type: 'error', message: data.message || 'Gagal membuat proses investigasi' });
+          // Meski server gagal, kita sudah menyimpan fallback — beri tahu user dan pindah ke rekapan
+          setAlertMessage({ type: 'error', message: data.message || 'Gagal memulai proses investigasi, menyimpan secara lokal' });
+          setTimeout(() => {
+            setAlertMessage(null);
+            router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
+          }, 1500);
         }
       } else {
-        setAlertMessage({ type: 'error', message: 'Gagal membuat proses investigasi - respons server tidak valid' });
+        setAlertMessage({ type: 'error', message: 'Gagal membuat proses investigasi - respons server tidak valid, data disimpan lokal' });
+        setTimeout(() => {
+          setAlertMessage(null);
+          router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
+        }, 1500);
       }
     } catch (error) {
-      console.error('Schedule investigation error:', error);
-      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat membuat proses investigasi' });
+      console.error('Start investigation process error:', error);
+      // Simpan fallback juga ketika ada error runtime
+      try {
+        if (typeof window !== 'undefined' && id) {
+          const key = `investigation_process_${id}`;
+          const existingData = window.localStorage.getItem(key);
+          let processHistory = [];
+
+          if (existingData) {
+            try {
+              processHistory = JSON.parse(existingData);
+              // Pastikan ini adalah array, jika tidak maka buat array baru
+              if (!Array.isArray(processHistory)) {
+                processHistory = [processHistory];
+              }
+            } catch (e) {
+              // Jika parsing gagal, mulai dengan array kosong
+              processHistory = [];
+            }
+          }
+
+          // Tambahkan entry baru ke history
+          const newEntry = {
+            id: Date.now().toString(), // Unique ID untuk setiap entry
+            savedAt: new Date().toISOString(),
+            data: scheduleData
+          };
+          processHistory.push(newEntry);
+
+          // Simpan kembali sebagai array
+          window.localStorage.setItem(key, JSON.stringify(processHistory));
+        }
+      } catch (e) {
+        console.warn('Could not save fallback to localStorage on error', e);
+      }
+
+      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat memulai proses investigasi — data disimpan lokal' });
+      setTimeout(() => {
+        setAlertMessage(null);
+        router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
+      }, 1500);
     } finally {
       setIsSubmitting(false);
     }
@@ -310,10 +391,10 @@ export default function InvestigationProsesPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Proses Investigasi</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Mulai Proses Investigasi</h1>
               <div className="flex items-center gap-3 mt-2">
                 <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{report.reportNumber}</span>
-                <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Proses Investigasi</Badge>
+                <Badge className="bg-green-500 hover:bg-green-600 text-white">Investigasi Berlangsung</Badge>
               </div>
             </div>
           </div>
@@ -333,10 +414,10 @@ export default function InvestigationProsesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Clock className="w-5 h-5" />
-                Info Dasar Sesi
+                Info Dasar Sesi Investigasi
               </CardTitle>
               <CardDescription>
-                Tanggal, waktu, lokasi, metode, dan pihak yang terlibat dalam proses investigasi
+                Tanggal, waktu, lokasi, metode, dan pihak yang terlibat dalam proses investigasi yang sedang berlangsung
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -428,10 +509,10 @@ export default function InvestigationProsesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="w-5 h-5" />
-                Tim & Tugas
+                Tim Investigasi & Tugas
               </CardTitle>
               <CardDescription>
-                Anggota tim, peran, persetujuan, dan catatan keamanan
+                Anggota tim investigasi, peran, persetujuan, dan catatan keamanan untuk proses yang sedang berlangsung
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -543,10 +624,10 @@ export default function InvestigationProsesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <FileText className="w-5 h-5" />
-                Output & Status
+                Output & Status Investigasi
               </CardTitle>
               <CardDescription>
-                Ringkasan rencana, lampiran, tindak lanjut, dan level akses
+                Ringkasan rencana investigasi, lampiran, tindak lanjut, dan level akses untuk proses yang sedang berlangsung
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -625,10 +706,10 @@ export default function InvestigationProsesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Upload className="w-5 h-5" />
-                Upload Dokumen & Lampiran Proses Investigasi
+                Upload Dokumen & Lampiran Investigasi
               </CardTitle>
               <CardDescription>
-                Upload file pendukung untuk proses investigasi (maksimal 10MB per file)
+                Upload file pendukung untuk proses investigasi yang sedang berlangsung (maksimal 10MB per file)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -710,7 +791,7 @@ export default function InvestigationProsesPage() {
             <Button type="submit" disabled={isSubmitting || !location}>
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Save className="w-4 h-4 mr-2" />
-              Simpan Proses Investigasi
+              Mulai Proses Investigasi
             </Button>
           </div>
         </form>

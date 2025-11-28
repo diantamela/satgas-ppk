@@ -146,7 +146,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 className="data-[slot=sidebar-menu-button]:!p-1.5 flex-1"
               >
                 <Link href="/">
-                  <span className="text-base font-semibold font-parkinsans">Satgas PPK</span>
+                  <span className="text-base font-semibold font-inter">Satgas PPK</span>
                 </Link>
               </SidebarMenuButton>
               <button

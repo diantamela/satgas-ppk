@@ -174,7 +174,7 @@ export default function ScheduleInvestigationModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Proses Investigasi
+            Jadwalkan Investigasi
           </DialogTitle>
           <DialogDescription>
             Atur jadwal lengkap untuk investigasi laporan: <strong>{reportTitle}</strong>
@@ -485,7 +485,7 @@ export default function ScheduleInvestigationModal({
               disabled={isLoading || !startDateTime || !endDateTime || !location}
             >
               {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Proses Investigasi
+              Jadwalkan Investigasi
             </Button>
           </DialogFooter>
         </form>

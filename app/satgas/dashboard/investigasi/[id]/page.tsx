@@ -603,7 +603,7 @@ export default function InvestigationDetailPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
-                Proses Investigasi
+                Jadwalkan Investigasi
               </CardTitle>
               <CardDescription>
                 Atur jadwal lengkap untuk investigasi laporan: <strong>{report.title}</strong>
@@ -967,7 +967,7 @@ export default function InvestigationDetailPage() {
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="submit" disabled={isSubmitting || !startDateTime || !endDateTime || !location}>
                     {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Proses Investigasi
+                    Jadwalkan Investigasi
                   </Button>
                 </div>
               </form>

@@ -95,11 +95,11 @@ enum TeamRole {
   OTHER
 }
 
-enum ScheduleStatus {
-  SCHEDULED
+enum ProcessStatus {
+  PLANNED
   IN_PROGRESS
   COMPLETED
-  RESCHEDULED
+  CANCELLED
 }
 
 enum AccessLevel {
@@ -172,7 +172,7 @@ model User {
   uploadedDocuments     InvestigationDocument[] @relation(name: "UserDocuments")
   activityLogs          ActivityLog[]
   uploadedGallery       Gallery[] @relation(name: "UserUploadedGallery")
-  createdProcesses      InvestigationSchedule[] @relation(name: "UserCreatedProcesses")
+  createdProcesses      InvestigationProcess[] @relation(name: "UserCreatedProcesses")
   teamMemberships       InvestigationTeamMember[]
   uploadedAttachments   InvestigationAttachment[] @relation(name: "UserUploadedAttachments")
   createdRecommendations Recommendation[] @relation("RecommendationCreatedBy")
@@ -217,7 +217,8 @@ model Report {
    assigneeId             String?
    recommendation         String?
    evidenceCount          Int?                @default(0) // Number of evidence files uploaded
-   scheduledDate          DateTime?           // Date when investigation is scheduled to start
+   // Investigation Scheduling Fields (different from InvestigationProcess)
+   scheduledDate          DateTime?           // Date when investigation is scheduled to start (planning phase)
    scheduledBy            String?             // User ID who scheduled the investigation
    scheduledNotes         String?             // Notes about the scheduling
    createdAt              DateTime            @default(now())
@@ -227,7 +228,7 @@ model Report {
    timelines    ReportTimeline[]
    documents    InvestigationDocument[]
    activityLogs ActivityLog[] @relation(name: "ReportActivityLogs")
-   processes    InvestigationSchedule[]
+   processes    InvestigationProcess[]
    recommendations Recommendation[]
 
    @@index([reporterId])
@@ -238,47 +239,50 @@ model Report {
    @@index([recommendationStatus])
 }
 
-model InvestigationSchedule {
-   id                    String                @id @default(cuid())
-   report                Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
-   reportId              String
+// InvestigationProcess: Stores data for ongoing/active investigation processes
+// This is different from scheduling (see Report.scheduledDate fields)
+// This table contains actual execution details of investigations in progress
+model InvestigationProcess {
+    id                    String                @id @default(cuid())
+    report                Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+    reportId              String
 
-   // Block 1: Info Dasar Sesi
-   startDateTime         DateTime?             // Tanggal & jam mulai (opsional)
-   endDateTime           DateTime?             // Tanggal & jam selesai (opsional)
-  location              String                // Lokasi investigasi
-  methods               InvestigationMethod[] // Metode/bentuk kegiatan (multi-select)
-  partiesInvolved       InvestigationParty[]  // Pihak yang dilibatkan (multi-select)
-  otherPartiesDetails   String?               // Detail pihak lain jika dipilih
+    // Block 1: Info Dasar Sesi
+    startDateTime         DateTime?             // Tanggal & jam mulai (opsional)
+    endDateTime           DateTime?             // Tanggal & jam selesai (opsional)
+    location              String                // Lokasi investigasi
+    methods               InvestigationMethod[] // Metode/bentuk kegiatan (multi-select)
+    partiesInvolved       InvestigationParty[]  // Pihak yang dilibatkan (multi-select)
+    otherPartiesDetails   String?               // Detail pihak lain jika dipilih
 
-  // Block 2: Tim & Tugas
-  teamMembers           InvestigationTeamMember[]
-  consentObtained       Boolean               @default(false) // Persetujuan diperoleh
-  consentDocumentation  String?               // Cara dokumentasi persetujuan (tertulis/lisan terekam)
-  riskNotes             String?               // Catatan risiko & keamanan
+    // Block 2: Tim & Tugas
+    teamMembers           InvestigationTeamMember[]
+    consentObtained       Boolean               @default(false) // Persetujuan diperoleh
+    consentDocumentation  String?               // Cara dokumentasi persetujuan (tertulis/lisan terekam)
+    riskNotes             String?               // Catatan risiko & keamanan
 
-  // Block 3: Output & Status
-  planSummary           String?               // Ringkasan rencana
-  attachments           InvestigationAttachment[]
-  followUpAction        String?               // Tindakan lanjut (lanjut/stop)
-  followUpDate          DateTime?             // Jadwal tindak lanjut
-  followUpNotes         String?               // Catatan tindak lanjut
-  status                ScheduleStatus        @default(SCHEDULED)
-  accessLevel           AccessLevel           @default(CORE_TEAM_ONLY)
+    // Block 3: Output & Status
+    planSummary           String?               // Ringkasan rencana
+    attachments           InvestigationAttachment[]
+    followUpAction        String?               // Tindakan lanjut (lanjut/stop)
+    followUpDate          DateTime?             // Jadwal tindak lanjut
+    followUpNotes         String?               // Catatan tindak lanjut
+    status                ProcessStatus         @default(IN_PROGRESS)
+    accessLevel           AccessLevel           @default(CORE_TEAM_ONLY)
 
-  createdBy             User?                 @relation(name: "UserCreatedProcesses", fields: [createdById], references: [id], onDelete: SetNull)
-  createdById           String?
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+    createdBy             User?                 @relation(name: "UserCreatedProcesses", fields: [createdById], references: [id], onDelete: SetNull)
+    createdById           String?
+    createdAt             DateTime              @default(now())
+    updatedAt             DateTime              @updatedAt
 
-  @@index([reportId])
-  @@index([status])
-  @@index([createdAt])
+    @@index([reportId])
+    @@index([status])
+    @@index([createdAt])
 }
 
 model InvestigationTeamMember {
    id              String      @id @default(cuid())
-   process         InvestigationSchedule @relation(fields: [processId], references: [id], onDelete: Cascade)
+   process         InvestigationProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
    processId       String
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId          String
@@ -292,7 +296,7 @@ model InvestigationTeamMember {
 
 model InvestigationAttachment {
    id          String                @id @default(cuid())
-   process     InvestigationSchedule  @relation(fields: [processId], references: [id], onDelete: Cascade)
+   process     InvestigationProcess  @relation(fields: [processId], references: [id], onDelete: Cascade)
    processId   String
   fileName    String
   fileType    String

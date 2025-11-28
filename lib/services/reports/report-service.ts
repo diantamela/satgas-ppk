@@ -311,7 +311,7 @@ export const reportService = {
         };
       }
 
-      const process = await db.investigationSchedule.create({
+      const process = await db.investigationProcess.create({
         data: scheduleData,
         include: {
           teamMembers: {
@@ -356,10 +356,132 @@ export const reportService = {
     }
   },
 
+  // Create investigation process (for ongoing investigations)
+  async createInvestigationProcess(data: {
+    reportId: string;
+    startDateTime?: Date;
+    endDateTime?: Date;
+    location: string;
+    methods: string[];
+    partiesInvolved: string[];
+    otherPartiesDetails?: string;
+    teamMembers: Array<{
+      userId: string;
+      role: string;
+      customRole?: string;
+    }>;
+    consentObtained: boolean;
+    consentDocumentation?: string;
+    riskNotes?: string;
+    planSummary?: string;
+    followUpAction?: string;
+    followUpDate?: Date;
+    followUpNotes?: string;
+    accessLevel: string;
+    uploadedFiles?: Array<{
+      name: string;
+      path: string;
+      size: number;
+      type: string;
+    }>;
+    createdById: string;
+  }) {
+    try {
+      // Create the investigation process
+      const processData: any = {
+        reportId: data.reportId,
+        location: data.location,
+        methods: data.methods as InvestigationMethod[],
+        partiesInvolved: data.partiesInvolved as InvestigationParty[],
+        otherPartiesDetails: data.otherPartiesDetails,
+        consentObtained: data.consentObtained,
+        consentDocumentation: data.consentDocumentation,
+        riskNotes: data.riskNotes,
+        planSummary: data.planSummary,
+        followUpAction: data.followUpAction,
+        followUpDate: data.followUpDate,
+        followUpNotes: data.followUpNotes,
+        accessLevel: data.accessLevel as AccessLevel,
+        createdById: data.createdById,
+        teamMembers: {
+          create: data.teamMembers.map(member => ({
+            userId: member.userId,
+            role: member.role as any,
+            customRole: member.customRole
+          }))
+        }
+      };
+
+      // Add optional date fields if provided
+      if (data.startDateTime) {
+        processData.startDateTime = data.startDateTime;
+      }
+      if (data.endDateTime) {
+        processData.endDateTime = data.endDateTime;
+      }
+
+      // Handle attachments if provided
+      if (data.uploadedFiles && data.uploadedFiles.length > 0) {
+        processData.attachments = {
+          create: data.uploadedFiles.map((file: any) => ({
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            storagePath: file.path,
+            uploadedById: data.createdById
+          }))
+        };
+      }
+
+      const process = await db.investigationProcess.create({
+        data: processData,
+        include: {
+          teamMembers: {
+            include: {
+              user: {
+                select: { name: true, email: true }
+              }
+            }
+          },
+          attachments: {
+            include: {
+              uploadedBy: {
+                select: { name: true }
+              }
+            }
+          },
+          createdBy: {
+            select: { name: true }
+          }
+        }
+      });
+
+      // Update report status to IN_PROGRESS (ongoing investigation)
+      const reportUpdateData: any = {
+        status: ReportStatus.IN_PROGRESS
+      };
+
+      // Add scheduledDate if startDateTime is provided (for backward compatibility)
+      if (data.startDateTime) {
+        reportUpdateData.scheduledDate = data.startDateTime;
+      }
+
+      await db.report.update({
+        where: { id: data.reportId },
+        data: reportUpdateData
+      });
+
+      return process;
+    } catch (error) {
+      console.error("Error in reportService.createInvestigationProcess:", error);
+      throw error;
+    }
+  },
+
   // Get investigation process by report ID
   async getInvestigationProcessByReportId(reportId: string) {
     try {
-      const process = await db.investigationSchedule.findFirst({
+      const process = await db.investigationProcess.findFirst({
         where: { reportId },
         include: {
           teamMembers: {
