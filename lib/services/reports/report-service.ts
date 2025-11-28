@@ -1,6 +1,6 @@
 // lib/services/reports/report-service.ts
 import { db } from "@/db";
-import { ReportStatus, DocumentType, InvestigationMethod, InvestigationParty, AccessLevel, ActivityType } from "@prisma/client";
+import { ReportStatus, DocumentType, InvestigationMethod, InvestigationParty, AccessLevel } from "@prisma/client";
 
 // Report Service
 export const reportService = {
@@ -229,13 +229,13 @@ export const reportService = {
 
       return updatedReport;
     } catch (error) {
-      console.error("Error in reportService.scheduleInvestigation:", error);
+      console.error("Error in reportService.processInvestigation:", error);
       throw error;
     }
   },
 
-  // Create detailed investigation schedule
-  async createDetailedInvestigationSchedule(data: {
+  // Create detailed investigation process
+  async createDetailedInvestigationProcess(data: {
     reportId: string;
     startDateTime?: Date;
     endDateTime?: Date;
@@ -256,6 +256,12 @@ export const reportService = {
     followUpDate?: Date;
     followUpNotes?: string;
     accessLevel: string;
+    uploadedFiles?: Array<{
+      name: string;
+      path: string;
+      size: number;
+      type: string;
+    }>;
     createdById: string;
   }) {
     try {
@@ -292,7 +298,20 @@ export const reportService = {
         scheduleData.endDateTime = data.endDateTime;
       }
 
-      const schedule = await db.investigationSchedule.create({
+      // Handle attachments if provided
+      if (data.uploadedFiles && data.uploadedFiles.length > 0) {
+        scheduleData.attachments = {
+          create: data.uploadedFiles.map((file: any) => ({
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size,
+            storagePath: file.path,
+            uploadedById: data.createdById
+          }))
+        };
+      }
+
+      const process = await db.investigationSchedule.create({
         data: scheduleData,
         include: {
           teamMembers: {
@@ -302,39 +321,17 @@ export const reportService = {
               }
             }
           },
+          attachments: {
+            include: {
+              uploadedBy: {
+                select: { name: true }
+              }
+            }
+          },
           createdBy: {
             select: { name: true }
           }
         }
-      });
-
-      // Create an activity record for this scheduled investigation
-      const activityData: any = {
-        reportId: data.reportId,
-        scheduleId: schedule.id,
-        activityType: 'SCHEDULED_INVESTIGATION' as any,
-        title: `Jadwal Investigasi: ${data.planSummary || 'Investigasi Terjadwal'}`,
-        description: `Investigasi terjadwal${data.startDateTime && data.endDateTime ? ` pada ${data.startDateTime.toLocaleString('id-ID')} - ${data.endDateTime.toLocaleString('id-ID')}` : ''} di ${data.location}. ${data.planSummary ? `Rencana: ${data.planSummary}` : ''}${data.methods.length > 0 ? ` Metode: ${data.methods.join(', ')}` : ''}${data.partiesInvolved.length > 0 ? ` Pihak terlibat: ${data.partiesInvolved.join(', ')}` : ''}${data.otherPartiesDetails ? ` Detail pihak lain: ${data.otherPartiesDetails}` : ''}${data.riskNotes ? ` Catatan risiko: ${data.riskNotes}` : ''}`,
-        location: data.location,
-        participants: data.teamMembers.map(member => member.userId || member.role).filter(Boolean),
-        outcomes: data.planSummary || undefined,
-        challenges: data.riskNotes || undefined,
-        recommendations: data.followUpNotes || undefined,
-        isConfidential: false,
-        accessLevel: data.accessLevel as AccessLevel,
-        conductedById: data.createdById
-      };
-
-      // Add optional date fields if provided
-      if (data.startDateTime) {
-        activityData.startDateTime = data.startDateTime;
-      }
-      if (data.endDateTime) {
-        activityData.endDateTime = data.endDateTime;
-      }
-
-      const activity = await db.investigationActivity.create({
-        data: activityData
       });
 
       // Update report status to SCHEDULED
@@ -352,17 +349,17 @@ export const reportService = {
         data: reportUpdateData
       });
 
-      return schedule;
+      return process;
     } catch (error) {
-      console.error("Error in reportService.createDetailedInvestigationSchedule:", error);
+      console.error("Error in reportService.createDetailedInvestigationProcess:", error);
       throw error;
     }
   },
 
-  // Get investigation schedule by report ID
-  async getInvestigationScheduleByReportId(reportId: string) {
+  // Get investigation process by report ID
+  async getInvestigationProcessByReportId(reportId: string) {
     try {
-      const schedule = await db.investigationSchedule.findFirst({
+      const process = await db.investigationSchedule.findFirst({
         where: { reportId },
         include: {
           teamMembers: {
@@ -387,9 +384,9 @@ export const reportService = {
         orderBy: { createdAt: 'desc' }
       });
 
-      return schedule;
+      return process;
     } catch (error) {
-      console.error("Error in reportService.getInvestigationScheduleByReportId:", error);
+      console.error("Error in reportService.getInvestigationProcesseByReportId:", error);
       throw error;
     }
   },

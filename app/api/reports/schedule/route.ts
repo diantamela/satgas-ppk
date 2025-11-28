@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
         followUpAction,
         followUpDate,
         followUpNotes,
-        accessLevel
+        accessLevel,
+        uploadedFiles
       } = body;
 
       if (!reportId || !location) {
@@ -53,10 +54,10 @@ export async function POST(request: NextRequest) {
       // For now, fall back to simple scheduling
       try {
         // Try detailed scheduling first
-        const schedule = await reportService.createDetailedInvestigationSchedule({
+        const process = await reportService.createDetailedInvestigationProcess({
           reportId,
-          startDateTime: new Date(startDateTime),
-          endDateTime: new Date(endDateTime),
+          startDateTime: startDateTime ? new Date(startDateTime) : undefined,
+          endDateTime: endDateTime ? new Date(endDateTime) : undefined,
           location,
           methods: methods || [],
           partiesInvolved: partiesInvolved || [],
@@ -70,13 +71,14 @@ export async function POST(request: NextRequest) {
           followUpDate: followUpDate ? new Date(followUpDate) : undefined,
           followUpNotes,
           accessLevel: accessLevel || 'CORE_TEAM_ONLY',
+          uploadedFiles: uploadedFiles || [],
           createdById: session.user.id
         });
 
         return Response.json({
           success: true,
-          schedule,
-          message: "Jadwal investigasi detail berhasil dibuat",
+          process,
+          message: "Proses investigasi detail berhasil dibuat",
         });
       } catch (error) {
         console.warn("Detailed scheduling failed, falling back to simple scheduling:", error);

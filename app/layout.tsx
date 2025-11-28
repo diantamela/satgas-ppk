@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 const parkinsans = Parkinsans({
   variable: "--font-parkinsans",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {

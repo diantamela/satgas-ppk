@@ -240,35 +240,7 @@ export default function InvestigationProsesPage() {
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         if (response.ok && data.success) {
-          // Create activity automatically
-          const activityData: any = {
-            activityType: "SCHEDULED_INVESTIGATION",
-            title: `Proses Investigasi: ${planSummary || 'Investigasi Terjadwal'}`,
-            description: `Proses investigasi terjadwal${startDateTime && endDateTime ? ` pada ${new Date(startDateTime).toLocaleString('id-ID')} - ${new Date(endDateTime).toLocaleString('id-ID')}` : ''} di ${location}. ${planSummary ? `Rencana: ${planSummary}` : ''}${methods.length > 0 ? ` Metode: ${methods.join(', ')}` : ''}${partiesInvolved.length > 0 ? ` Pihak terlibat: ${partiesInvolved.join(', ')}` : ''}${otherPartiesDetails ? ` Detail pihak lain: ${otherPartiesDetails}` : ''}${riskNotes ? ` Catatan risiko: ${riskNotes}` : ''}`,
-            location,
-            participants: teamMembers.map(member => member.userId || member.role).filter(Boolean),
-            outcomes: planSummary || undefined,
-            challenges: riskNotes || undefined,
-            recommendations: followUpNotes || undefined,
-            isConfidential: false,
-            accessLevel
-          };
-
-          // Add optional date fields if provided
-          if (startDateTime) {
-            activityData.startDateTime = startDateTime;
-          }
-          if (endDateTime) {
-            activityData.endDateTime = endDateTime;
-          }
-
-          await fetch(`/api/reports/${id}/activities`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(activityData),
-          });
-
-          setAlertMessage({ type: 'success', message: 'Proses investigasi berhasil dibuat dan dicatat sebagai kegiatan' });
+          setAlertMessage({ type: 'success', message: 'Proses investigasi berhasil dibuat' });
           setTimeout(() => {
             setAlertMessage(null);
             router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
