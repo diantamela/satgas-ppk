@@ -54,6 +54,13 @@ enum RecommendationStatus {
   SUBMITTED
   APPROVED
   REJECTED
+  IMPLEMENTED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 enum Affiliation {
@@ -130,6 +137,30 @@ model Gallery {
   @@index([createdAt])
 }
 
+model Recommendation {
+  id            String              @id @default(cuid())
+  report        Report              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reportId      String
+  title         String
+  description   String
+  content       String              // The actual recommendation text
+  status        RecommendationStatus @default(PENDING)
+  priority      Priority            @default(MEDIUM)
+  createdBy     User                @relation("RecommendationCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdById   String
+  approvedBy    User?               @relation("RecommendationApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectionReason String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([reportId])
+  @@index([status])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
 model User {
   id            String                  @id @default(cuid())
   // Email diset ke unique case-insensitive (tanpa citext untuk kompatibilitas)
@@ -157,6 +188,8 @@ model User {
   uploadedAttachments   InvestigationAttachment[] @relation(name: "UserUploadedAttachments")
   conductedActivities   InvestigationActivity[]
   activityAttachments   InvestigationActivityAttachment[] @relation(name: "ActivityAttachmentUploader")
+  createdRecommendations Recommendation[] @relation("RecommendationCreatedBy")
+  approvedRecommendations Recommendation[] @relation("RecommendationApprovedBy")
 
   @@index([email])
 }
@@ -209,6 +242,7 @@ model Report {
    activityLogs ActivityLog[] @relation(name: "ReportActivityLogs")
    schedules    InvestigationSchedule[]
    activities     InvestigationActivity[]
+   recommendations Recommendation[]
 
    @@index([reporterId])
    @@index([assigneeId])

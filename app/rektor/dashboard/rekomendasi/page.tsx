@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FileText,
   CheckCircle,
@@ -31,51 +33,122 @@ interface Recommendation {
 export default function RektorRecommendationsPage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
 
   useEffect(() => {
     fetchRecommendations();
   }, []);
 
   const fetchRecommendations = async () => {
-    // Mock data - replace with actual API call
-    const mockRecommendations: Recommendation[] = [
-      {
-        id: "1",
-        investigationId: "SPPK-20241018-1005",
-        title: "Rekomendasi Penanganan Bullying Online",
-        description: "Investigasi kasus bullying online di lingkungan kampus",
-        recommendation: "1. Perkuat sistem monitoring media sosial kampus\n2. Tambahkan sesi edukasi anti-bullying\n3. Buat mekanisme pelaporan anonim yang lebih mudah\n4. Kolaborasi dengan platform media sosial",
-        status: "pending",
-        createdAt: "2024-10-20",
-        investigator: "Dr. Ahmad Santoso",
-        priority: "high"
-      },
-      {
-        id: "2",
-        investigationId: "SPPK-20241015-2003",
-        title: "Rekomendasi Pencegahan Kekerasan Seksual",
-        description: "Kasus dugaan kekerasan seksual di area parkir kampus",
-        recommendation: "1. Tambahkan penerangan di area parkir\n2. Instal kamera CCTV di titik strategis\n3. Buat patroli rutin keamanan kampus\n4. Sosialisasi kampanye kesadaran gender",
-        status: "approved",
-        createdAt: "2024-10-18",
-        investigator: "Prof. Siti Nurhaliza",
-        priority: "high"
-      },
-      {
-        id: "3",
-        investigationId: "SPPK-20241010-3001",
-        title: "Rekomendasi Penanganan Kekerasan Verbal",
-        description: "Konflik verbal antar mahasiswa di kelas",
-        recommendation: "1. Tambahkan modul komunikasi efektif dalam kurikulum\n2. Buat program mediator mahasiswa\n3. Perkuat kode etik mahasiswa\n4. Workshop resolusi konflik",
-        status: "implemented",
-        createdAt: "2024-10-12",
-        investigator: "Dr. Budi Prasetyo",
-        priority: "medium"
+    try {
+      const response = await fetch('/api/recommendations');
+      if (response.ok) {
+        const data = await response.json();
+        setRecommendations(data);
+      } else {
+        console.error('Failed to fetch recommendations');
+        setRecommendations([]);
       }
-    ];
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      setRecommendations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setRecommendations(mockRecommendations);
-    setLoading(false);
+  const handleApprove = async (recommendationId: string) => {
+    setProcessingId(recommendationId);
+    try {
+      const response = await fetch(`/api/recommendations/${recommendationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'APPROVED' })
+      });
+
+      if (response.ok) {
+        fetchRecommendations(); // Refresh the list
+        alert('Rekomendasi berhasil disetujui');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Gagal menyetujui rekomendasi');
+      }
+    } catch (error) {
+      console.error('Error approving recommendation:', error);
+      alert('Gagal menyetujui rekomendasi');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!selectedRecommendation || !rejectReason.trim()) return;
+
+    setProcessingId(selectedRecommendation.id);
+    try {
+      const response = await fetch(`/api/recommendations/${selectedRecommendation.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'REJECTED',
+          rejectionReason: rejectReason
+        })
+      });
+
+      if (response.ok) {
+        fetchRecommendations(); // Refresh the list
+        setShowRejectDialog(false);
+        setRejectReason("");
+        setSelectedRecommendation(null);
+        alert('Rekomendasi berhasil ditolak');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Gagal menolak rekomendasi');
+      }
+    } catch (error) {
+      console.error('Error rejecting recommendation:', error);
+      alert('Gagal menolak rekomendasi');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleMarkImplemented = async (recommendationId: string) => {
+    setProcessingId(recommendationId);
+    try {
+      const response = await fetch(`/api/recommendations/${recommendationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: 'IMPLEMENTED' })
+      });
+
+      if (response.ok) {
+        fetchRecommendations(); // Refresh the list
+        alert('Rekomendasi berhasil ditandai sebagai diimplementasikan');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Gagal menandai implementasi');
+      }
+    } catch (error) {
+      console.error('Error marking as implemented:', error);
+      alert('Gagal menandai implementasi');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const openRejectDialog = (recommendation: Recommendation) => {
+    setSelectedRecommendation(recommendation);
+    setShowRejectDialog(true);
   };
 
   const getStatusBadge = (status: Recommendation['status']) => {
@@ -249,20 +322,35 @@ export default function RektorRecommendationsPage() {
                 <div className="flex gap-2">
                   {rec.status === 'pending' && (
                     <>
-                      <Button size="sm" variant="default">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => handleApprove(rec.id)}
+                        disabled={processingId === rec.id}
+                      >
                         <CheckCircle className="w-4 h-4 mr-2" />
-                        Setujui
+                        {processingId === rec.id ? 'Memproses...' : 'Setujui'}
                       </Button>
-                      <Button size="sm" variant="outline">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openRejectDialog(rec)}
+                        disabled={processingId === rec.id}
+                      >
                         <AlertTriangle className="w-4 h-4 mr-2" />
-                        Revisi
+                        Tolak
                       </Button>
                     </>
                   )}
                   {rec.status === 'approved' && (
-                    <Button size="sm" variant="default">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => handleMarkImplemented(rec.id)}
+                      disabled={processingId === rec.id}
+                    >
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Tandai Implementasi
+                      {processingId === rec.id ? 'Memproses...' : 'Tandai Implementasi'}
                     </Button>
                   )}
                   <Button size="sm" variant="ghost">
@@ -282,6 +370,45 @@ export default function RektorRecommendationsPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Reject Dialog */}
+        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tolak Rekomendasi</DialogTitle>
+              <DialogDescription>
+                Berikan alasan penolakan untuk rekomendasi ini.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Textarea
+                placeholder="Jelaskan alasan penolakan..."
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={4}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRejectDialog(false);
+                  setRejectReason("");
+                  setSelectedRecommendation(null);
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleReject}
+                disabled={!rejectReason.trim() || processingId === selectedRecommendation?.id}
+              >
+                {processingId === selectedRecommendation?.id ? 'Memproses...' : 'Tolak Rekomendasi'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGuard>
   );

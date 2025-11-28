@@ -81,11 +81,12 @@ export function middleware(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // RBAC dasar untuk admin/documents/notifications
+    // RBAC dasar untuk admin/documents/notifications/recommendations
     if (
       pathname.startsWith("/api/admin") ||
       pathname.startsWith("/api/documents") ||
-      pathname.startsWith("/api/notifications")
+      pathname.startsWith("/api/notifications") ||
+      pathname.startsWith("/api/recommendations")
     ) {
       if (role !== "SATGAS" && role !== "REKTOR") {
         return NextResponse.json({ error: "Forbidden. Role not authorized." }, { status: 403 });

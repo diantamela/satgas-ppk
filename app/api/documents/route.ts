@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { investigationDocumentService } from "@/lib/services/reports/report-service";
 import { prisma } from "@/lib/database/prisma";
+import { checkAuth, checkRole, forbiddenResponse } from "@/lib/auth";
 import crypto from "crypto";
 
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
@@ -32,6 +33,11 @@ async function getUserFromSession(request: NextRequest) {
 // POST /api/documents - Create a new investigation document
 export async function POST(request: NextRequest) {
   try {
+    // Auth check - require SATGAS or REKTOR
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+    if (!checkRole(auth.role, ['SATGAS', 'REKTOR'])) return forbiddenResponse();
+
     const user = await getUserFromSession(request);
     if (!user) {
       return NextResponse.json({
@@ -131,6 +137,11 @@ export async function POST(request: NextRequest) {
 // GET /api/documents - Get documents (for admin/satgas users)
 export async function GET(request: NextRequest) {
   try {
+    // Auth check - require SATGAS or REKTOR
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+    if (!checkRole(auth.role, ['SATGAS', 'REKTOR'])) return forbiddenResponse();
+
     const user = await getUserFromSession(request);
     if (!user) {
       return NextResponse.json({

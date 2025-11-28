@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { reportService } from "@/lib/services/reports/report-service";
+import { checkAuth, checkRole, forbiddenResponse } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Auth check - require SATGAS or REKTOR
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+    if (!checkRole(auth.role, ['SATGAS', 'REKTOR'])) return forbiddenResponse();
+
     const resolvedParams = await params;
     const reportId = resolvedParams.id;
 
@@ -47,6 +53,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Auth check - require SATGAS or REKTOR
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+    if (!checkRole(auth.role, ['SATGAS', 'REKTOR'])) return forbiddenResponse();
+
     const resolvedParams = await params;
     const reportId = resolvedParams.id;
     const body = await request.json();
@@ -88,6 +99,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Auth check - require SATGAS or REKTOR
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+    if (!checkRole(auth.role, ['SATGAS', 'REKTOR'])) return forbiddenResponse();
+
     const resolvedParams = await params;
     const reportId = resolvedParams.id;
 

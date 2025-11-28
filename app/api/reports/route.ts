@@ -1,12 +1,17 @@
 import { NextRequest } from "next/server";
 import { reportService, investigationDocumentService } from "@/lib/services/reports/report-service";
 import { processEvidenceUploads } from "@/lib/utils/file-upload";
+import { checkAuth } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
 // POST /api/reports - Create a new report
 export async function POST(request: NextRequest) {
   try {
+    // Auth check - require session
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+
     const body = await request.json();
 
     // Create report using the service
@@ -83,6 +88,10 @@ export async function POST(request: NextRequest) {
 // GET /api/reports - Get reports with optional filters
 export async function GET(request: NextRequest) {
   try {
+    // Auth check - require session
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+
     const { searchParams } = new URL(request.url);
     const reporterId = searchParams.get('reporterId');
     const reportNumber = searchParams.get('reportNumber');

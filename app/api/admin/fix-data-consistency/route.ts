@@ -1,11 +1,17 @@
 import { prisma } from '@/lib/database/prisma';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { checkAuth, checkRole, forbiddenResponse } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check - require SATGAS or REKTOR
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+    if (!checkRole(auth.role, ['SATGAS', 'REKTOR'])) return forbiddenResponse();
+
     // Get the action from the request body
     const { action } = await request.json();
     

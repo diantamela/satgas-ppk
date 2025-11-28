@@ -1,11 +1,16 @@
 import { prisma } from '@/lib/database/prisma';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { checkAuth, checkRole, forbiddenResponse } from '@/lib/auth';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
+    // Auth check - require SATGAS or REKTOR
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+    if (!checkRole(auth.role, ['SATGAS', 'REKTOR'])) return forbiddenResponse();
     // Check if there are any users with invalid role values
     const allUsers = await prisma.user.findMany({
       select: {
