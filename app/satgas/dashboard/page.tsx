@@ -2,7 +2,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Users,
   Shield,
@@ -16,6 +15,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import { RoleGuard } from "@/components/auth/role-guard";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import Link from "next/link";
 
 // Definisikan Tipe Data untuk Aktivitas
@@ -128,19 +128,17 @@ export default function SatgasDashboardPage() {
         {/* Header Dashboard */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <SidebarTrigger className="sm:flex hidden" />
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Shield className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                  Dashboard Satgas
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Ringkasan aktivitas dan manajemen Satgas PPK
-                </p>
-              </div>
+            <SidebarTrigger className="flex sm:hidden" />
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Shield className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
+                Dashboard Satgas
+              </h1>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Ringkasan aktivitas dan manajemen Satgas PPK
+              </p>
             </div>
           </div>
         </div>

@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { User, FileText, Clock, CheckCircle, Eye, Plus, AlertTriangle, MessageSquare, BookOpen, Phone, Settings, Bell, LogOut, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { signOut, useSession } from "@/lib/auth/auth-client";
 import { reportFormStyles as styles } from '@/lib/styles/report-form-styles';
 
@@ -108,11 +109,14 @@ export default function UserDashboardPage() {
           </div>
           {/* Header Dashboard */}
           <div className="flex flex-col md:flex-row justify-between items-start mb-8 border-b pb-4 border-gray-200 dark:border-gray-700">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white">
-                Selamat Datang Kembali{profileData?.name ? `, ${profileData.name.split(' ')[0]}` : ''}!
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">Kelola laporan dan akses layanan dukungan Satgas PPK UIN Imam Bonjol</p>
+            <div className="flex items-center gap-3">
+              <SidebarTrigger className="flex sm:hidden" />
+              <div>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white">
+                  Selamat Datang Kembali{profileData?.name ? `, ${profileData.name.split(' ')[0]}` : ''}!
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">Kelola laporan dan akses layanan dukungan Satgas PPK UIN Imam Bonjol</p>
+              </div>
             </div>
             <div className="flex gap-2 mt-4 md:mt-0">
               {/* Notifikasi */}

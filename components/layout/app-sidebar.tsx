@@ -13,6 +13,8 @@ import {
   IconSettings,
   IconUsers,
   IconBell,
+  IconChevronLeft,
+  IconChevronRight,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/navigation/nav-main";
@@ -26,6 +28,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 
 const staticData = {
   navMain: [
@@ -45,9 +48,14 @@ const staticData = {
       icon: IconListDetails,
     },
     {
-      title: "Gallery",
+      title: "Rekomendasi",
       url: "/satgas/dashboard/rekomendasi",
       icon: IconFileDescription,
+    },
+    {
+      title: "Gallery",
+      url: "/satgas/dashboard/gallery",
+      icon: IconDatabase,
     },
     {
       title: "Anggota Satgas",
@@ -113,6 +121,7 @@ const staticData = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession();
+  const { state, toggleSidebar } = useSidebar();
 
   const userData = session?.user
     ? {
@@ -131,14 +140,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <Link href="/">
-                <span className="text-base font-semibold font-parkinsans">Satgas PPK</span>
-              </Link>
-            </SidebarMenuButton>
+            <div className="flex items-center justify-between w-full">
+              <SidebarMenuButton
+                asChild
+                className="data-[slot=sidebar-menu-button]:!p-1.5 flex-1"
+              >
+                <Link href="/">
+                  <span className="text-base font-semibold font-parkinsans">Satgas PPK</span>
+                </Link>
+              </SidebarMenuButton>
+              <button
+                onClick={toggleSidebar}
+                className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                title={state === "expanded" ? "Collapse sidebar" : "Expand sidebar"}
+              >
+                {state === "expanded" ? (
+                  <IconChevronLeft className="w-4 h-4" />
+                ) : (
+                  <IconChevronRight className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

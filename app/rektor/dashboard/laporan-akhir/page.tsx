@@ -155,7 +155,7 @@ export default function RektorFinalReportsPage() {
       <RoleGuard requiredRoles={["REKTOR"]}>
         <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
           <div className="flex items-center gap-3">
-            <SidebarTrigger className="sm:flex hidden" />
+            <SidebarTrigger className="flex sm:hidden" />
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Shield className="w-6 h-6 text-primary" />
@@ -181,7 +181,7 @@ export default function RektorFinalReportsPage() {
         {/* Header */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
-            <SidebarTrigger className="sm:flex hidden" />
+            <SidebarTrigger className="flex sm:hidden" />
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Shield className="w-6 h-6 text-primary" />
