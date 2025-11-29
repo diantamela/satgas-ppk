@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { reportService, investigationDocumentService } from "@/lib/services/reports/report-service";
 import { processEvidenceUploads } from "@/lib/utils/file-upload";
 import { checkAuth } from "@/lib/auth";
+import { db } from "@/db";
 
 export const runtime = "nodejs";
 
@@ -23,6 +24,43 @@ export async function POST(request: NextRequest) {
       reporterId: body.reporterId,
       reporterEmail: body.reporterEmail,
     });
+
+    // Create notifications for all active satgas users about new report
+    try {
+      const satgasUsers = await db.user.findMany({
+        where: {
+          role: 'SATGAS',
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
+
+      // Create notifications for all satgas users
+      const notifications = await Promise.all(
+        satgasUsers.map((user: any) =>
+          db.notification.create({
+            data: {
+              userId: user.id,
+              type: 'REPORT_STATUS_CHANGED',
+              title: `📋 Laporan Baru Masuk: ${newReport.reportNumber}`,
+              message: `Detail Laporan:\n${newReport.title}\n\nPelapor: ${newReport.reporterEmail || 'Email tidak tersedia'}\nLokasi Kejadian: ${newReport.incidentLocation || 'Tidak disebutkan'}\nTanggal Kejadian: ${newReport.incidentDate ? new Date(newReport.incidentDate).toLocaleDateString('id-ID') : 'Tidak disebutkan'}\n\nStatus: Menunggu Verifikasi\n\nSilakan tinjau dan proses laporan ini sesegera mungkin.`,
+              relatedEntityId: newReport.id,
+              relatedEntityType: 'REPORT',
+              isRead: false,
+            },
+          })
+        )
+      );
+
+      console.log(`Created ${notifications.length} notifications for new report ${newReport.reportNumber}`);
+    } catch (notificationError) {
+      console.error('Error creating notifications for new report:', notificationError);
+      // Don't fail the entire request if notification creation fails
+    }
 
     // If evidence files are provided, upload them
     let evidenceCount = 0;

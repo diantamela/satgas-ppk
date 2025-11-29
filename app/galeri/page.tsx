@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Image as ImageIcon,
   Calendar,
   MapPin,
@@ -37,6 +44,8 @@ export default function GaleriPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("Semua");
   const [visibleCount, setVisibleCount] = useState<number>(6);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [selectedItem, setSelectedItem] = useState<GalleryItem | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
 
   useEffect(() => {
     fetchGalleryItems();
@@ -132,7 +141,30 @@ export default function GaleriPage() {
     return dateStr;
   };
 
-  const allItems = [...staticGalleryItems, ...galleryItems];
+  const parseDate = (dateStr: string) => {
+    if (dateStr.includes("-")) {
+      return new Date(dateStr);
+    }
+    // Parse Indonesian date format like "15 November 2024"
+    const months = {
+      'Januari': 0, 'Februari': 1, 'Maret': 2, 'April': 3, 'Mei': 4, 'Juni': 5,
+      'Juli': 6, 'Agustus': 7, 'September': 8, 'Oktober': 9, 'November': 10, 'Desember': 11
+    };
+    const parts = dateStr.split(' ');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0]);
+      const month = months[parts[1] as keyof typeof months];
+      const year = parseInt(parts[2]);
+      return new Date(year, month, day);
+    }
+    return new Date(dateStr);
+  };
+
+  const allItems = [...staticGalleryItems, ...galleryItems].sort((a, b) => {
+    const dateA = parseDate(a.date);
+    const dateB = parseDate(b.date);
+    return dateB.getTime() - dateA.getTime(); // Newest first
+  });
 
   const filteredItems =
     selectedCategory === "Semua"
@@ -212,7 +244,11 @@ export default function GaleriPage() {
               {visibleItems.map((item) => (
                 <Card
                   key={String(item.id)}
-                  className="overflow-hidden bg-white/95 dark:bg-gray-950/95 border border-gray-200/80 dark:border-gray-800 hover:border-red-400 dark:hover:border-red-500 hover:shadow-xl transition-all duration-300 group"
+                  className="overflow-hidden bg-white/95 dark:bg-gray-950/95 border border-gray-200/80 dark:border-gray-800 hover:border-red-400 dark:hover:border-red-500 hover:shadow-xl transition-all duration-300 group cursor-pointer"
+                  onClick={() => {
+                    setSelectedItem(item);
+                    setIsDialogOpen(true);
+                  }}
                 >
                   <div className="aspect-video bg-gray-200 dark:bg-gray-800 relative overflow-hidden">
                     <img
@@ -277,6 +313,57 @@ export default function GaleriPage() {
             </div>
           </>
         )}
+
+        {/* Detail Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            {selectedItem && (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-xl font-bold text-gray-900 dark:text-white">
+                    {selectedItem.title}
+                  </DialogTitle>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="px-3 py-1 rounded-full bg-red-600/90 text-white text-xs font-semibold">
+                      {selectedItem.category}
+                    </span>
+                  </div>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="aspect-video bg-gray-200 dark:bg-gray-800 relative overflow-hidden rounded-lg">
+                    <img
+                      src={selectedItem.image}
+                      alt={selectedItem.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <DialogDescription className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+                    {selectedItem.description}
+                  </DialogDescription>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-red-600" />
+                      <span className="text-gray-700 dark:text-gray-200">
+                        {formatDate(selectedItem.date)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-red-600" />
+                      <span className="text-gray-700 dark:text-gray-200">
+                        {selectedItem.location}
+                      </span>
+                    </div>
+                  </div>
+                  {selectedItem.uploadedBy?.name && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 italic">
+                      Diunggah oleh {selectedItem.uploadedBy.name}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

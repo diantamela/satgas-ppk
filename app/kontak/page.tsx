@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,9 +10,60 @@ import {
   MessageCircle,
   ArrowLeft,
   Shield,
+  Send,
+  Loader2,
 } from "lucide-react";
+import { useState } from "react";
 
 export default function ContactPage() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitMessage, setSubmitMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      name: formData.get('name'),
+      email: formData.get('email'),
+      subject: formData.get('subject'),
+      message: formData.get('message'),
+    };
+
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSubmitStatus('success');
+        setSubmitMessage(result.message);
+        // Reset form
+        if (e.currentTarget) {
+          e.currentTarget.reset();
+        }
+      } else {
+        setSubmitStatus('error');
+        setSubmitMessage(result.message || 'Terjadi kesalahan saat mengirim pesan');
+      }
+    } catch (error) {
+      setSubmitStatus('error');
+      setSubmitMessage('Terjadi kesalahan saat mengirim pesan');
+      console.error('Contact form error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-yellow-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-900 py-10">
       <div className="max-w-5xl mx-auto px-4 lg:px-6">
@@ -181,18 +234,32 @@ export default function ContactPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <form className="space-y-4">
+            {submitStatus === 'success' && (
+              <div className="mb-4 p-3 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                <p className="text-sm text-green-700 dark:text-green-300">{submitMessage}</p>
+              </div>
+            )}
+            
+            {submitStatus === 'error' && (
+              <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-300">{submitMessage}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label
                     htmlFor="name"
                     className="block text-sm font-medium mb-1 text-gray-800 dark:text-gray-200"
                   >
-                    Nama Lengkap (boleh samaran)
+                    Nama Lengkap (boleh samaran) *
                   </label>
                   <input
                     type="text"
                     id="name"
+                    name="name"
+                    required
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-600"
                     placeholder="Nama Anda / Inisial"
                   />
@@ -207,6 +274,7 @@ export default function ContactPage() {
                   <input
                     type="email"
                     id="email"
+                    name="email"
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-600"
                     placeholder="Alamat email untuk dihubungi"
                   />
@@ -223,6 +291,8 @@ export default function ContactPage() {
                 <input
                   type="text"
                   id="subject"
+                  name="subject"
+                  required
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-600"
                   placeholder="Misal: Konsultasi, Laporan, Permintaan informasi"
                 />
@@ -237,6 +307,8 @@ export default function ContactPage() {
                 </label>
                 <textarea
                   id="message"
+                  name="message"
+                  required
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-red-600"
                   placeholder="Tuliskan kronologi singkat, pertanyaan, atau kebutuhan Anda..."

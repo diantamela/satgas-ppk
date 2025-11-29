@@ -72,7 +72,8 @@ export function middleware(req: NextRequest) {
   if (pathname.startsWith("/api/")) {
     // API publik tertentu
     if (pathname.startsWith("/api/reports/check-status") ||
-        pathname === "/api/upload") {
+        pathname === "/api/upload" ||
+        pathname.startsWith("/api/contact")) {
       return NextResponse.next();
     }
 

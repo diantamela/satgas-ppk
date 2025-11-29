@@ -404,3 +404,5 @@ model ActivityLog {
   @@index([timestamp])
   @@index([action])
 }
+
+
