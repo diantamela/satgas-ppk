@@ -297,7 +297,9 @@ export default function NotificationManagementPage() {
 
     // Apply type filter
     if (typeFilter !== "all") {
-      result = result.filter(notification => notification.type === typeFilter);
+      result = result.filter(notification => 
+        notification.type?.toLowerCase() === typeFilter.toLowerCase()
+      );
     }
 
     setFilteredNotifications(result);
@@ -443,7 +445,11 @@ export default function NotificationManagementPage() {
             filteredNotifications.map((notification) => (
               <Card 
                 key={notification.id} 
-                className={`hover:shadow-md transition-shadow ${!notification.isRead ? 'border-l-4 border-l-blue-500' : ''}`}
+                className={`hover:shadow-md transition-shadow ${
+                  !notification.isRead 
+                    ? 'bg-gray-50 dark:bg-gray-800 border-l-4 border-l-blue-500' 
+                    : 'bg-white dark:bg-gray-900'
+                }`}
               >
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">

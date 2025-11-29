@@ -118,7 +118,9 @@ export default function UnduhMateriPage() {
   const filteredMaterials =
     selectedCategory === "Semua"
       ? materials
-      : materials.filter((m) => m.category === selectedCategory);
+      : materials.filter((m) => 
+          m.category?.toLowerCase() === selectedCategory.toLowerCase()
+        );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-yellow-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-900 py-10 px-4">

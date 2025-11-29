@@ -169,7 +169,9 @@ export default function GaleriPage() {
   const filteredItems =
     selectedCategory === "Semua"
       ? allItems
-      : allItems.filter((item) => item.category === selectedCategory);
+      : allItems.filter((item) => 
+          item.category?.toLowerCase() === selectedCategory.toLowerCase()
+        );
 
   const visibleItems = filteredItems.slice(0, visibleCount);
   const canLoadMore = visibleCount < filteredItems.length;

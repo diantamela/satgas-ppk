@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from "react"; // Add 'type ReactN
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import {
   FileText,
@@ -14,6 +15,8 @@ import {
   Eye,
   Edit,
   FilePlus,
+  Search,
+  Filter,
 } from "lucide-react";
 
 // RoleGuard component with explicit typing for children prop
@@ -22,7 +25,20 @@ const RoleGuard = ({ children }: { children: ReactNode }) => children;
 export default function InvestigationPage() {
   const [activeTab, setActiveTab] = useState("active");
   const [reports, setReports] = useState<any[]>([]);
+  const [filteredReports, setFilteredReports] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  
+  // Predefined incident types (using actual database values)
+  const incidentTypes = [
+    { value: "kekerasan_seksual", label: "Kekerasan Seksual" },
+    { value: "kekerasan_fisik", label: "Kekerasan Fisik" },
+    { value: "kekerasan_psikis", label: "Kekerasan Psikis / Verbal" },
+    { value: "bullying", label: "Perundungan (Bullying)" },
+    { value: "diskriminasi", label: "Diskriminasi / Intoleransi" },
+    { value: "lainnya", label: "Lainnya" }
+  ];
 
   // No longer need modal states since we have dedicated pages
 
@@ -48,6 +64,7 @@ export default function InvestigationPage() {
               filteredReports = data.reports.filter((report: any) => report.status === 'IN_PROGRESS');
           }
           setReports(filteredReports);
+          setFilteredReports(filteredReports); // Set filtered reports as well
         } else {
           console.error("Error fetching reports:", data.message);
         }
@@ -60,6 +77,32 @@ export default function InvestigationPage() {
 
     fetchReports();
   }, [activeTab]);
+
+  // Filter reports based on search term and category
+  useEffect(() => {
+    let filtered = reports;
+
+    // Apply category filter first
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter((report) => 
+        report.category?.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Then apply search filter
+    if (searchTerm.trim()) {
+      filtered = filtered.filter((report) =>
+        report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.reportNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.severity?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.reporter?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        report.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    setFilteredReports(filtered);
+  }, [reports, searchTerm, selectedCategory]);
 
   // Helper function to return status badge
   const getStatusBadge = (status: string) => {
@@ -86,6 +129,43 @@ export default function InvestigationPage() {
             <p className="text-gray-600 dark:text-gray-400">Kelola proses investigasi laporan kekerasan</p>
           </div>
         </div>
+
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    type="text"
+                    placeholder="Cari berdasarkan judul, nomor laporan, kategori, tingkat keparahan, pelapor, atau deskripsi..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <select 
+                  className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                >
+                  <option value="all">Semua Jenis Kejadian</option>
+                  {incidentTypes.map((incidentType) => (
+                    <option key={incidentType.value} value={incidentType.value}>
+                      {incidentType.label}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="outline">
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filter
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Tab Navigation */}
         <Card className="mb-6 rounded-xl shadow-sm dark:bg-gray-800">
@@ -134,18 +214,23 @@ export default function InvestigationPage() {
               <Loader2 className="w-8 h-8 animate-spin text-red-500" />
               <span className="ml-2 text-gray-600 dark:text-gray-400">Memuat laporan investigasi...</span>
             </div>
-          ) : reports.length === 0 ? (
+          ) : filteredReports.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Tidak ada laporan dalam investigasi</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">
+                  {searchTerm ? 'Tidak ada hasil pencarian' : 'Tidak ada laporan dalam investigasi'}
+                </h3>
                 <p className="text-gray-500 dark:text-gray-400">
-                  Belum ada laporan yang diteruskan untuk investigasi.
+                  {searchTerm 
+                    ? `Tidak ada laporan yang cocok dengan pencarian "${searchTerm}"`
+                    : 'Belum ada laporan yang diteruskan untuk investigasi.'
+                  }
                 </p>
               </CardContent>
             </Card>
           ) : (
-            reports.map((report) => (
+            filteredReports.map((report) => (
               <Card key={report.id} className="hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 rounded-xl">
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
