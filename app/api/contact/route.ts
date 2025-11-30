@@ -17,52 +17,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine priority based on content
-    let priority = 'MEDIUM';
-    const messageLower = message.toLowerCase();
-    const subjectLower = subject.toLowerCase();
-
-    // Auto-detect emergency messages
-    if (messageLower.includes('darurat') || 
-        messageLower.includes('emergency') || 
-        messageLower.includes('segera') ||
-        subjectLower.includes('darurat') ||
-        subjectLower.includes('emergency')) {
-      priority = 'HIGH';
-    }
-
-    // Get all active satgas users
-    const satgasUsers = await db.user.findMany({
-      where: {
-        role: 'SATGAS',
-        isActive: true,
+    // Create only ONE notification for the contact message
+    // This prevents duplication when there are multiple satgas users
+    const notification = await db.notification.create({
+      data: {
+        // Don't assign to specific user to avoid duplication
+        userId: null,
+        type: 'NEW_RECOMMENDATION',
+        title: `📧 Pesan Kontak: ${subject}`,
+        message: `Dari: ${name}${email ? ` (${email})` : ''}\n\nPesan:\n${message}`,
+        relatedEntityType: 'CONTACT_MESSAGE',
+        isRead: false,
       },
     });
 
-    // Create contact message notifications for all satgas users
-    const notifications = await Promise.all(
-      satgasUsers.map((user: any) =>
-        db.notification.create({
-          data: {
-            userId: user.id,
-            type: 'DOCUMENT_UPLOADED',
-            title: `📧 Pesan Kontak: ${subject}`,
-            message: `Dari: ${name}${email ? ` (${email})` : ''}\n\nPesan:\n${message}\n\nPrioritas: ${priority}`,
-            relatedEntityType: 'CONTACT_MESSAGE',
-            isRead: false,
-          },
-        })
-      )
-    );
-
-    console.log(`Created ${notifications.length} contact notifications for satgas users`);
+    console.log('Created single contact notification:', { id: notification.id, subject });
 
     return NextResponse.json({
       success: true,
       message: 'Pesan berhasil dikirim ke Satuan Tugas PPK',
       data: {
-        priority,
-        notificationsSent: notifications.length,
+        notificationId: notification.id,
+        createdAt: notification.createdAt,
       },
     });
 
@@ -91,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause - only get contact messages
     const where: any = {
-      type: 'DOCUMENT_UPLOADED',
+      type: 'NEW_RECOMMENDATION',
     };
     
     if (isRead !== null) {

@@ -16,6 +16,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconActivity,
+  IconMessageCircle,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/navigation/nav-main";
@@ -74,9 +75,9 @@ const staticData = {
       icon: IconDatabase,
     },
     {
-      title: "Notifikasi",
-      url: "/satgas/dashboard/notifikasi",
-      icon: IconBell,
+      title: "Konsultasi",
+      url: "/satgas/dashboard/konsultasi",
+      icon: IconMessageCircle,
     },
     {
       title: "Pengaturan",

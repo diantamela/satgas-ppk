@@ -15,16 +15,24 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  Calendar as CalendarIcon,
+  RefreshCw
 } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [filteredReports, setFilteredReports] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>();
+
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch reports from the API
@@ -62,13 +70,34 @@ export default function ReportsPage() {
       );
     }
 
-    // Apply status filter
-    if (statusFilter !== "all") {
-      result = result.filter(report => report.status === statusFilter);
+    // Apply date filter
+    if (selectedDateRange?.from && selectedDateRange?.to) {
+      const fromDate = selectedDateRange.from;
+      const toDate = selectedDateRange.to;
+      // Include the entire end date by setting time to end of day
+      toDate.setHours(23, 59, 59, 999);
+      
+      result = result.filter(report => {
+        const reportDate = new Date(report.createdAt);
+        return reportDate >= fromDate && reportDate <= toDate;
+      });
+    } else if (selectedDateRange?.from) {
+      const fromDate = selectedDateRange.from;
+      result = result.filter(report => {
+        const reportDate = new Date(report.createdAt);
+        return reportDate >= fromDate;
+      });
+    } else if (selectedDateRange?.to) {
+      const toDate = selectedDateRange.to;
+      toDate.setHours(23, 59, 59, 999);
+      result = result.filter(report => {
+        const reportDate = new Date(report.createdAt);
+        return reportDate <= toDate;
+      });
     }
 
     setFilteredReports(result);
-  }, [searchTerm, statusFilter, reports]);
+  }, [searchTerm, selectedDateRange, reports]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -132,10 +161,6 @@ export default function ReportsPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Laporan</h1>
             <p className="text-gray-600 dark:text-gray-400">Kelola laporan kekerasan yang masuk</p>
           </div>
-          <Button className="mt-4 md:mt-0">
-            <FileText className="w-4 h-4 mr-2" />
-            Ekspor Laporan
-          </Button>
         </div>
 
         <Card className="mb-6">
@@ -152,22 +177,52 @@ export default function ReportsPage() {
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
-                <select 
-                  className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
-                  value={statusFilter}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
+              <div className="flex flex-wrap gap-2">
+                {/* Date Filter */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[280px] justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDateRange?.from ? (
+                        selectedDateRange.to ? (
+                          <>
+                            {format(selectedDateRange.from, "dd MMM yyyy", { locale: id })} -{" "}
+                            {format(selectedDateRange.to, "dd MMM yyyy", { locale: id })}
+                          </>
+                        ) : (
+                          format(selectedDateRange.from, "dd MMM yyyy", { locale: id })
+                        )
+                      ) : (
+                        <span>Pilih rentang tanggal</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={selectedDateRange?.from}
+                      selected={selectedDateRange}
+                      onSelect={setSelectedDateRange}
+                      numberOfMonths={2}
+                      locale={id}
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSelectedDateRange(undefined);
+                  }}
                 >
-                  <option value="all">Semua Status</option>
-                  <option value="pending">Menunggu</option>
-                  <option value="verified">Terverifikasi</option>
-                  <option value="under_investigation">Dalam Investigasi</option>
-                  <option value="rejected">Ditolak</option>
-                  <option value="completed">Selesai</option>
-                </select>
-                <Button variant="outline">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filter
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Reset
                 </Button>
               </div>
             </div>
@@ -189,43 +244,81 @@ export default function ReportsPage() {
             </Card>
           ) : (
             filteredReports.map((report) => (
-              <Card key={report.id} className="hover:shadow-md transition-shadow">
+              <Card 
+                key={report.id} 
+                className={`hover:shadow-md transition-shadow ${
+                  report.status === 'PENDING' 
+                    ? 'bg-gray-100 dark:bg-gray-800' 
+                    : ''
+                }`}
+              >
                 <CardContent className="p-4">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-1">
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className={`p-2 rounded-lg ${
+                        report.status === 'PENDING' 
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
+                          : report.status === 'VERIFIED'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                          : report.status === 'IN_PROGRESS'
+                          ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                          : report.status === 'COMPLETED'
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                          : report.status === 'REJECTED'
+                          ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                      }`}>
                         {getStatusIcon(report.status)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-medium truncate max-w-[200px] md:max-w-md">{report.title}</h3>
-                          <span className="text-sm text-gray-500 dark:text-gray-400 font-mono">{report.reportNumber}</span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{report.category}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">{report.severity}</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">•</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(report.createdAt).toLocaleDateString()}
-                          </span>
+                        <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-gray-900 dark:text-white mb-1 truncate">
+                              {report.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
+                              {report.category} - {report.reporter?.name || 'Unknown User'}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                              <span>{report.reportNumber}</span>
+                              <span>•</span>
+                              <span>{report.severity}</span>
+                              <span>•</span>
+                              <span>{format(new Date(report.createdAt), 'dd MMM yyyy, HH:mm', { locale: id })}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <Badge variant="outline" className={
+                              report.status === 'PENDING' 
+                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
+                                : report.status === 'VERIFIED'
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                : report.status === 'IN_PROGRESS'
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                : report.status === 'COMPLETED'
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                : report.status === 'REJECTED'
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                            }>
+                              {report.status}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                      <div>
-                        {getStatusBadge(report.status)}
-                      </div>
-                      <div className="flex gap-2">
-                        {/* Lihat button with icon and text aligned horizontally */}
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/satgas/dashboard/laporan/${report.id}`} className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
-                            <span>Lihat</span>
-                          </Link>
-                        </Button>
-                      </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        asChild
+                      >
+                        <Link href={`/satgas/dashboard/laporan/${report.id}`} className="flex items-center gap-1">
+                          <Eye className="w-4 h-4" />
+                          Detail
+                        </Link>
+                      </Button>
                     </div>
                   </div>
                 </CardContent>

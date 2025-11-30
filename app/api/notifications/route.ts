@@ -122,7 +122,14 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      userId: currentUser.id,
+      // Include notifications assigned to current user OR contact messages (for satgas users)
+      OR: [
+        { userId: currentUser.id },
+        { 
+          relatedEntityType: 'CONTACT_MESSAGE',
+          userId: null 
+        }
+      ]
     };
     
     if (isRead !== null) {

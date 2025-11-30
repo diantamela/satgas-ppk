@@ -17,7 +17,14 @@ import {
   FilePlus,
   Search,
   Filter,
+  Calendar as CalendarIcon,
+  RefreshCw,
 } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 
 // RoleGuard component with explicit typing for children prop
 const RoleGuard = ({ children }: { children: ReactNode }) => children;
@@ -29,6 +36,7 @@ export default function InvestigationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>();
   
   // Predefined incident types (using actual database values)
   const incidentTypes = [
@@ -78,7 +86,7 @@ export default function InvestigationPage() {
     fetchReports();
   }, [activeTab]);
 
-  // Filter reports based on search term and category
+  // Filter reports based on search term, category, and date range
   useEffect(() => {
     let filtered = reports;
 
@@ -87,6 +95,32 @@ export default function InvestigationPage() {
       filtered = filtered.filter((report) => 
         report.category?.toLowerCase() === selectedCategory.toLowerCase()
       );
+    }
+
+    // Apply date filter
+    if (selectedDateRange?.from && selectedDateRange?.to) {
+      const fromDate = selectedDateRange.from;
+      const toDate = selectedDateRange.to;
+      // Include the entire end date by setting time to end of day
+      toDate.setHours(23, 59, 59, 999);
+      
+      filtered = filtered.filter(report => {
+        const reportDate = new Date(report.createdAt);
+        return reportDate >= fromDate && reportDate <= toDate;
+      });
+    } else if (selectedDateRange?.from) {
+      const fromDate = selectedDateRange.from;
+      filtered = filtered.filter(report => {
+        const reportDate = new Date(report.createdAt);
+        return reportDate >= fromDate;
+      });
+    } else if (selectedDateRange?.to) {
+      const toDate = selectedDateRange.to;
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(report => {
+        const reportDate = new Date(report.createdAt);
+        return reportDate <= toDate;
+      });
     }
 
     // Then apply search filter
@@ -102,7 +136,7 @@ export default function InvestigationPage() {
     }
     
     setFilteredReports(filtered);
-  }, [reports, searchTerm, selectedCategory]);
+  }, [reports, searchTerm, selectedCategory, selectedDateRange]);
 
   // Helper function to return status badge
   const getStatusBadge = (status: string) => {
@@ -145,7 +179,7 @@ export default function InvestigationPage() {
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <select 
                   className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
                   value={selectedCategory}
@@ -158,9 +192,53 @@ export default function InvestigationPage() {
                     </option>
                   ))}
                 </select>
-                <Button variant="outline">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filter
+                
+                {/* Date Filter */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[280px] justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDateRange?.from ? (
+                        selectedDateRange.to ? (
+                          <>
+                            {format(selectedDateRange.from, "dd MMM yyyy", { locale: id })} -{" "}
+                            {format(selectedDateRange.to, "dd MMM yyyy", { locale: id })}
+                          </>
+                        ) : (
+                          format(selectedDateRange.from, "dd MMM yyyy", { locale: id })
+                        )
+                      ) : (
+                        <span>Pilih rentang tanggal</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={selectedDateRange?.from}
+                      selected={selectedDateRange}
+                      onSelect={setSelectedDateRange}
+                      numberOfMonths={2}
+                      locale={id}
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSelectedCategory("all");
+                    setSelectedDateRange(undefined);
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Reset
                 </Button>
               </div>
             </div>

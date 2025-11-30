@@ -119,10 +119,10 @@ export default function UserDashboardPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-4 md:mt-0">
-              {/* Notifikasi */}
+              {/* Konsultasi */}
               <Button variant="outline" size="sm" className="border-red-500 text-red-600 hover:bg-red-50">
                 <Bell className="w-4 h-4 mr-2" />
-                Notifikasi ({userStats.unreadMessages})
+                Konsultasi ({userStats.unreadMessages})
               </Button>
               {/* Pengaturan */}
               <Button variant="outline" size="sm" asChild className="border-red-500 text-red-600 hover:bg-red-50">

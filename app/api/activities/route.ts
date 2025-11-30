@@ -87,17 +87,51 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
     const activities: ActivityItem[] = [];
 
-    // Helper function to check if date is within range
+    // Log date filtering for debugging
+    if (dateFrom || dateTo) {
+      console.log('Filtering activities by date range:', { dateFrom, dateTo });
+    }
+
+    // Helper function to check if date is within range (fallback)
     const isDateInRange = (dateStr: string) => {
       const activityDate = new Date(dateStr);
-      if (dateFrom && activityDate < new Date(dateFrom)) return false;
-      if (dateTo && activityDate > new Date(dateTo + 'T23:59:59.999Z')) return false;
+      // Use UTC date comparison to avoid timezone issues
+      const activityDateUTC = new Date(Date.UTC(
+        activityDate.getFullYear(),
+        activityDate.getMonth(),
+        activityDate.getDate()
+      ));
+      
+      if (dateFrom) {
+        const fromDateUTC = new Date(dateFrom + 'T00:00:00.000Z');
+        if (activityDateUTC < fromDateUTC) return false;
+      }
+      if (dateTo) {
+        const toDateUTC = new Date(dateTo + 'T23:59:59.999Z');
+        if (activityDateUTC > toDateUTC) return false;
+      }
       return true;
     };
 
     try {
-      // 1. Get Notifications
+      // 1. Get Notifications with date filtering
+      const notificationWhere: any = {};
+      
+      // Apply date filtering if provided
+      if (dateFrom || dateTo) {
+        notificationWhere.createdAt = {};
+        if (dateFrom) {
+          // Start of day in UTC
+          notificationWhere.createdAt.gte = new Date(dateFrom + 'T00:00:00.000Z');
+        }
+        if (dateTo) {
+          // End of day in UTC
+          notificationWhere.createdAt.lte = new Date(dateTo + 'T23:59:59.999Z');
+        }
+      }
+      
       const notifications = await db.notification.findMany({
+        where: notificationWhere,
         orderBy: { createdAt: 'desc' },
         take: Math.min(limit, 10), // Limit for better performance
         include: {
@@ -112,6 +146,21 @@ export async function GET(request: NextRequest) {
       
       notifications.forEach(notification => {
         const notificationWithUser = notification as any;
+        
+        // Handle contact messages specially - extract name from message content
+        let userName = notificationWithUser.user?.name || 'System';
+        let userRole = notificationWithUser.user?.role || 'SYSTEM';
+        
+        if (notification.relatedEntityType === 'CONTACT_MESSAGE') {
+          // Extract name from contact message format: "Dari: Name (email)\n\nMessage"
+          const messageParts = notification.message.split('\n\n')[0]; // Get "Dari: Name (email)" part
+          const nameMatch = messageParts.match(/Dari:\s*(.+?)(?:\s*\([^)]+\))?$/);
+          if (nameMatch) {
+            userName = nameMatch[1].trim();
+            userRole = 'CONTACT';
+          }
+        }
+        
         activities.push({
           id: notification.id,
           type: 'notification',
@@ -119,8 +168,8 @@ export async function GET(request: NextRequest) {
           description: notification.message,
           timestamp: notification.createdAt.toISOString(),
           status: notification.isRead ? 'read' : 'unread',
-          userName: notificationWithUser.user?.name || 'System',
-          userRole: notificationWithUser.user?.role || 'SYSTEM',
+          userName,
+          userRole,
           entityId: notification.relatedEntityId || undefined,
           entityType: notification.relatedEntityType || undefined,
           details: {
@@ -130,8 +179,24 @@ export async function GET(request: NextRequest) {
         });
       });
 
-      // 2. Get Reports (simplified first)
+      // 2. Get Reports with date filtering
+      const reportWhere: any = {};
+      
+      // Apply date filtering if provided
+      if (dateFrom || dateTo) {
+        reportWhere.createdAt = {};
+        if (dateFrom) {
+          // Start of day in UTC
+          reportWhere.createdAt.gte = new Date(dateFrom + 'T00:00:00.000Z');
+        }
+        if (dateTo) {
+          // End of day in UTC
+          reportWhere.createdAt.lte = new Date(dateTo + 'T23:59:59.999Z');
+        }
+      }
+      
       const reports = await db.report.findMany({
+        where: reportWhere,
         orderBy: { createdAt: 'desc' },
         take: Math.min(limit, 10),
         include: {
@@ -204,11 +269,13 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Apply date filters
+      // Apply date filters (fallback in case database filtering didn't catch everything)
       if (dateFrom || dateTo) {
+        const beforeFilter = filteredActivities.length;
         filteredActivities = filteredActivities.filter(activity =>
           isDateInRange(activity.timestamp)
         );
+        console.log(`Date filtering result: ${beforeFilter} -> ${filteredActivities.length} activities`);
       }
 
       // Sort all activities by timestamp descending
@@ -312,6 +379,86 @@ export async function GET(request: NextRequest) {
       { 
         success: false, 
         message: 'Terjadi kesalahan saat mengambil aktivitas',
+        error: process.env.NODE_ENV === 'development' ? error : undefined
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT/PATCH /api/activities - Update activity (mark as read)
+export async function PUT(request: NextRequest) {
+  try {
+    // Auth check - require session
+    const auth = checkAuth(request);
+    if (!auth.authenticated) return auth.error!;
+
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json(
+        { success: false, message: 'User tidak ditemukan' },
+        { status: 401 }
+      );
+    }
+
+    const { activityId, markAsRead } = await request.json();
+
+    if (!activityId) {
+      return NextResponse.json(
+        { success: false, message: 'Activity ID diperlukan' },
+        { status: 400 }
+      );
+    }
+
+    try {
+      // Update notification as read
+      const updatedNotification = await db.notification.update({
+        where: { id: activityId },
+        data: { isRead: markAsRead !== false }, // Default to true if not specified
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: markAsRead !== false ? 'Notifikasi telah dibaca' : 'Status notifikasi diperbarui',
+        data: {
+          id: updatedNotification.id,
+          isRead: updatedNotification.isRead,
+        }
+      });
+
+    } catch (dbError) {
+      console.error('Database error updating activity:', dbError);
+      
+      // If it's a notification that doesn't exist, try to find it in our mock data
+      // This is mainly for demo purposes
+      if (activityId.startsWith('mock-')) {
+        return NextResponse.json({
+          success: true,
+          message: markAsRead !== false ? 'Demo: Notifikasi telah dibaca' : 'Demo: Status diperbarui',
+          data: {
+            id: activityId,
+            isRead: markAsRead !== false,
+          }
+        });
+      }
+      
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Gagal memperbarui aktivitas',
+          error: process.env.NODE_ENV === 'development' ? dbError : undefined
+        },
+        { status: 500 }
+      );
+    }
+
+  } catch (error) {
+    console.error('Update activity error:', error);
+    
+    return NextResponse.json(
+      { 
+        success: false, 
+        message: 'Terjadi kesalahan saat memperbarui aktivitas',
         error: process.env.NODE_ENV === 'development' ? error : undefined
       },
       { status: 500 }

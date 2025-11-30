@@ -15,10 +15,16 @@ import {
   AlertTriangle,
   Search,
   Bell,
-  Filter
+  Filter,
+  Calendar as CalendarIcon
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RoleGuard } from "../../../../components/auth/role-guard";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 
 interface Notification {
   id: string;
@@ -48,7 +54,12 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
     onClose();
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string, relatedEntityType?: string) => {
+    // Contact messages should show mail icon regardless of type
+    if (relatedEntityType === 'CONTACT_MESSAGE') {
+      return <Mail className="w-4 h-4" />;
+    }
+    
     switch (type) {
       case "REPORT_STATUS_CHANGED":
         return <AlertTriangle className="w-4 h-4" />;
@@ -61,7 +72,7 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
       case "DOCUMENT_UPLOADED":
         return <Mail className="w-4 h-4" />;
       default:
-        return <Bell className="w-4 h-4" />;
+        return <MessageCircle className="w-4 h-4" />;
     }
   };
 
@@ -71,7 +82,12 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
       : <Badge variant="destructive">Belum Dibaca</Badge>;
   };
 
-  const getTypeBadge = (type: string) => {
+  const getTypeBadge = (type: string, relatedEntityType?: string) => {
+    // Contact messages should show "Pesan Kontak" badge regardless of type
+    if (relatedEntityType === 'CONTACT_MESSAGE') {
+      return <Badge variant="outline">Pesan Kontak</Badge>;
+    }
+    
     switch (type) {
       case "REPORT_STATUS_CHANGED":
         return <Badge variant="outline">Status Laporan</Badge>;
@@ -82,7 +98,7 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
       case "DECISION_MADE":
         return <Badge variant="outline">Keputusan</Badge>;
       case "DOCUMENT_UPLOADED":
-        return <Badge variant="outline">Pesan Kontak</Badge>;
+        return <Badge variant="outline">Dokumen</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -109,7 +125,7 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {getNotificationIcon(notification.type)}
+              {getNotificationIcon(notification.type, notification.relatedEntityType)}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                   {notification.title}
@@ -140,7 +156,7 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
               <div>
                 <span className="font-medium text-gray-900 dark:text-white">Jenis:</span>
                 <div className="mt-1">
-                  {getTypeBadge(notification.type)}
+                  {getTypeBadge(notification.type, notification.relatedEntityType)}
                 </div>
               </div>
               <div>
@@ -189,13 +205,12 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
   );
 }
 
-export default function NotificationManagementPage() {
+export default function KonsultasiPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -212,11 +227,11 @@ export default function NotificationManagementPage() {
       if (result.success) {
         setNotifications(result.data.notifications);
       } else {
-        setError(result.message || 'Gagal mengambil notifikasi');
+        setError(result.message || 'Gagal mengambil konsultasi');
       }
     } catch (err) {
-      console.error('Error fetching notifications:', err);
-      setError('Terjadi kesalahan saat mengambil notifikasi');
+      console.error('Error fetching konsultasi:', err);
+      setError('Terjadi kesalahan saat mengambil konsultasi');
     } finally {
       setLoading(false);
     }
@@ -249,7 +264,7 @@ export default function NotificationManagementPage() {
         );
       }
     } catch (err) {
-      console.error('Error marking notification as read:', err);
+      console.error('Error marking konsultasi as read:', err);
     }
   };
 
@@ -275,7 +290,7 @@ export default function NotificationManagementPage() {
     fetchNotifications();
   }, []);
 
-  // Apply filters when search term or status/type filter changes
+  // Apply filters when search term or date filter changes
   useEffect(() => {
     let result = notifications;
 
@@ -288,24 +303,29 @@ export default function NotificationManagementPage() {
       );
     }
 
-    // Apply status filter
-    if (statusFilter !== "all") {
-      result = result.filter(notification => 
-        statusFilter === "read" ? notification.isRead : !notification.isRead
-      );
-    }
-
-    // Apply type filter
-    if (typeFilter !== "all") {
-      result = result.filter(notification => 
-        notification.type?.toLowerCase() === typeFilter.toLowerCase()
-      );
+    // Apply date filter
+    if (selectedDateRange?.from && selectedDateRange?.to) {
+      result = result.filter(notification => {
+        const notificationDate = new Date(notification.createdAt);
+        const fromDate = new Date(selectedDateRange.from!);
+        const toDate = new Date(selectedDateRange.to!);
+        
+        // Set toDate to end of day
+        toDate.setHours(23, 59, 59, 999);
+        
+        return notificationDate >= fromDate && notificationDate <= toDate;
+      });
     }
 
     setFilteredNotifications(result);
-  }, [notifications, searchTerm, statusFilter, typeFilter]);
+  }, [notifications, searchTerm, selectedDateRange]);
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string, relatedEntityType?: string) => {
+    // Contact messages should show mail icon regardless of type
+    if (relatedEntityType === 'CONTACT_MESSAGE') {
+      return <Mail className="w-4 h-4" />;
+    }
+    
     switch (type) {
       case "REPORT_STATUS_CHANGED":
         return <AlertTriangle className="w-4 h-4" />;
@@ -318,7 +338,7 @@ export default function NotificationManagementPage() {
       case "DOCUMENT_UPLOADED":
         return <Mail className="w-4 h-4" />;
       default:
-        return <Bell className="w-4 h-4" />;
+        return <MessageCircle className="w-4 h-4" />;
     }
   };
 
@@ -328,7 +348,12 @@ export default function NotificationManagementPage() {
       : <Badge variant="destructive">Belum Dibaca</Badge>;
   };
 
-  const getTypeBadge = (type: string) => {
+  const getTypeBadge = (type: string, relatedEntityType?: string) => {
+    // Contact messages should show "Pesan Kontak" badge regardless of type
+    if (relatedEntityType === 'CONTACT_MESSAGE') {
+      return <Badge variant="outline">Pesan Kontak</Badge>;
+    }
+    
     switch (type) {
       case "REPORT_STATUS_CHANGED":
         return <Badge variant="outline">Status Laporan</Badge>;
@@ -339,7 +364,7 @@ export default function NotificationManagementPage() {
       case "DECISION_MADE":
         return <Badge variant="outline">Keputusan</Badge>;
       case "DOCUMENT_UPLOADED":
-        return <Badge variant="outline">Pesan Kontak</Badge>;
+        return <Badge variant="outline">Dokumen</Badge>;
       default:
         return <Badge variant="outline">{type}</Badge>;
     }
@@ -350,8 +375,8 @@ export default function NotificationManagementPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Notifikasi</h1>
-            <p className="text-gray-600 dark:text-gray-400">Lihat notifikasi terbaru dari sistem</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Konsultasi</h1>
+            <p className="text-gray-600 dark:text-gray-400">Kelola konsultasi dan komunikasi dengan tim satgas</p>
           </div>
           <Button 
             className="mt-4 md:mt-0" 
@@ -359,7 +384,7 @@ export default function NotificationManagementPage() {
             onClick={fetchNotifications}
             disabled={loading}
           >
-            <Bell className="w-4 h-4 mr-2" />
+            <MessageCircle className="w-4 h-4 mr-2" />
             Refresh
           </Button>
         </div>
@@ -371,7 +396,7 @@ export default function NotificationManagementPage() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
-                    placeholder="Cari notifikasi berdasarkan judul atau pesan..."
+                    placeholder="Cari konsultasi berdasarkan judul atau pesan..."
                     className="pl-10"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -379,30 +404,51 @@ export default function NotificationManagementPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <select 
-                  className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                {/* Date Filter */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[280px] justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDateRange?.from ? (
+                        selectedDateRange.to ? (
+                          <>
+                            {format(selectedDateRange.from, "dd MMM yyyy", { locale: id })} -{" "}
+                            {format(selectedDateRange.to, "dd MMM yyyy", { locale: id })}
+                          </>
+                        ) : (
+                          format(selectedDateRange.from, "dd MMM yyyy", { locale: id })
+                        )
+                      ) : (
+                        <span>Pilih rentang tanggal</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={selectedDateRange?.from}
+                      selected={selectedDateRange}
+                      onSelect={setSelectedDateRange}
+                      numberOfMonths={2}
+                      locale={id}
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm("");
+                    setSelectedDateRange(undefined);
+                  }}
                 >
-                  <option value="all">Semua Status</option>
-                  <option value="unread">Belum Dibaca</option>
-                  <option value="read">Sudah Dibaca</option>
-                </select>
-                <select 
-                  className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                >
-                  <option value="all">Semua Jenis</option>
-                  <option value="REPORT_STATUS_CHANGED">Status Laporan</option>
-                  <option value="REPORT_ASSIGNED">Laporan Ditugaskan</option>
-                  <option value="NEW_RECOMMENDATION">Rekomendasi Baru</option>
-                  <option value="DECISION_MADE">Keputusan</option>
-                  <option value="DOCUMENT_UPLOADED">Pesan Kontak</option>
-                </select>
-                <Button variant="outline">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filter
+                  <Filter className="w-4 h-4 mr-1" />
+                  Reset
                 </Button>
               </div>
             </div>
@@ -414,7 +460,7 @@ export default function NotificationManagementPage() {
             <Card>
               <CardContent className="p-8 text-center">
                 <div className="animate-spin w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full mx-auto mb-4"></div>
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Memuat notifikasi...</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Memuat konsultasi...</h3>
                 <p className="text-gray-500 dark:text-gray-400">Mohon tunggu sebentar</p>
               </CardContent>
             </Card>
@@ -432,12 +478,12 @@ export default function NotificationManagementPage() {
           ) : filteredNotifications.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <Bell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Tidak ada notifikasi</h3>
+                <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Tidak ada konsultasi</h3>
                 <p className="text-gray-500 dark:text-gray-400">
                   {notifications.length === 0 
-                    ? "Belum ada notifikasi yang diterima." 
-                    : "Tidak ada notifikasi yang sesuai dengan filter pencarian Anda."}
+                    ? "Belum ada konsultasi yang diterima." 
+                    : "Tidak ada konsultasi yang sesuai dengan filter pencarian Anda."}
                 </p>
               </CardContent>
             </Card>
@@ -455,7 +501,7 @@ export default function NotificationManagementPage() {
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="mt-1">
-                        {getNotificationIcon(notification.type)}
+                        {getNotificationIcon(notification.type, notification.relatedEntityType)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
@@ -470,7 +516,7 @@ export default function NotificationManagementPage() {
                           {notification.message}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          {getTypeBadge(notification.type)}
+                          {getTypeBadge(notification.type, notification.relatedEntityType)}
                           {getStatusBadge(notification.isRead)}
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {new Date(notification.createdAt).toLocaleString('id-ID')}

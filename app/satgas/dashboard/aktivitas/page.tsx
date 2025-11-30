@@ -22,7 +22,7 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
-  Calendar,
+  Calendar as CalendarIcon,
   MessageSquare,
   Settings,
   Gavel,
@@ -31,6 +31,11 @@ import {
 } from "lucide-react";
 import { RoleGuard } from "../../../../components/auth/role-guard";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 
 interface ActivityItem {
   id: string;
@@ -82,6 +87,10 @@ function ActivityDetailModal({ activity, isOpen, onClose }: ActivityDetailModalP
         return <Building className="w-4 h-4" />;
       case 'USER':
         return <User className="w-4 h-4" />;
+      case 'CONTACT':
+        return <MessageSquare className="w-4 h-4" />;
+      case 'SYSTEM':
+        return <Settings className="w-4 h-4" />;
       default:
         return <User className="w-4 h-4" />;
     }
@@ -123,7 +132,7 @@ function ActivityDetailModal({ activity, isOpen, onClose }: ActivityDetailModalP
 
   const getTypeBadge = (type: string) => {
     const typeMap: Record<string, string> = {
-      'notification': 'Notifikasi',
+      'notification': 'Konsultasi',
       'activity_log': 'Aktivitas Sistem',
       'report_timeline': 'Timeline Laporan',
       'report': 'Laporan',
@@ -143,6 +152,19 @@ function ActivityDetailModal({ activity, isOpen, onClose }: ActivityDetailModalP
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Get role display text
+  const getRoleText = (role: string) => {
+    const roleMap: Record<string, string> = {
+      'SATGAS': 'Satgas',
+      'REKTOR': 'Rektor',
+      'USER': 'User',
+      'CONTACT': 'Kontak',
+      'SYSTEM': 'Sistem'
+    };
+
+    return roleMap[role.toUpperCase()] || role;
   };
 
   return (
@@ -210,7 +232,7 @@ function ActivityDetailModal({ activity, isOpen, onClose }: ActivityDetailModalP
                 <div className="flex items-center gap-2 mt-1">
                   {getRoleIcon(activity.userRole)}
                   <span className="text-gray-600 dark:text-gray-400">
-                    {activity.userName} ({activity.userRole})
+                    {activity.userName} ({getRoleText(activity.userRole)})
                   </span>
                 </div>
               </div>
@@ -272,8 +294,7 @@ export default function AktivitasPage() {
   const [activityTypeFilter, setActivityTypeFilter] = useState("all");
   const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFromFilter, setDateFromFilter] = useState("");
-  const [dateToFilter, setDateToFilter] = useState("");
+  const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>();
   
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -293,8 +314,8 @@ export default function AktivitasPage() {
         ...(searchTerm && { search: searchTerm }),
         ...(activityTypeFilter !== 'all' && { type: activityTypeFilter }),
         ...(userRoleFilter !== 'all' && { userRole: userRoleFilter }),
-        ...(dateFromFilter && { dateFrom: dateFromFilter }),
-        ...(dateToFilter && { dateTo: dateToFilter }),
+        ...(selectedDateRange?.from && { dateFrom: format(selectedDateRange.from, 'yyyy-MM-dd') }),
+        ...(selectedDateRange?.to && { dateTo: format(selectedDateRange.to, 'yyyy-MM-dd') }),
       });
 
       const response = await fetch(`/api/activities?${params}`);
@@ -315,46 +336,53 @@ export default function AktivitasPage() {
     }
   };
 
-  // Mark activity as read (for notifications)
-  const markAsRead = async (activityId: string) => {
-    try {
-      const response = await fetch('/api/notifications', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          notificationId: activityId,
-          isRead: true,
-        }),
-      });
 
-      const result = await response.json();
-      
-      if (result.success) {
-        // Update local state
-        setActivities(prev => 
-          prev.map(activity => 
-            activity.id === activityId 
-              ? { ...activity, status: 'read' }
-              : activity
-          )
-        );
-      }
-    } catch (err) {
-      console.error('Error marking as read:', err);
-    }
-  };
 
   // Load activities on component mount and when filters change
   useEffect(() => {
     fetchActivities();
-  }, [currentPage, searchTerm, activityTypeFilter, userRoleFilter, dateFromFilter, dateToFilter]);
+  }, [currentPage, searchTerm, activityTypeFilter, userRoleFilter, selectedDateRange]);
+
+  // Mark activity as read
+  const markActivityAsRead = async (activity: ActivityItem) => {
+    if (activity.type === 'notification' && activity.status === 'unread') {
+      try {
+        const response = await fetch('/api/activities', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            activityId: activity.id,
+            markAsRead: true
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          // Update local state
+          setActivities(prevActivities => 
+            prevActivities.map(act => 
+              act.id === activity.id 
+                ? { ...act, status: 'read' }
+                : act
+            )
+          );
+        }
+      } catch (error) {
+        console.error('Error marking activity as read:', error);
+      }
+    }
+  };
 
   // Open activity detail modal
   const openActivityDetail = (activity: ActivityItem) => {
     setSelectedActivity(activity);
     setIsModalOpen(true);
+    
+    // Mark as read when opened
+    markActivityAsRead(activity);
   };
 
   // Close modal
@@ -412,6 +440,10 @@ export default function AktivitasPage() {
         return <Building className="w-3 h-3" />;
       case 'USER':
         return <User className="w-3 h-3" />;
+      case 'CONTACT':
+        return <MessageSquare className="w-3 h-3" />;
+      case 'SYSTEM':
+        return <Settings className="w-3 h-3" />;
       default:
         return <User className="w-3 h-3" />;
     }
@@ -426,6 +458,10 @@ export default function AktivitasPage() {
         return 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
       case 'USER':
         return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
+      case 'CONTACT':
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+      case 'SYSTEM':
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
       default:
         return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
     }
@@ -440,6 +476,19 @@ export default function AktivitasPage() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Get role display text
+  const getRoleText = (role: string) => {
+    const roleMap: Record<string, string> = {
+      'SATGAS': 'Satgas',
+      'REKTOR': 'Rektor',
+      'USER': 'User',
+      'CONTACT': 'Kontak',
+      'SYSTEM': 'Sistem'
+    };
+
+    return roleMap[role.toUpperCase()] || role;
   };
 
   return (
@@ -503,7 +552,7 @@ export default function AktivitasPage() {
                   }}
                 >
                   <option value="all">Semua Jenis</option>
-                  <option value="notification">Notifikasi</option>
+                  <option value="notification">Konsultasi</option>
                   <option value="activity_log">Aktivitas Sistem</option>
                   <option value="report_timeline">Timeline Laporan</option>
                   <option value="report">Laporan</option>
@@ -525,28 +574,43 @@ export default function AktivitasPage() {
                   <option value="REKTOR">Rektor</option>
                 </select>
 
-                {/* Date Filters */}
-                <input
-                  type="date"
-                  className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-sm"
-                  value={dateFromFilter}
-                  onChange={(e) => {
-                    setDateFromFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Tanggal dari"
-                />
-                
-                <input
-                  type="date"
-                  className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-sm"
-                  value={dateToFilter}
-                  onChange={(e) => {
-                    setDateToFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="Tanggal sampai"
-                />
+                {/* Date Filter */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[280px] justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {selectedDateRange?.from ? (
+                        selectedDateRange.to ? (
+                          <>
+                            {format(selectedDateRange.from, "dd MMM yyyy", { locale: id })} -{" "}
+                            {format(selectedDateRange.to, "dd MMM yyyy", { locale: id })}
+                          </>
+                        ) : (
+                          format(selectedDateRange.from, "dd MMM yyyy", { locale: id })
+                        )
+                      ) : (
+                        <span>Pilih rentang tanggal</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={selectedDateRange?.from}
+                      selected={selectedDateRange}
+                      onSelect={(range) => {
+                        setSelectedDateRange(range);
+                        setCurrentPage(1);
+                      }}
+                      numberOfMonths={2}
+                      locale={id}
+                    />
+                  </PopoverContent>
+                </Popover>
                 
                 <Button 
                   variant="outline" 
@@ -555,10 +619,12 @@ export default function AktivitasPage() {
                     setSearchTerm("");
                     setActivityTypeFilter("all");
                     setUserRoleFilter("all");
-                    setDateFromFilter("");
-                    setDateToFilter("");
+                    setSelectedDateRange(undefined);
+                    setCurrentPage(1);
                   }}
                 >
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Reset
                 </Button>
               </div>
             </div>
@@ -600,7 +666,11 @@ export default function AktivitasPage() {
             activities.map((activity) => (
               <Card 
                 key={activity.id} 
-                className="hover:shadow-md transition-shadow"
+                className={`hover:shadow-md transition-shadow ${
+                  activity.type === 'notification' && activity.status === 'unread' 
+                    ? 'bg-gray-100 dark:bg-gray-800' 
+                    : ''
+                }`}
               >
                 <CardContent className="p-4">
                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
@@ -628,7 +698,7 @@ export default function AktivitasPage() {
                           </div>
                           <div className="flex flex-col items-end gap-2">
                             <Badge variant="outline" className={getRoleColor(activity.userRole)}>
-                              {activity.userRole}
+                              {getRoleText(activity.userRole)}
                             </Badge>
                           </div>
                         </div>
@@ -636,16 +706,6 @@ export default function AktivitasPage() {
                     </div>
                     
                     <div className="flex gap-2">
-                      {activity.type === 'notification' && activity.status === 'unread' && (
-                        <Button 
-                          variant="default" 
-                          size="sm"
-                          onClick={() => markAsRead(activity.id)}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Tandai Dibaca
-                        </Button>
-                      )}
                       <Button 
                         variant="outline" 
                         size="sm"
