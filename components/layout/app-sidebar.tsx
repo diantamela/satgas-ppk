@@ -15,6 +15,7 @@ import {
   IconBell,
   IconChevronLeft,
   IconChevronRight,
+  IconActivity,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/navigation/nav-main";
@@ -36,6 +37,11 @@ const staticData = {
       title: "Dashboard",
       url: "/satgas/dashboard",
       icon: IconDashboard,
+    },
+    {
+      title: "Aktivitas",
+      url: "/satgas/dashboard/aktivitas",
+      icon: IconActivity,
     },
     {
       title: "Semua Laporan",
