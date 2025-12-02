@@ -17,6 +17,7 @@ import {
   IconChevronRight,
   IconActivity,
   IconMessageCircle,
+  IconCalendar,
 } from "@tabler/icons-react";
 
 import { NavMain } from "@/components/navigation/nav-main";
@@ -53,6 +54,11 @@ const staticData = {
       title: "Investigasi",
       url: "/satgas/dashboard/investigasi",
       icon: IconListDetails,
+    },
+    {
+      title: "Penjadwalan",
+      url: "/satgas/dashboard/penjadwalan",
+      icon: IconCalendar,
     },
     {
       title: "Rekomendasi",

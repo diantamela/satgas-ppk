@@ -110,7 +110,7 @@ export default function ReportsPage() {
       case "rejected":
         return <Badge variant="destructive">Ditolak</Badge>;
       case "completed":
-        return <Badge variant="success">Selesai</Badge>;
+        return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Selesai</Badge>;
       case "deleted":
         return <Badge variant="outline">Dihapus</Badge>;
       default:
