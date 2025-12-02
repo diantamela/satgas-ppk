@@ -144,8 +144,8 @@ export async function GET(request: NextRequest) {
         },
       });
       
-      notifications.forEach(notification => {
-        const notificationWithUser = notification as any;
+      notifications.forEach((notification: any) => {
+        const notificationWithUser = notification;
         
         // Handle contact messages specially - extract name from message content
         let userName = notificationWithUser.user?.name || 'System';
@@ -209,8 +209,8 @@ export async function GET(request: NextRequest) {
         },
       });
       
-      reports.forEach(report => {
-        const reportWithRelations = report as any;
+      reports.forEach((report: any) => {
+        const reportWithRelations = report;
         activities.push({
           id: report.id,
           type: 'report',
