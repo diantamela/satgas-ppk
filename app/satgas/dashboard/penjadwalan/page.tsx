@@ -34,7 +34,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import ScheduleInvestigationModal from "@/components/schedule-investigation-modal";
+import ComprehensiveScheduleInvestigationModal from "@/components/comprehensive-schedule-investigation-modal";
 import { DateRange } from "react-day-picker";
 
 interface ScheduledInvestigation {
@@ -57,6 +57,9 @@ interface ScheduledInvestigation {
   accessLevel: string;
   createdBy: string;
   createdAt: string;
+  // Additional fields for comprehensive modal
+  category?: string;
+  severity?: string;
 }
 
 export default function PenjadwalanPage() {
@@ -104,26 +107,44 @@ export default function PenjadwalanPage() {
 
       // Fetch scheduled investigations from the dedicated API
       const response = await fetch(`/api/satgas/penjadwalan?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
       
       if (data.success) {
-        setInvestigations(data.data.investigations);
-        setFilteredInvestigations(data.data.investigations);
-        setStats(data.data.stats);
+        setInvestigations(data.data.investigations || []);
+        setFilteredInvestigations(data.data.investigations || []);
+        setStats(data.data.stats || {
+          total: 0,
+          pending: 0,
+          inProgress: 0,
+          completed: 0,
+          cancelled: 0
+        });
       } else {
-        console.error('Error fetching penjadwalan data:', data.message);
+        const errorMessage = data.message || 'Unknown error occurred';
+        console.error('Error fetching penjadwalan data:', errorMessage);
         
         // Handle different types of errors more gracefully
-        if (data.message?.includes('Unauthorized') || data.status === 401) {
+        if (errorMessage?.includes('Unauthorized') || response.status === 401) {
           // Authentication error - this is expected if user is not logged in
           console.log('Authentication required to access penjadwalan data');
-        } else if (data.message?.includes('connection') || data.message?.includes('database')) {
+          alert('Anda harus login untuk mengakses halaman ini.');
+        } else if (errorMessage?.includes('connection') || errorMessage?.includes('database')) {
           // Database connection error
           console.error('Database connection issue - please check database configuration');
           alert('Koneksi database bermasalah. Silakan hubungi administrator sistem.');
+        } else if (data.error && process.env.NODE_ENV === 'development') {
+          // Show detailed error in development
+          console.error('Detailed error:', data.error);
+          alert(`Terjadi kesalahan: ${errorMessage}\n\nDetail: ${data.error.message || data.error}`);
         } else {
           // General error
-          console.error('General error fetching penjadwalan data:', data.message);
+          console.error('General error fetching penjadwalan data:', errorMessage);
+          alert(`Gagal memuat data penjadwalan: ${errorMessage}`);
         }
         
         setInvestigations([]);
@@ -138,7 +159,24 @@ export default function PenjadwalanPage() {
       }
 
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Network or parsing error:', error);
+      
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        alert('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+      } else {
+        alert(`Terjadi kesalahan saat mengambil data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
+      setInvestigations([]);
+      setFilteredInvestigations([]);
+      setStats({
+        total: 0,
+        pending: 0,
+        inProgress: 0,
+        completed: 0,
+        cancelled: 0
+      });
     } finally {
       setIsLoading(false);
     }
@@ -273,7 +311,17 @@ export default function PenjadwalanPage() {
             <p className="text-gray-600 dark:text-gray-400 mt-1">Kelola jadwal investigasi dari pengumpulan data hingga penyelesaian</p>
           </div>
           <Button 
-            onClick={() => setShowScheduleModal(true)}
+            onClick={() => {
+              setSelectedReport({
+                id: "",
+                title: "",
+                reportNumber: "Pilih laporan terlebih dahulu",
+                category: "",
+                severity: "",
+                status: "PENDING"
+              });
+              setShowScheduleModal(true);
+            }}
             className="mt-4 md:mt-0"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -561,7 +609,11 @@ export default function PenjadwalanPage() {
                           onClick={() => {
                             setSelectedReport({
                               id: investigation.reportId,
-                              title: investigation.reportTitle
+                              title: investigation.reportTitle,
+                              reportNumber: investigation.reportNumber,
+                              category: investigation.category,
+                              severity: investigation.severity,
+                              status: investigation.status
                             });
                             setShowScheduleModal(true);
                           }}
@@ -584,14 +636,19 @@ export default function PenjadwalanPage() {
 
         {/* Schedule Investigation Modal */}
         {showScheduleModal && (
-          <ScheduleInvestigationModal
+          <ComprehensiveScheduleInvestigationModal
             isOpen={showScheduleModal}
             onClose={() => {
               setShowScheduleModal(false);
               setSelectedReport(null);
             }}
             onSchedule={handleScheduleInvestigation}
+            reportId={selectedReport?.id || ""}
             reportTitle={selectedReport?.title || ""}
+            reportNumber={selectedReport?.reportNumber}
+            reportCategory={selectedReport?.category}
+            reportSeverity={selectedReport?.severity}
+            reportStatus={selectedReport?.status}
           />
         )}
       </div>

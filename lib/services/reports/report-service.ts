@@ -1,6 +1,12 @@
 // lib/services/reports/report-service.ts
 import { db } from "@/db";
-import { ReportStatus, DocumentType, InvestigationMethod, InvestigationParty, AccessLevel } from "@prisma/client";
+import { 
+  ReportStatus, 
+  DocumentType, 
+  InvestigationMethod, 
+  InvestigationParty, 
+  AccessLevel
+} from "@prisma/client";
 
 // Report Service
 export const reportService = {
@@ -509,6 +515,149 @@ export const reportService = {
       return process;
     } catch (error) {
       console.error("Error in reportService.getInvestigationProcesseByReportId:", error);
+      throw error;
+    }
+  },
+
+  // Create comprehensive investigation schedule with all proposed features
+  async createComprehensiveInvestigationSchedule(data: {
+    // Basic information
+    reportId: string;
+    activityTitle: string;
+    activityType: string; // Will be InvestigationActivityType enum after migration
+    startDateTime?: Date;
+    endDateTime?: Date;
+    estimatedDuration?: number;
+    location: string;
+    locationType?: string;
+    
+    // Investigation details
+    methods: string[];
+    partiesInvolved: string[];
+    otherPartiesDetails?: string;
+    purpose: string;
+    
+    // Equipment and logistics
+    equipmentChecklist: string[]; // Will be EquipmentItem enum after migration
+    otherEquipmentDetails?: string;
+    
+    // Team management
+    teamMembers: Array<{
+      userId: string;
+      role: string;
+      isChairPerson?: boolean;
+      responsibilityNotes?: string;
+    }>;
+    
+    // Companion requirements
+    companionRequirements: string[]; // Will be CompanionRequirement enum after migration
+    companionDetails?: string;
+    
+    // Internal notes and planning
+    internalSatgasNotes?: string;
+    riskNotes?: string;
+    consentObtained: boolean;
+    consentDocumentation?: string;
+    
+    // Follow-up planning
+    nextStepsAfterCompletion?: string;
+    followUpDate?: Date;
+    followUpNotes?: string;
+    
+    // Access control
+    accessLevel: string;
+    
+    // Auto-populated info
+    caseAutoInfo: any;
+    caseSummary?: string;
+    
+    createdById: string;
+  }) {
+    try {
+      // Create the comprehensive investigation schedule
+      const scheduleData: any = {
+        reportId: data.reportId,
+        activityTitle: data.activityTitle,
+        activityType: data.activityType, // Will be enum after migration
+        startDateTime: data.startDateTime,
+        endDateTime: data.endDateTime,
+        estimatedDuration: data.estimatedDuration,
+        location: data.location,
+        locationType: data.locationType,
+        methods: data.methods as InvestigationMethod[],
+        partiesInvolved: data.partiesInvolved as InvestigationParty[],
+        otherPartiesDetails: data.otherPartiesDetails,
+        purpose: data.purpose,
+        equipmentChecklist: data.equipmentChecklist, // Will be enum after migration
+        otherEquipmentDetails: data.otherEquipmentDetails,
+        companionRequirements: data.companionRequirements, // Will be enum after migration
+        companionDetails: data.companionDetails,
+        internalSatgasNotes: data.internalSatgasNotes,
+        riskNotes: data.riskNotes,
+        consentObtained: data.consentObtained,
+        consentDocumentation: data.consentDocumentation,
+        nextStepsAfterCompletion: data.nextStepsAfterCompletion,
+        followUpDate: data.followUpDate,
+        followUpNotes: data.followUpNotes,
+        accessLevel: data.accessLevel as AccessLevel,
+        caseAutoInfo: data.caseAutoInfo,
+        caseSummary: data.caseSummary,
+        createdById: data.createdById,
+        teamMembers: {
+          create: data.teamMembers.map(member => ({
+            userId: member.userId,
+            role: member.role as any,
+            isChairPerson: member.isChairPerson || false,
+            responsibilityNotes: member.responsibilityNotes
+          }))
+        }
+      };
+
+      const process = await db.investigationProcess.create({
+        data: scheduleData,
+        include: {
+          teamMembers: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true }
+              }
+            }
+          },
+          attachments: {
+            include: {
+              uploadedBy: {
+                select: { name: true }
+              }
+            },
+            orderBy: { createdAt: 'desc' }
+          },
+          createdBy: {
+            select: { name: true }
+          },
+          report: {
+            select: { reportNumber: true, title: true, category: true }
+          }
+        }
+      });
+
+      // Update report status to SCHEDULED
+      const reportUpdateData: any = {
+        status: ReportStatus.SCHEDULED
+      };
+
+      // Add scheduledDate if startDateTime is provided
+      if (data.startDateTime) {
+        reportUpdateData.scheduledDate = data.startDateTime;
+      }
+
+      await db.report.update({
+        where: { id: data.reportId },
+        data: reportUpdateData
+      });
+
+      return process;
+    } catch (error) {
+      console.error("Error in reportService.createComprehensiveInvestigationSchedule:", error);
       throw error;
     }
   },

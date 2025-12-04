@@ -9,15 +9,22 @@ export const runtime = "nodejs";
 // GET /api/satgas/penjadwalan - Get scheduled investigations with filters
 export async function GET(request: NextRequest) {
   try {
+    console.log('[PENJADWALAN] Starting GET request');
+    
     // Get current user session
+    console.log('[PENJADWALAN] Getting session from request...');
     const session = await getSessionFromRequest(request);
+    console.log('[PENJADWALAN] Session result:', session ? 'Session found' : 'No session');
 
     if (!session || !isRoleAllowed(session, ['SATGAS', 'REKTOR'])) {
+      console.log('[PENJADWALAN] Authorization failed');
       return Response.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
       );
     }
+    
+    console.log('[PENJADWALAN] Authorization successful');
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
@@ -81,37 +88,71 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    console.log('[PENJADWALAN] Building filters:', JSON.stringify(filters, null, 2));
+    console.log('[PENJADWALAN] Query params - page:', page, 'limit:', limit);
+    
     // Get reports with scheduled investigations
-    const reports = await db.report.findMany({
-      where: filters,
-      include: {
-        reporter: {
-          select: {
-            id: true,
-            name: true,
-            email: true
+    console.log('[PENJADWALAN] Executing database query...');
+    let reports: any[] = [];
+    try {
+      reports = await db.report.findMany({
+        where: filters,
+        include: {
+          reporter: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
           }
-        }
-      },
-      orderBy: [
-        { scheduledDate: 'desc' },
-        { createdAt: 'desc' }
-      ],
-      skip: (page - 1) * limit,
-      take: limit
-    });
+        },
+        orderBy: [
+          { scheduledDate: 'desc' },
+          { createdAt: 'desc' }
+        ],
+        skip: (page - 1) * limit,
+        take: limit
+      });
+      console.log('[PENJADWALAN] Reports query completed, found:', reports.length, 'reports');
+    } catch (reportError) {
+      console.error('[PENJADWALAN] Error fetching reports:', reportError);
+      throw new Error(`Database query failed: ${reportError instanceof Error ? reportError.message : 'Unknown error'}`);
+    }
 
     // Get documents count for each report
+    console.log('[PENJADWALAN] Getting documents data...');
     const reportIds = reports.map(r => r.id);
-    const documentsData = await db.investigationDocument.groupBy({
-      by: ['reportId'],
-      where: {
-        reportId: { in: reportIds }
-      },
-      _count: {
-        id: true
+    console.log('[PENJADWALAN] Report IDs for documents query:', reportIds);
+    
+    let documentsData: any[] = [];
+    if (reportIds.length > 0) {
+      try {
+        // Use a simpler approach with findMany and manual grouping
+        const documents = await db.investigationDocument.findMany({
+          where: {
+            reportId: { in: reportIds }
+          },
+          select: {
+            reportId: true,
+            id: true
+          }
+        });
+        
+        // Manually group the data
+        documentsData = reportIds.map(reportId => ({
+          reportId,
+          _count: {
+            id: documents.filter(doc => doc.reportId === reportId).length
+          }
+        }));
+        
+        console.log('[PENJADWALAN] Documents data query completed');
+      } catch (docError) {
+        console.error('[PENJADWALAN] Error fetching documents:', docError);
+        // Continue without documents data if query fails
+        documentsData = [];
       }
-    });
+    }
 
     // Transform data to match frontend interface
     const scheduledInvestigations = reports.map(report => {
@@ -146,24 +187,41 @@ export async function GET(request: NextRequest) {
     });
 
     // Get total count for pagination
+    console.log('[PENJADWALAN] Getting total count...');
     const totalCount = await db.report.count({ where: filters });
+    console.log('[PENJADWALAN] Total count:', totalCount);
 
     // Calculate statistics
-    const stats = {
+    console.log('[PENJADWALAN] Calculating statistics...');
+    let stats: any = {
       total: totalCount,
-      pending: await db.report.count({ 
-        where: { ...filters, status: 'SCHEDULED' }
-      }),
-      inProgress: await db.report.count({ 
-        where: { ...filters, status: 'IN_PROGRESS' }
-      }),
-      completed: await db.report.count({ 
-        where: { ...filters, status: 'COMPLETED' }
-      }),
-      cancelled: await db.report.count({ 
-        where: { ...filters, status: 'CANCELLED' }
-      })
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+      cancelled: 0
     };
+    
+    try {
+      const [pendingCount, inProgressCount, completedCount, cancelledCount] = await Promise.all([
+        db.report.count({ where: { ...filters, status: 'SCHEDULED' } }),
+        db.report.count({ where: { ...filters, status: 'IN_PROGRESS' } }),
+        db.report.count({ where: { ...filters, status: 'COMPLETED' } }),
+        db.report.count({ where: { ...filters, status: 'CANCELLED' } })
+      ]);
+      
+      stats = {
+        total: totalCount,
+        pending: pendingCount,
+        inProgress: inProgressCount,
+        completed: completedCount,
+        cancelled: cancelledCount
+      };
+      console.log('[PENJADWALAN] Statistics calculated:', stats);
+    } catch (statsError) {
+      console.error('[PENJADWALAN] Error calculating statistics:', statsError);
+      // Continue with default stats if count queries fail
+      console.log('[PENJADWALAN] Using default statistics due to error');
+    }
 
     return Response.json({
       success: true,
@@ -179,12 +237,26 @@ export async function GET(request: NextRequest) {
       }
     });
 
+
+
   } catch (error) {
-    console.error("Error fetching penjadwalan data:", error);
-    return Response.json(
-      { success: false, message: "Terjadi kesalahan saat mengambil data penjadwalan" },
-      { status: 500 }
-    );
+    console.error("[PENJADWALAN] Error occurred in catch block:", error);
+    console.error("[PENJADWALAN] Error name:", error instanceof Error ? error.name : 'Unknown');
+    console.error("[PENJADWALAN] Error message:", error instanceof Error ? error.message : String(error));
+    console.error("[PENJADWALAN] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Provide more specific error details in development
+    const errorDetails = {
+      success: false, 
+      message: "Terjadi kesalahan saat mengambil data penjadwalan",
+      error: process.env.NODE_ENV === 'development' ? {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      } : undefined
+    };
+    
+    return Response.json(errorDetails, { status: 500 });
   }
 }
 

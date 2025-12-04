@@ -108,6 +108,45 @@ enum AccessLevel {
   LEADERSHIP_ONLY
 }
 
+enum InvestigationActivityType {
+  VICTIM_INTERVIEW
+  WITNESS_INTERVIEW
+  REPORTED_PERSON_INTERVIEW
+  EVIDENCE_COLLECTION
+  LOCATION_OBSERVATION
+  MEDIATION_SESSION
+  CONFRONTATION
+  FOLLOW_UP_INTERVIEW
+  CASE_REVIEW
+  OTHER
+}
+
+enum EquipmentItem {
+  CAMERA_RECORDER
+  AUDIO_RECORDER
+  PRINTED_FORMS
+  PROJECTOR_SCREEN
+  COMPUTER_LAPTOP
+  PRINTER
+  NOTARY_PRESENCE
+  LEGAL_COUNSEL
+  PSYCHOLOGICAL_SUPPORT
+  TRANSLATOR
+  SECURITY_PERSONNEL
+  VIDEO_CONFERENCE_SETUP
+}
+
+enum CompanionRequirement {
+  PSYCHOLOGIST
+  COUNSELOR
+  LEGAL_ADVISOR
+  RELIGIOUS_COUNSELOR
+  FAMILY_MEMBER
+  FRIEND_SUPPORT
+  ADVOCATE
+  NONE
+}
+
 
 model Gallery {
   id          String   @id @default(cuid())
@@ -275,9 +314,24 @@ model InvestigationProcess {
     createdAt             DateTime              @default(now())
     updatedAt             DateTime              @updatedAt
 
+    // Comprehensive Investigation Scheduling Fields (from user proposal)
+    activityTitle         String?               // Judul kegiatan spesifik
+    activityType          InvestigationActivityType? // Jenis kegiatan investigasi
+    caseAutoInfo          Json?                 // Auto-populated case information
+    equipmentChecklist    EquipmentItem[]       // Equipment/logistics needed
+    otherEquipmentDetails String?               // Additional equipment requirements
+    companionRequirements CompanionRequirement[] // Required support persons
+    companionDetails      String?               // Details about companions
+    internalSatgasNotes   String?               // OTAN-only internal notes
+    nextStepsAfterCompletion String?            // Detailed follow-up planning
+    estimatedDuration     Int?                  // Duration in minutes
+    caseSummary           String?               // Auto-populated case summary
+
     @@index([reportId])
     @@index([status])
     @@index([createdAt])
+    @@index([activityType])
+    @@index([estimatedDuration])
 }
 
 model InvestigationTeamMember {
@@ -288,9 +342,12 @@ model InvestigationTeamMember {
   userId          String
   role            TeamRole
   customRole      String?     // Jika role OTHER, isi custom role
+  isChairPerson   Boolean     @default(false)  // Whether this member is the chairman
+  responsibilityNotes String?  // Specific responsibilities for this member
 
   @@index([processId])
   @@index([userId])
+  @@index([isChairPerson])
   @@unique([processId, userId]) // One user per process
 }
 

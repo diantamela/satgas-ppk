@@ -20,9 +20,99 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Check if this is detailed scheduling (new format) or simple scheduling (legacy format)
-    if (body.location) {
-      // Detailed scheduling
+    // Check if this is comprehensive scheduling (has activityTitle/activityType)
+    const isComprehensive = body.activityTitle && body.activityType;
+    
+    if (isComprehensive) {
+      // Comprehensive scheduling with all proposed features
+      try {
+        const process = await reportService.createComprehensiveInvestigationSchedule({
+          // Basic information
+          reportId: body.reportId,
+          activityTitle: body.activityTitle,
+          activityType: body.activityType,
+          startDateTime: body.startDateTime ? new Date(body.startDateTime) : undefined,
+          endDateTime: body.endDateTime ? new Date(body.endDateTime) : undefined,
+          estimatedDuration: body.estimatedDuration,
+          location: body.location,
+          locationType: body.locationType,
+          
+          // Investigation details
+          methods: body.methods || [],
+          partiesInvolved: body.partiesInvolved || [],
+          otherPartiesDetails: body.otherPartiesDetails,
+          purpose: body.purpose,
+          
+          // Equipment and logistics
+          equipmentChecklist: body.equipmentChecklist || [],
+          otherEquipmentDetails: body.otherEquipmentDetails,
+          
+          // Team management
+          teamMembers: body.teamMembers || [],
+          
+          // Companion requirements
+          companionRequirements: body.companionRequirements || [],
+          companionDetails: body.companionDetails,
+          
+          // Internal notes and planning
+          internalSatgasNotes: body.internalSatgasNotes,
+          riskNotes: body.riskNotes,
+          consentObtained: body.consentObtained || false,
+          consentDocumentation: body.consentDocumentation,
+          
+          // Follow-up planning
+          nextStepsAfterCompletion: body.nextStepsAfterCompletion,
+          followUpDate: body.followUpDate ? new Date(body.followUpDate) : undefined,
+          followUpNotes: body.followUpNotes,
+          
+          // Access control
+          accessLevel: body.accessLevel || 'CORE_TEAM_ONLY',
+          
+          // Auto-populated info
+          caseAutoInfo: body.caseAutoInfo,
+          caseSummary: body.caseSummary,
+          
+          createdById: session.user.id
+        });
+
+        return Response.json({
+          success: true,
+          process,
+          message: "Proses investigasi komprehensif berhasil dibuat",
+        });
+      } catch (error) {
+        console.warn("Comprehensive scheduling failed, falling back to detailed scheduling:", error);
+
+        // Fall back to detailed scheduling
+        const process = await reportService.createDetailedInvestigationProcess({
+          reportId: body.reportId,
+          startDateTime: body.startDateTime ? new Date(body.startDateTime) : undefined,
+          endDateTime: body.endDateTime ? new Date(body.endDateTime) : undefined,
+          location: body.location,
+          methods: body.methods || [],
+          partiesInvolved: body.partiesInvolved || [],
+          otherPartiesDetails: body.otherPartiesDetails,
+          teamMembers: body.teamMembers || [],
+          consentObtained: body.consentObtained || false,
+          consentDocumentation: body.consentDocumentation,
+          riskNotes: body.riskNotes,
+          planSummary: body.purpose,
+          followUpAction: body.nextStepsAfterCompletion,
+          followUpDate: body.followUpDate ? new Date(body.followUpDate) : undefined,
+          followUpNotes: body.followUpNotes,
+          accessLevel: body.accessLevel || 'CORE_TEAM_ONLY',
+          uploadedFiles: [],
+          createdById: session.user.id
+        });
+
+        return Response.json({
+          success: true,
+          process,
+          message: "Proses investigasi detail berhasil dibuat",
+        });
+      }
+    } else if (body.location) {
+      // Detailed scheduling (legacy detailed format)
       const {
         reportId,
         startDateTime,
@@ -50,10 +140,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // TODO: Replace with actual database operation once schema is migrated
-      // For now, fall back to simple scheduling
+      // Detailed scheduling
       try {
-        // Try detailed scheduling first
         const process = await reportService.createDetailedInvestigationProcess({
           reportId,
           startDateTime: startDateTime ? new Date(startDateTime) : undefined,
