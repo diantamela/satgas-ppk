@@ -25,7 +25,9 @@ import {
   UserPlus,
   Save,
   Eye,
-  FileCheck
+  FileCheck,
+  CheckCircle,
+  Download
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -36,15 +38,29 @@ interface TeamMember {
   customRole?: string;
 }
 
+interface PartyAttendance {
+  name: string;
+  role: string;
+  status: 'PRESENT' | 'ABSENT_NO_REASON' | 'ABSENT_WITH_REASON';
+  reason?: string;
+}
+
+interface RecommendedAction {
+  action: string;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  notes?: string;
+}
+
 export default function InvestigationProsesPage() {
   const { id } = useParams();
   const router = useRouter();
   const [report, setReport] = useState<any>(null);
+  const [process, setProcess] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
-  // Form states
+  // Original form states from proses
   const [startDateTime, setStartDateTime] = useState("");
   const [endDateTime, setEndDateTime] = useState("");
   const [location, setLocation] = useState("");
@@ -61,32 +77,77 @@ export default function InvestigationProsesPage() {
   const [followUpNotes, setFollowUpNotes] = useState("");
   const [accessLevel, setAccessLevel] = useState("CORE_TEAM_ONLY");
 
+  // New states from hasil form
+  const [schedulingId, setSchedulingId] = useState("");
+  const [schedulingTitle, setSchedulingTitle] = useState("");
+  const [schedulingDateTime, setSchedulingDateTime] = useState("");
+  const [schedulingLocation, setSchedulingLocation] = useState("");
+  const [caseTitle, setCaseTitle] = useState("");
+  const [reportNumber, setReportNumber] = useState("");
+  
+  // Attendance tracking
+  const [satgasMembersPresent, setSatgasMembersPresent] = useState<any[]>([]);
+  const [partiesPresent, setPartiesPresent] = useState<PartyAttendance[]>([]);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [attendanceNotes, setAttendanceNotes] = useState("");
+  
+  // Key investigation notes
+  const [partiesStatementSummary, setPartiesStatementSummary] = useState("");
+  const [newPhysicalEvidence, setNewPhysicalEvidence] = useState("");
+  const [evidenceFiles, setEvidenceFiles] = useState<any[]>([]);
+  const [statementConsistency, setStatementConsistency] = useState("");
+  
+  // Interim conclusions and recommendations
+  const [sessionInterimConclusion, setSessionInterimConclusion] = useState("");
+  const [recommendedImmediateActions, setRecommendedImmediateActions] = useState<RecommendedAction[]>([]);
+  const [caseStatusAfterResult, setCaseStatusAfterResult] = useState("UNDER_INVESTIGATION");
+  const [statusChangeReason, setStatusChangeReason] = useState("");
+  
+  // Digital authentication
+  const [dataVerificationConfirmed, setDataVerificationConfirmed] = useState(false);
+  const [creatorDigitalSignature, setCreatorDigitalSignature] = useState("");
+  const [chairpersonDigitalSignature, setChairpersonDigitalSignature] = useState("");
+  
+  // Additional fields
+  const [partiesDetailedAttendance, setPartiesDetailedAttendance] = useState<any>({});
+  const [recommendedActionsDetails, setRecommendedActionsDetails] = useState<any>({});
+  const [internalSatgasNotes, setInternalSatgasNotes] = useState("");
+
   // Upload states
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch report details
+  // Fetch report and process details
   useEffect(() => {
-    const fetchReport = async () => {
+    const fetchData = async () => {
       try {
         if (id) {
           const reportId = Array.isArray(id) ? id[0] : id;
-          const response = await fetch(`/api/reports/${reportId}`);
-          const data = await response.json();
-          if (data.success) {
-            setReport(data.report);
-          } else {
-            console.error("Error fetching report:", data.message);
+          
+          // Fetch report
+          const reportResponse = await fetch(`/api/reports/${reportId}`);
+          const reportData = await reportResponse.json();
+          if (reportData.success) {
+            setReport(reportData.report);
+            setCaseTitle(reportData.report.title);
+            setReportNumber(reportData.report.reportNumber);
+          }
+          
+          // Fetch process
+          const processResponse = await fetch(`/api/reports/${reportId}/process`);
+          const processData = await processResponse.json();
+          if (processData.success) {
+            setProcess(processData.process);
           }
         }
       } catch (error) {
-        console.error("Error fetching report:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchReport();
+    fetchData();
   }, [id]);
 
   const investigationMethods = [
@@ -102,7 +163,7 @@ export default function InvestigationProsesPage() {
     { value: "VICTIM_SURVIVOR", label: "Korban/Penyintas" },
     { value: "REPORTED_PERSON", label: "Terlapor" },
     { value: "WITNESS", label: "Saksi" },
-    { value: "OTHER_PARTY", label: "Pihak Lain" }
+    { value: "OTHER_PARTY", label: " Pihak Lain" }
   ];
 
   const teamRoles = [
@@ -118,6 +179,29 @@ export default function InvestigationProsesPage() {
     { value: "CORE_TEAM_ONLY", label: "Hanya Tim Inti" },
     { value: "FULL_SATGAS", label: "Satgas Penuh" },
     { value: "LEADERSHIP_ONLY", label: "Pimpinan Tertentu" }
+  ];
+
+  const recommendedActionsOptions = [
+    { value: 'SCHEDULE_NEXT_SESSION', label: 'Jadwalkan Sesi Berikutnya' },
+    { value: 'CALL_OTHER_PARTY', label: 'Panggil Pihak Lain' },
+    { value: 'REQUIRE_PSYCHOLOGICAL_SUPPORT', label: 'Perlu Pendampingan Psikologis' },
+    { value: 'REQUIRE_LEGAL_SUPPORT', label: 'Perlu Pendampingan Hukum' },
+    { value: 'CASE_TERMINATED', label: 'Kasus Dihentikan' },
+    { value: 'FORWARD_TO_REKTORAT', label: 'Diteruskan ke Rektorat' },
+    { value: 'MEDIATION_SESSION', label: 'Sesi Mediasi' },
+    { value: 'EVIDENCE_ANALYSIS', label: 'Analisis Bukti' },
+    { value: 'WITNESS_REINTERVIEW', label: 'Wawancara Ulang Saksi' },
+    { value: 'OTHER', label: 'Lainnya' }
+  ];
+
+  const caseStatusOptions = [
+    { value: 'UNDER_INVESTIGATION', label: 'Dalam Investigasi' },
+    { value: 'EVIDENCE_COLLECTION', label: 'Pengumpulan Bukti' },
+    { value: 'STATEMENT_ANALYSIS', label: 'Analisis Keterangan' },
+    { value: 'PENDING_EXTERNAL_INPUT', label: 'Menunggu Input Eksternal' },
+    { value: 'READY_FOR_RECOMMENDATION', label: 'Siap untuk Rekomendasi' },
+    { value: 'CLOSED_TERMINATED', label: 'Ditutup/Dihentikan' },
+    { value: 'FORWARDED_TO_REKTORAT', label: 'Diteruskan ke Rektorat' }
   ];
 
   const handleMethodChange = (method: string, checked: boolean) => {
@@ -196,14 +280,55 @@ export default function InvestigationProsesPage() {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const addRecommendedAction = () => {
+    setRecommendedImmediateActions([...recommendedImmediateActions, {
+      action: '',
+      priority: 'MEDIUM',
+      notes: ''
+    }]);
+  };
+
+  const updateRecommendedAction = (index: number, field: keyof RecommendedAction, value: string) => {
+    const updated = [...recommendedImmediateActions];
+    updated[index] = { ...updated[index], [field]: value };
+    setRecommendedImmediateActions(updated);
+  };
+
+  const removeRecommendedAction = (index: number) => {
+    setRecommendedImmediateActions(recommendedImmediateActions.filter((_, i) => i !== index));
+  };
+
+  const addPartyAttendance = () => {
+    setPartiesPresent([...partiesPresent, {
+      name: '',
+      role: '',
+      status: 'PRESENT'
+    }]);
+  };
+
+  const updatePartyAttendance = (index: number, field: keyof PartyAttendance, value: string) => {
+    const updated = [...partiesPresent];
+    updated[index] = { ...updated[index], [field]: value };
+    setPartiesPresent(updated);
+  };
+
+  const removePartyAttendance = (index: number) => {
+    setPartiesPresent(partiesPresent.filter((_, i) => i !== index));
+  };
+
+  const removeEvidenceFile = (index: number) => {
+    setEvidenceFiles(evidenceFiles.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !location) return;
+    if (!id || !location || !partiesStatementSummary) return;
 
     setIsSubmitting(true);
-    let scheduleData: any = null;
     try {
-      scheduleData = {
+      const formData = {
+        // Original process data
+        processId: process?.id,
         location,
         methods,
         partiesInvolved,
@@ -217,124 +342,75 @@ export default function InvestigationProsesPage() {
         followUpDate: followUpDate || undefined,
         followUpNotes: followUpNotes || undefined,
         accessLevel,
-        uploadedFiles
+        uploadedFiles,
+        
+        // New results data
+        schedulingId,
+        schedulingTitle,
+        schedulingDateTime,
+        schedulingLocation,
+        caseTitle: report?.title,
+        reportNumber: report?.reportNumber,
+        
+        // Attendance tracking
+        satgasMembersPresent,
+        partiesPresent,
+        identityVerified,
+        attendanceNotes,
+        
+        // Key investigation notes
+        partiesStatementSummary,
+        newPhysicalEvidence,
+        evidenceFiles,
+        statementConsistency,
+        
+        // Interim conclusions and recommendations
+        sessionInterimConclusion,
+        recommendedImmediateActions,
+        caseStatusAfterResult,
+        statusChangeReason,
+        
+        // Digital authentication
+        dataVerificationConfirmed,
+        creatorDigitalSignature,
+        creatorSignatureDate: new Date().toISOString(),
+        chairpersonDigitalSignature,
+        chairpersonSignatureDate: chairpersonDigitalSignature ? new Date().toISOString() : null,
+        
+        // Additional fields
+        partiesDetailedAttendance,
+        recommendedActionsDetails,
+        internalSatgasNotes,
+        
+        // Optional date fields (only include if provided)
+        ...(startDateTime && { startDateTime }),
+        ...(endDateTime && { endDateTime })
       };
-  
-      // Add optional date fields if provided
-      if (startDateTime) {
-        scheduleData.startDateTime = startDateTime;
-      }
-      if (endDateTime) {
-        scheduleData.endDateTime = endDateTime;
-      }
 
-      const response = await fetch(`/api/reports/${id}/process`, {
+      const response = await fetch(`/api/reports/${id}/results`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scheduleData),
+        body: JSON.stringify(formData),
       });
 
       const contentType = response.headers.get('content-type');
-      // Simpan data ke localStorage sebagai fallback agar rekapan dapat menampilkan hasil
-      try {
-        if (typeof window !== 'undefined' && id) {
-          const key = `investigation_process_${id}`;
-          const existingData = window.localStorage.getItem(key);
-          let processHistory = [];
-
-          if (existingData) {
-            try {
-              processHistory = JSON.parse(existingData);
-              // Pastikan ini adalah array, jika tidak maka buat array baru
-              if (!Array.isArray(processHistory)) {
-                processHistory = [processHistory];
-              }
-            } catch (e) {
-              // Jika parsing gagal, mulai dengan array kosong
-              processHistory = [];
-            }
-          }
-
-          // Tambahkan entry baru ke history
-          const newEntry = {
-            id: Date.now().toString(), // Unique ID untuk setiap entry
-            savedAt: new Date().toISOString(),
-            data: scheduleData
-          };
-          processHistory.push(newEntry);
-
-          // Simpan kembali sebagai array
-          window.localStorage.setItem(key, JSON.stringify(processHistory));
-        }
-      } catch (e) {
-        console.warn('Could not save fallback to localStorage', e);
-      }
-
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         if (response.ok && data.success) {
-          setAlertMessage({ type: 'success', message: 'Proses investigasi berhasil dimulai' });
+          setAlertMessage({ type: 'success', message: 'Hasil investigasi berhasil dicatat' });
           setTimeout(() => {
             setAlertMessage(null);
             router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
           }, 1000);
         } else {
-          // Meski server gagal, kita sudah menyimpan fallback — beri tahu user dan pindah ke rekapan
-          setAlertMessage({ type: 'error', message: data.message || 'Gagal memulai proses investigasi, menyimpan secara lokal' });
-          setTimeout(() => {
-            setAlertMessage(null);
-            router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
-          }, 1500);
+          setAlertMessage({ type: 'error', message: data.message || 'Gagal mencatat hasil investigasi' });
         }
       } else {
-        setAlertMessage({ type: 'error', message: 'Gagal membuat proses investigasi - respons server tidak valid, data disimpan lokal' });
-        setTimeout(() => {
-          setAlertMessage(null);
-          router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
-        }, 1500);
+        setAlertMessage({ type: 'error', message: 'Gagal mencatat hasil investigasi - respons server tidak valid' });
       }
     } catch (error) {
-      console.error('Start investigation process error:', error);
-      // Simpan fallback juga ketika ada error runtime
-      try {
-        if (typeof window !== 'undefined' && id) {
-          const key = `investigation_process_${id}`;
-          const existingData = window.localStorage.getItem(key);
-          let processHistory = [];
-
-          if (existingData) {
-            try {
-              processHistory = JSON.parse(existingData);
-              // Pastikan ini adalah array, jika tidak maka buat array baru
-              if (!Array.isArray(processHistory)) {
-                processHistory = [processHistory];
-              }
-            } catch (e) {
-              // Jika parsing gagal, mulai dengan array kosong
-              processHistory = [];
-            }
-          }
-
-          // Tambahkan entry baru ke history
-          const newEntry = {
-            id: Date.now().toString(), // Unique ID untuk setiap entry
-            savedAt: new Date().toISOString(),
-            data: scheduleData
-          };
-          processHistory.push(newEntry);
-
-          // Simpan kembali sebagai array
-          window.localStorage.setItem(key, JSON.stringify(processHistory));
-        }
-      } catch (e) {
-        console.warn('Could not save fallback to localStorage on error', e);
-      }
-
-      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat memulai proses investigasi — data disimpan lokal' });
-      setTimeout(() => {
-        setAlertMessage(null);
-        router.push(`/satgas/dashboard/investigasi/${id}/rekapan`);
-      }, 1500);
+      console.error('Submit error:', error);
+      setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat mencatat hasil investigasi' });
     } finally {
       setIsSubmitting(false);
     }
@@ -391,10 +467,10 @@ export default function InvestigationProsesPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Mulai Proses Investigasi</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Form Proses & Hasil Investigasi</h1>
               <div className="flex items-center gap-3 mt-2">
-                <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{report.reportNumber}</span>
-                <Badge className="bg-green-500 hover:bg-green-600 text-white">Investigasi Berlangsung</Badge>
+                <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{report?.reportNumber}</span>
+                <Badge className="bg-green-500 hover:bg-green-600 text-white">Investigasi Lengkap</Badge>
               </div>
             </div>
           </div>
@@ -409,160 +485,178 @@ export default function InvestigationProsesPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Block 1: Info Dasar Sesi */}
+          {/* Section 1: Metadata Kegiatan */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Clock className="w-5 h-5" />
-                Info Dasar Sesi Investigasi
+                <Calendar className="w-5 h-5" />
+                Metadata Kegiatan (Auto-fill)
               </CardTitle>
               <CardDescription>
-                Tanggal, waktu, lokasi, metode, dan pihak yang terlibat dalam proses investigasi yang sedang berlangsung
+                Data ini diambil otomatis dari jadwal investigasi yang telah dibuat sebelumnya
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startDateTime">Tanggal & Jam Mulai</Label>
+                  <Label htmlFor="schedulingId">ID Kegiatan Penjadwalan</Label>
                   <Input
-                    id="startDateTime"
-                    type="datetime-local"
-                    min={new Date().toISOString().slice(0, 16)}
-                    value={startDateTime}
-                    onChange={(e) => setStartDateTime(e.target.value)}
+                    id="schedulingId"
+                    value={schedulingId}
+                    onChange={(e) => setSchedulingId(e.target.value)}
+                    placeholder="Contoh: SCHED-2024-001"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endDateTime">Tanggal & Jam Selesai</Label>
+                  <Label htmlFor="schedulingTitle">Judul Kegiatan</Label>
                   <Input
-                    id="endDateTime"
+                    id="schedulingTitle"
+                    value={schedulingTitle}
+                    onChange={(e) => setSchedulingTitle(e.target.value)}
+                    placeholder="Contoh: Wawancara Korban"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="schedulingDateTime">Tanggal & Waktu Pelaksanaan</Label>
+                  <Input
+                    id="schedulingDateTime"
                     type="datetime-local"
-                    min={startDateTime || new Date().toISOString().slice(0, 16)}
-                    value={endDateTime}
-                    onChange={(e) => setEndDateTime(e.target.value)}
+                    value={schedulingDateTime}
+                    onChange={(e) => setSchedulingDateTime(e.target.value)}
                   />
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="location" className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
-                  Lokasi Investigasi
-                </Label>
-                <Input
-                  id="location"
-                  placeholder="Contoh: Ruang Konseling, Via Zoom, Ruang Fakultas X"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label>Metode/Bentuk Kegiatan</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {investigationMethods.map((method) => (
-                    <div key={method.value} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`method-${method.value}`}
-                        checked={methods.includes(method.value)}
-                        onCheckedChange={(checked) => handleMethodChange(method.value, checked as boolean)}
-                      />
-                      <Label htmlFor={`method-${method.value}`} className="text-sm">
-                        {method.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <Label>Pihak yang Dilibatkan</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {investigationParties.map((party) => (
-                    <div key={party.value} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`party-${party.value}`}
-                        checked={partiesInvolved.includes(party.value)}
-                        onCheckedChange={(checked) => handlePartyChange(party.value, checked as boolean)}
-                      />
-                      <Label htmlFor={`party-${party.value}`} className="text-sm">
-                        {party.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                {partiesInvolved.includes("OTHER_PARTY") && (
-                  <Textarea
-                    placeholder="Jelaskan pihak lain yang terlibat..."
-                    value={otherPartiesDetails}
-                    onChange={(e) => setOtherPartiesDetails(e.target.value)}
-                    rows={2}
+                <div className="space-y-2">
+                  <Label htmlFor="schedulingLocation">Lokasi Pelaksanaan</Label>
+                  <Input
+                    id="schedulingLocation"
+                    value={schedulingLocation}
+                    onChange={(e) => setSchedulingLocation(e.target.value)}
+                    placeholder="Contoh: Ruang Konseling"
                   />
-                )}
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Block 2: Tim & Tugas */}
+          {/* Section 2: Data Kehadiran Pihak Terlibat */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="w-5 h-5" />
-                Tim Investigasi & Tugas
+                Data Kehadiran Pihak Terlibat
               </CardTitle>
               <CardDescription>
-                Anggota tim investigasi, peran, persetujuan, dan catatan keamanan untuk proses yang sedang berlangsung
+                Catat kehadiran Anggota Satuan Tugas dan pihak-pihak yang dipanggil
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <Label>Anggota Tim Investigasi</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addTeamMember}>
+                  <Label>Satgas yang Hadir</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setSatgasMembersPresent([...satgasMembersPresent, { name: '', role: '' }])}>
                     <UserPlus className="w-4 h-4 mr-2" />
                     Tambah Anggota
                   </Button>
                 </div>
-                {teamMembers.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">Belum ada anggota tim</p>
+                {satgasMembersPresent.map((member, index) => (
+                  <div key={index} className="flex gap-3 items-end p-3 border rounded-lg">
+                    <div className="flex-1 space-y-2">
+                      <Label className="text-sm">Nama Anggota</Label>
+                      <Input
+                        value={member.name}
+                        onChange={(e) => {
+                          const updated = [...satgasMembersPresent];
+                          updated[index].name = e.target.value;
+                          setSatgasMembersPresent(updated);
+                        }}
+                        placeholder="Nama lengkap anggota satgas"
+                      />
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Label className="text-sm">Jabatan</Label>
+                      <Input
+                        value={member.role}
+                        onChange={(e) => {
+                          const updated = [...satgasMembersPresent];
+                          updated[index].role = e.target.value;
+                          setSatgasMembersPresent(updated);
+                        }}
+                        placeholder="Contoh: Ketua Tim, Anggota"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSatgasMembersPresent(satgasMembersPresent.filter((_, i) => i !== index))}
+                    >
+                      Hapus
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Status Kehadiran Pihak</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addPartyAttendance}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Tambah Pihak
+                  </Button>
+                </div>
+                {partiesPresent.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">Belum ada pihak yang dicatat</p>
                 ) : (
                   <div className="space-y-3">
-                    {teamMembers.map((member, index) => (
+                    {partiesPresent.map((party, index) => (
                       <div key={index} className="flex gap-3 items-end p-3 border rounded-lg">
                         <div className="flex-1 space-y-2">
-                          <Label className="text-sm">Anggota Tim</Label>
+                          <Label className="text-sm">Nama Pihak</Label>
                           <Input
-                            placeholder="Pilih anggota tim..."
-                            value={member.userId}
-                            onChange={(e) => updateTeamMember(index, 'userId', e.target.value)}
+                            value={party.name}
+                            onChange={(e) => updatePartyAttendance(index, 'name', e.target.value)}
+                            placeholder="Nama pihak yang terlibat"
                           />
                         </div>
                         <div className="flex-1 space-y-2">
                           <Label className="text-sm">Peran</Label>
-                          <Select
-                            value={member.role}
-                            onValueChange={(value) => updateTeamMember(index, 'role', value)}
-                          >
+                          <Select value={party.role} onValueChange={(value) => updatePartyAttendance(index, 'role', value)}>
                             <SelectTrigger>
                               <SelectValue placeholder="Pilih peran" />
                             </SelectTrigger>
                             <SelectContent>
-                              {teamRoles.map((role) => (
-                                <SelectItem key={role.value} value={role.value}>
-                                  {role.label}
-                                </SelectItem>
-                              ))}
+                              <SelectItem value="REPORTER">Pelapor</SelectItem>
+                              <SelectItem value="REPORTED_PERSON">Terlapor</SelectItem>
+                              <SelectItem value="WITNESS_A">Saksi A</SelectItem>
+                              <SelectItem value="WITNESS_B">Saksi B</SelectItem>
+                              <SelectItem value="ACCOMPANIER">Pendamping</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
-                        {member.role === "OTHER" && (
+                        <div className="flex-1 space-y-2">
+                          <Label className="text-sm">Status Kehadiran</Label>
+                          <Select value={party.status} onValueChange={(value) => updatePartyAttendance(index, 'status', value)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PRESENT">✓ Hadir</SelectItem>
+                              <SelectItem value="ABSENT_NO_REASON">✗ Tidak Hadir Tanpa Keterangan</SelectItem>
+                              <SelectItem value="ABSENT_WITH_REASON">✗ Tidak Hadir dengan Alasan</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {party.status === 'ABSENT_WITH_REASON' && (
                           <div className="flex-1 space-y-2">
-                            <Label className="text-sm">Peran Khusus</Label>
+                            <Label className="text-sm">Alasan</Label>
                             <Input
-                              placeholder="Jelaskan peran..."
-                              value={member.customRole}
-                              onChange={(e) => updateTeamMember(index, 'customRole', e.target.value)}
+                              value={party.reason || ''}
+                              onChange={(e) => updatePartyAttendance(index, 'reason', e.target.value)}
+                              placeholder="Jelaskan alasan ketidakhadiran"
                             />
                           </div>
                         )}
@@ -570,7 +664,7 @@ export default function InvestigationProsesPage() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => removeTeamMember(index)}
+                          onClick={() => removePartyAttendance(index)}
                         >
                           Hapus
                         </Button>
@@ -580,141 +674,66 @@ export default function InvestigationProsesPage() {
                 )}
               </div>
 
-              <Separator />
-
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2">
-                  <Shield className="w-4 h-4" />
-                  Persetujuan & Kerahasiaan
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="identity-verified"
+                  checked={identityVerified}
+                  onCheckedChange={(checked) => setIdentityVerified(checked as boolean)}
+                />
+                <Label htmlFor="identity-verified" className="text-sm">
+                  Identitas pihak yang hadir telah diverifikasi
                 </Label>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="consent-obtained"
-                    checked={consentObtained}
-                    onCheckedChange={(checked) => setConsentObtained(checked as boolean)}
-                  />
-                  <Label htmlFor="consent-obtained" className="text-sm">
-                    Informed consent telah diperoleh dari pihak terkait
-                  </Label>
-                </div>
-                {consentObtained && (
-                  <Textarea
-                    placeholder="Jelaskan cara dokumentasi persetujuan (tertulis/lisan terekam)..."
-                    value={consentDocumentation}
-                    onChange={(e) => setConsentDocumentation(e.target.value)}
-                    rows={2}
-                  />
-                )}
               </div>
 
               <div className="space-y-2">
-                <Label>Catatan Risiko & Keamanan</Label>
+                <Label>Catatan Kehadiran</Label>
                 <Textarea
-                  placeholder="Apakah ada potensi intimidasi, balasan, atau ancaman? Sertakan mitigasinya..."
-                  value={riskNotes}
-                  onChange={(e) => setRiskNotes(e.target.value)}
+                  value={attendanceNotes}
+                  onChange={(e) => setAttendanceNotes(e.target.value)}
+                  placeholder="Catatan tambahan tentang kehadiran..."
                   rows={3}
                 />
               </div>
             </CardContent>
           </Card>
 
-          {/* Block 3: Output & Status */}
+          {/* Section 3: Catatan Inti Investigasi */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <FileText className="w-5 h-5" />
-                Output & Status Investigasi
+                Catatan Inti Investigasi
               </CardTitle>
               <CardDescription>
-                Ringkasan rencana investigasi, lampiran, tindak lanjut, dan level akses untuk proses yang sedang berlangsung
+                Detail hasil wawancara dan temuan during investigasi
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Ringkasan Rencana</Label>
+                <Label htmlFor="parties-statement">Ringkasan Keterangan Pihak *</Label>
                 <Textarea
-                  placeholder="Jelaskan ringkasan rencana investigasi..."
-                  value={planSummary}
-                  onChange={(e) => setPlanSummary(e.target.value)}
-                  rows={3}
+                  id="parties-statement"
+                  value={partiesStatementSummary}
+                  onChange={(e) => setPartiesStatementSummary(e.target.value)}
+                  placeholder="Catat secara objektif dan verbatim (kutipan langsung) poin-poin kunci dari keterangan yang diberikan oleh pihak yang hadir. Harus mencakup jawaban atas pertanyaan-pertanyaan investigasi yang spesifik."
+                  rows={6}
+                  required
                 />
               </div>
 
-              <Separator />
-
-              <div className="space-y-3">
-                <Label>Jadwal Tindak Lanjut</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Tindakan</Label>
-                    <Select value={followUpAction} onValueChange={setFollowUpAction}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih tindakan lanjut" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CONTINUE">Lanjut ke Tahap Selanjutnya</SelectItem>
-                        <SelectItem value="STOP">Stop Investigasi</SelectItem>
-                        <SelectItem value="FOLLOW_UP">Perlu Tindak Lanjut</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {followUpAction === "CONTINUE" && (
-                    <div className="space-y-2">
-                      <Label className="text-sm">Tanggal Target</Label>
-                      <Input
-                        type="date"
-                        min={new Date().toISOString().split('T')[0]}
-                        value={followUpDate}
-                        onChange={(e) => setFollowUpDate(e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-                {followUpAction && (
-                  <Textarea
-                    placeholder="Catatan tindak lanjut..."
-                    value={followUpNotes}
-                    onChange={(e) => setFollowUpNotes(e.target.value)}
-                    rows={2}
-                  />
-                )}
-              </div>
-
-              <Separator />
-
               <div className="space-y-2">
-                <Label>Level Akses & Kerahasiaan</Label>
-                <Select value={accessLevel} onValueChange={setAccessLevel}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accessLevels.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="new-evidence">Temuan Bukti Fisik/Digital Baru</Label>
+                <Textarea
+                  id="new-evidence"
+                  value={newPhysicalEvidence}
+                  onChange={(e) => setNewPhysicalEvidence(e.target.value)}
+                  placeholder="Deskripsi bukti yang diserahkan/ditemukan pada saat kegiatan berlangsung..."
+                  rows={4}
+                />
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Block 4: Upload Dokumen & Lampiran */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Upload className="w-5 h-5" />
-                Upload Dokumen & Lampiran Investigasi
-              </CardTitle>
-              <CardDescription>
-                Upload file pendukung untuk proses investigasi yang sedang berlangsung (maksimal 10MB per file)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="space-y-3">
-                <Label>Upload file lampiran proses investigasi</Label>
+                <Label>Upload Bukti Baru</Label>
                 <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
                   <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
@@ -727,9 +746,9 @@ export default function InvestigationProsesPage() {
                     onChange={(e) => handleFileUpload(e.target.files)}
                     disabled={isUploading}
                     className="hidden"
-                    id="file-upload"
+                    id="evidence-upload"
                   />
-                  <Label htmlFor="file-upload" className="cursor-pointer">
+                  <Label htmlFor="evidence-upload" className="cursor-pointer">
                     <Button type="button" variant="outline" disabled={isUploading}>
                       {isUploading ? (
                         <>
@@ -744,17 +763,14 @@ export default function InvestigationProsesPage() {
                       )}
                     </Button>
                   </Label>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Format yang didukung: JPG, PNG, GIF, PDF, DOC, DOCX, TXT, MP4, MOV, XLSX, XLS, PPT, PPTX
-                  </p>
                 </div>
 
-                {/* Uploaded Files List */}
-                {uploadedFiles.length > 0 && (
+                {/* Uploaded Evidence Files */}
+                {evidenceFiles.length > 0 && (
                   <div className="space-y-2">
-                    <Label>File yang telah diupload:</Label>
+                    <Label>Bukti yang telah diupload:</Label>
                     <div className="space-y-2">
-                      {uploadedFiles.map((file, index) => (
+                      {evidenceFiles.map((file, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                           <div className="flex items-center gap-3">
                             <FileText className="w-4 h-4 text-gray-500" />
@@ -769,7 +785,7 @@ export default function InvestigationProsesPage() {
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => removeUploadedFile(index)}
+                            onClick={() => removeEvidenceFile(index)}
                           >
                             Hapus
                           </Button>
@@ -778,6 +794,198 @@ export default function InvestigationProsesPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="consistency">Konsistensi Keterangan</Label>
+                <Textarea
+                  id="consistency"
+                  value={statementConsistency}
+                  onChange={(e) => setStatementConsistency(e.target.value)}
+                  placeholder="Analisis singkat mengenai tingkat konsistensi keterangan pihak tersebut dengan laporan awal dan keterangan pihak lain."
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 4: Kesimpulan & Rekomendasi */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <CheckCircle className="w-5 h-5" />
+                Kesimpulan Sementara & Rekomendasi
+              </CardTitle>
+              <CardDescription>
+                Kesimpulan dari sesi ini dan rekomendasi tindak lanjut
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="conclusion">Kesimpulan Sementara dari Sesi Ini</Label>
+                <Textarea
+                  id="conclusion"
+                  value={sessionInterimConclusion}
+                  onChange={(e) => setSessionInterimConclusion(e.target.value)}
+                  placeholder="Penilaian internal satgas mengenai hasil sesi wawancara/pengumpulan bukti ini..."
+                  rows={4}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Rekomendasi Tindak Lanjut Segera</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addRecommendedAction}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Tambah Rekomendasi
+                  </Button>
+                </div>
+                {recommendedImmediateActions.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">Belum ada rekomendasi</p>
+                ) : (
+                  <div className="space-y-3">
+                    {recommendedImmediateActions.map((action, index) => (
+                      <div key={index} className="flex gap-3 items-end p-3 border rounded-lg">
+                        <div className="flex-1 space-y-2">
+                          <Label className="text-sm">Tindakan</Label>
+                          <Select 
+                            value={action.action} 
+                            onValueChange={(value) => updateRecommendedAction(index, 'action', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih tindakan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {recommendedActionsOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Label className="text-sm">Prioritas</Label>
+                          <Select 
+                            value={action.priority} 
+                            onValueChange={(value) => updateRecommendedAction(index, 'priority', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="HIGH">Tinggi</SelectItem>
+                              <SelectItem value="MEDIUM">Sedang</SelectItem>
+                              <SelectItem value="LOW">Rendah</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <Label className="text-sm">Catatan</Label>
+                          <Input
+                            value={action.notes || ''}
+                            onChange={(e) => updateRecommendedAction(index, 'notes', e.target.value)}
+                            placeholder="Catatan tambahan"
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeRecommendedAction(index)}
+                        >
+                          Hapus
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="status-after">Perubahan Status Kasus</Label>
+                  <Select value={caseStatusAfterResult} onValueChange={setCaseStatusAfterResult}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {caseStatusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status-reason">Alasan Perubahan Status</Label>
+                  <Input
+                    id="status-reason"
+                    value={statusChangeReason}
+                    onChange={(e) => setStatusChangeReason(e.target.value)}
+                    placeholder="Jelaskan alasan perubahan status"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 5: Otentikasi & Tanda Tangan */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Shield className="w-5 h-5" />
+                Otentikasi Berita Acara
+              </CardTitle>
+              <CardDescription>
+                Verifikasi data dan tanda tangan digital untuk keabsahan dokumen
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="data-verification"
+                  checked={dataVerificationConfirmed}
+                  onCheckedChange={(checked) => setDataVerificationConfirmed(checked as boolean)}
+                />
+                <Label htmlFor="data-verification" className="text-sm">
+                  Saya menyatakan bahwa data yang diinput adalah benar dan sesuai dengan fakta selama kegiatan investigasi
+                </Label>
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="creator-signature">Tanda Tangan Digital Anggota Sabtu **Pembuat BA**</Label>
+                  <Input
+                    id="creator-signature"
+                    value={creatorDigitalSignature}
+                    onChange={(e) => setCreatorDigitalSignature(e.target.value)}
+                    placeholder="Nama terang dan tanda tangan digital"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="chairperson-signature">Tanda Tangan Digital /**Ketua Forças** (persetujuan akhir)</Label>
+                  <Input
+                    id="chairperson-signature"
+                    value={chairpersonDigitalSignature}
+                    onChange={(e) => setChairpersonDigitalSignature(e.target.value)}
+                    placeholder="Nama terang dan tanda tangan digital"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="internal-notes">Catatan Internal OTAN</Label>
+                <Textarea
+                  id="internal-notes"
+                  value={internalSatgasNotes}
+                  onChange={(e) => setInternalSatgasNotes(e.target.value)}
+                  placeholder="Catatan internal untuk satgas (tidak akan muncul di berita acara resmi)"
+                  rows={3}
+                />
               </div>
             </CardContent>
           </Card>
@@ -788,10 +996,13 @@ export default function InvestigationProsesPage() {
                 Batal
               </Link>
             </Button>
-            <Button type="submit" disabled={isSubmitting || !location}>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || !dataVerificationConfirmed || !partiesStatementSummary}
+            >
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Save className="w-4 h-4 mr-2" />
-              Mulai Proses Investigasi
+              Simpan Hasil Investigasi
             </Button>
           </div>
         </form>

@@ -310,23 +310,6 @@ export default function PenjadwalanPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Penjadwalan Investigasi</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Kelola jadwal investigasi dari pengumpulan data hingga penyelesaian</p>
           </div>
-          <Button 
-            onClick={() => {
-              setSelectedReport({
-                id: "",
-                title: "",
-                reportNumber: "Pilih laporan terlebih dahulu",
-                category: "",
-                severity: "",
-                status: "PENDING"
-              });
-              setShowScheduleModal(true);
-            }}
-            className="mt-4 md:mt-0"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Jadwalkan Investigasi
-          </Button>
         </div>
 
         {/* Statistics Cards */}
@@ -622,6 +605,26 @@ export default function PenjadwalanPage() {
                           Edit
                         </Button>
                       )}
+                      
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedReport({
+                            id: investigation.reportId,
+                            title: investigation.reportTitle,
+                            reportNumber: investigation.reportNumber,
+                            category: investigation.category,
+                            severity: investigation.severity,
+                            status: investigation.status
+                          });
+                          setShowScheduleModal(true);
+                        }}
+                        className="flex items-center gap-1"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Jadwalkan
+                      </Button>
                       
                       <Button variant="outline" size="sm">
                         <Download className="w-4 h-4" />

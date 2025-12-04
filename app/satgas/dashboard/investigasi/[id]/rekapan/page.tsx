@@ -203,6 +203,7 @@ export default function InvestigationRekapanPage() {
   const [investigationProcesses, setInvestigationProcesses] = useState<
     InvestigationProcess[]
   >([]);
+  const [investigationResults, setInvestigationResults] = useState<any[]>([]);
   const [processError, setProcessError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -271,6 +272,17 @@ export default function InvestigationRekapanPage() {
             );
           }
         }
+
+        // Fetch investigation results
+        try {
+          const resultsResponse = await fetch(`/api/reports/${reportId}/results`);
+          const resultsData = await resultsResponse.json();
+          if (resultsData.success && resultsData.results) {
+            setInvestigationResults(resultsData.results);
+          }
+        } catch (error) {
+          console.warn("Failed to fetch investigation results:", error);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
         setProcessError("Terjadi kesalahan saat mengambil data");
@@ -309,6 +321,32 @@ export default function InvestigationRekapanPage() {
         );
       default:
         return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const handleDownloadResultPdf = async (resultId: string) => {
+    if (!id) return;
+    const reportId = Array.isArray(id) ? id[0] : id;
+
+    try {
+      const response = await fetch(`/api/reports/${reportId}/results/${resultId}/pdf`);
+      if (!response.ok) {
+        alert("Gagal mengunduh PDF hasil investigasi");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `berita-acara-${report?.reportNumber || reportId}-${resultId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Download error:", error);
+      alert("Terjadi kesalahan saat mengunduh PDF hasil investigasi");
     }
   };
 
@@ -585,6 +623,127 @@ export default function InvestigationRekapanPage() {
           </CardContent>
         </Card>
 
+
+        {/* Riwayat Hasil Investigasi */}
+        {investigationResults.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Riwayat Hasil Investigasi (Berita Acara)
+              </CardTitle>
+              <CardDescription>
+                Semua berita acara hasil investigasi yang telah dibuat untuk laporan ini (
+                {investigationResults.length} entri)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse border border-gray-200 dark:border-gray-700 text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 dark:bg-gray-800">
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                        No
+                      </th>
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                        Tanggal Dibuat
+                      </th>
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                        Status Kasus
+                      </th>
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                        TTD Pembuat
+                      </th>
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                        TTD Ketua
+                      </th>
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-center">
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {investigationResults.map((result: any, index: number) => (
+                      <tr
+                        key={result.id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      >
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
+                          {index + 1}
+                        </td>
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
+                          {formatDate(result.createdAt)}
+                          <br />
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {new Date(result.createdAt).toLocaleTimeString("id-ID")}
+                          </span>
+                        </td>
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2">
+                          <Badge className={
+                            result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION' 
+                              ? 'bg-green-500 hover:bg-green-600 text-white'
+                              : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
+                              ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                              : 'bg-orange-500 hover:bg-orange-600 text-white'
+                          }>
+                            {result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION' 
+                              ? 'Siap Rekomendasi'
+                              : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
+                              ? 'Dalam Investigasi'
+                              : result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
+                              ? 'Ke Rektorat'
+                              : result.caseStatusAfterResult === 'CLOSED_TERMINATED'
+                              ? 'Ditutup'
+                              : result.caseStatusAfterResult}
+                          </Badge>
+                        </td>
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
+                          {result.creatorDigitalSignature ? '✓' : '✗'}
+                          {result.creatorDigitalSignature && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                              ({formatDate(result.creatorSignatureDate)})
+                            </span>
+                          )}
+                        </td>
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
+                          {result.chairpersonDigitalSignature ? '✓' : '✗'}
+                          {result.chairpersonDigitalSignature && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                              ({formatDate(result.chairpersonSignatureDate)})
+                            </span>
+                          )}
+                        </td>
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-center">
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // Open results form in edit/view mode
+                                window.open(`/satgas/dashboard/investigasi/${id}/hasil`, '_blank');
+                              }}
+                            >
+                              <Eye className="w-3 h-3 mr-1" />
+                              Lihat
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadResultPdf(result.id)}
+                            >
+                              <Download className="w-3 h-3 mr-1" />
+                              PDF
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Riwayat Proses Investigasi */}
         {investigationProcesses.length > 0 && (

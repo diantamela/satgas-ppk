@@ -529,13 +529,11 @@ export const reportService = {
     endDateTime?: Date;
     estimatedDuration?: number;
     location: string;
-    locationType?: string;
     
     // Investigation details
     methods: string[];
     partiesInvolved: string[];
     otherPartiesDetails?: string;
-    purpose: string;
     
     // Equipment and logistics
     equipmentChecklist: string[]; // Will be EquipmentItem enum after migration
@@ -583,11 +581,9 @@ export const reportService = {
         endDateTime: data.endDateTime,
         estimatedDuration: data.estimatedDuration,
         location: data.location,
-        locationType: data.locationType,
         methods: data.methods as InvestigationMethod[],
         partiesInvolved: data.partiesInvolved as InvestigationParty[],
         otherPartiesDetails: data.otherPartiesDetails,
-        purpose: data.purpose,
         equipmentChecklist: data.equipmentChecklist, // Will be enum after migration
         otherEquipmentDetails: data.otherEquipmentDetails,
         companionRequirements: data.companionRequirements, // Will be enum after migration
@@ -658,6 +654,203 @@ export const reportService = {
       return process;
     } catch (error) {
       console.error("Error in reportService.createComprehensiveInvestigationSchedule:", error);
+      throw error;
+    }
+  },
+
+  // Get reports with IN_PROGRESS status that need scheduling
+  async getInProgressReportsNeedingSchedule() {
+    try {
+      const reports = await db.report.findMany({
+        where: {
+          status: 'IN_PROGRESS',
+          scheduledDate: null
+        },
+        include: {
+          reporter: {
+            select: { name: true, email: true }
+          },
+          documents: {
+            where: { documentType: 'EVIDENCE' },
+            select: { id: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      return reports;
+    } catch (error) {
+      console.error("Error in reportService.getInProgressReportsNeedingSchedule:", error);
+      throw error;
+    }
+  },
+
+  // Automatically schedule IN_PROGRESS reports
+  async autoScheduleInProgressReports(scheduledBy: string, scheduleConfig?: {
+    defaultLocation?: string;
+    defaultDuration?: number; // in hours
+    autoAssignTeam?: boolean;
+  }) {
+    try {
+      // Get all IN_PROGRESS reports that don't have scheduling yet
+      const inProgressReports = await this.getInProgressReportsNeedingSchedule();
+      
+      const scheduledReports = [];
+      
+      for (const report of inProgressReports) {
+        // Calculate suggested schedule date (next available slot)
+        const suggestedDate = await this.getNextAvailableScheduleSlot();
+        
+        // Generate default schedule data
+        const scheduleData = {
+          scheduledDate: suggestedDate,
+          scheduledBy,
+          scheduledNotes: `Penjadwalan otomatis - Laporan: ${report.title} (${report.reportNumber}). Lokasi: ${scheduleConfig?.defaultLocation || 'Ruang pertemuan satgas'}. Estimasi durasi: ${scheduleConfig?.defaultDuration || 2} jam.`
+        };
+
+        // Update report with scheduling information
+        const updatedReport = await db.report.update({
+          where: { id: report.id },
+          data: scheduleData,
+          include: {
+            reporter: {
+              select: { name: true, email: true }
+            }
+          }
+        });
+
+        scheduledReports.push(updatedReport);
+
+        // Log the activity
+        await db.activityLog.create({
+          data: {
+            action: 'AUTO_SCHEDULED',
+            entityType: 'Report',
+            entityId: report.id,
+            details: {
+              scheduledDate: suggestedDate,
+              scheduledBy,
+              method: 'automatic'
+            },
+            timestamp: new Date()
+          }
+        });
+      }
+
+      return {
+        success: true,
+        scheduledCount: scheduledReports.length,
+        scheduledReports
+      };
+    } catch (error) {
+      console.error("Error in reportService.autoScheduleInProgressReports:", error);
+      throw error;
+    }
+  },
+
+  // Get next available schedule slot (simple implementation)
+  async getNextAvailableScheduleSlot() {
+    try {
+      // Simple logic: find the next available time slot
+      const now = new Date();
+      
+      // Start from tomorrow at 9 AM
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+
+      // Check if there are conflicts with existing scheduled reports
+      const existingSchedules = await db.report.findMany({
+        where: {
+          scheduledDate: {
+            gte: tomorrow,
+            lt: new Date(tomorrow.getTime() + 24 * 60 * 60 * 1000) // Same day
+          },
+          status: 'SCHEDULED'
+        },
+        select: { scheduledDate: true }
+      });
+
+      // If no conflicts, return tomorrow 9 AM
+      if (existingSchedules.length === 0) {
+        return tomorrow;
+      }
+
+      // Find next available 2-hour slot
+      let proposedTime = new Date(tomorrow);
+      const workHours = { start: 9, end: 17 }; // 9 AM to 5 PM
+      const slotDuration = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+
+      for (let day = 1; day <= 7; day++) { // Check up to a week ahead
+        for (let hour = workHours.start; hour <= workHours.end - 2; hour++) {
+          proposedTime = new Date(tomorrow);
+          proposedTime.setDate(tomorrow.getDate() + day - 1);
+          proposedTime.setHours(hour, 0, 0, 0);
+
+          const proposedEnd = new Date(proposedTime.getTime() + slotDuration);
+          
+          // Check if this slot conflicts with existing schedules
+          const hasConflict = existingSchedules.some(schedule => {
+            const scheduleDate = schedule.scheduledDate!;
+            const scheduleEnd = new Date(scheduleDate.getTime() + slotDuration);
+            
+            return (proposedTime < scheduleEnd && proposedEnd > scheduleDate);
+          });
+
+          if (!hasConflict) {
+            return proposedTime;
+          }
+        }
+      }
+
+      // If no slot found in the next week, return next Monday 9 AM
+      const nextMonday = new Date(tomorrow);
+      const daysUntilMonday = (1 + 7 - nextMonday.getDay()) % 7 || 7;
+      nextMonday.setDate(nextMonday.getDate() + daysUntilMonday);
+      nextMonday.setHours(9, 0, 0, 0);
+
+      return nextMonday;
+    } catch (error) {
+      console.error("Error in reportService.getNextAvailableScheduleSlot:", error);
+      // Fallback: return tomorrow 9 AM
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      return tomorrow;
+    }
+  },
+
+  // Get scheduling statistics
+  async getSchedulingStats() {
+    try {
+      const [
+        totalReports,
+        inProgressReports,
+        scheduledReports,
+        completedReports,
+        pendingScheduling
+      ] = await Promise.all([
+        db.report.count(),
+        db.report.count({ where: { status: 'IN_PROGRESS' } }),
+        db.report.count({ where: { status: 'SCHEDULED' } }),
+        db.report.count({ where: { status: 'COMPLETED' } }),
+        db.report.count({ 
+          where: { 
+            status: 'IN_PROGRESS', 
+            scheduledDate: null 
+          } 
+        })
+      ]);
+
+      return {
+        total: totalReports,
+        inProgress: inProgressReports,
+        scheduled: scheduledReports,
+        completed: completedReports,
+        pendingScheduling
+      };
+    } catch (error) {
+      console.error("Error in reportService.getSchedulingStats:", error);
       throw error;
     }
   },

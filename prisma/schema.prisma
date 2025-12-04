@@ -147,6 +147,29 @@ enum CompanionRequirement {
   NONE
 }
 
+enum RecommendedAction {
+  SCHEDULE_NEXT_SESSION
+  CALL_OTHER_PARTY
+  REQUIRE_PSYCHOLOGICAL_SUPPORT
+  REQUIRE_LEGAL_SUPPORT
+  CASE_TERMINATED
+  FORWARD_TO_REKTORAT
+  MEDIATION_SESSION
+  EVIDENCE_ANALYSIS
+  WITNESS_REINTERVIEW
+  OTHER
+}
+
+enum CaseStatusAfterResult {
+  UNDER_INVESTIGATION
+  EVIDENCE_COLLECTION
+  STATEMENT_ANALYSIS
+  PENDING_EXTERNAL_INPUT
+  READY_FOR_RECOMMENDATION
+  CLOSED_TERMINATED
+  FORWARDED_TO_REKTORAT
+}
+
 
 model Gallery {
   id          String   @id @default(cuid())
@@ -163,6 +186,64 @@ model Gallery {
 
   @@index([uploadedById])
   @@index([createdAt])
+}
+
+model InvestigationResult {
+  id                    String    @id @default(cuid())
+  processId             String @unique
+  reportId              String
+  
+  // Auto-populated metadata from scheduling
+  schedulingId          String?
+  schedulingTitle       String?
+  schedulingDateTime    DateTime?
+  schedulingLocation    String?
+  caseTitle             String?
+  reportNumber          String?
+  
+  // Attendance tracking
+  satgasMembersPresent  Json?     // Array of satgas members who attended
+  partiesPresent        Json?     // Array of parties involved with attendance status
+  identityVerified      Boolean   @default(false)
+  attendanceNotes       String?
+  
+  // Key investigation notes
+  partiesStatementSummary String?  // Ringkasan keterangan pihak
+  newPhysicalEvidence     String?  // Temuan bukti fisik/digital baru
+  evidenceFiles           Json?    // Uploaded evidence files
+  statementConsistency    String?  // Konsistensi keterangan
+  
+  // Interim conclusions and recommendations
+  sessionInterimConclusion    String?
+  recommendedImmediateActions Json?    // Array of recommended actions
+  caseStatusAfterResult       CaseStatusAfterResult @default(UNDER_INVESTIGATION)
+  statusChangeReason          String?
+  
+  // Digital authentication
+  dataVerificationConfirmed   Boolean  @default(false)
+  creatorDigitalSignature     String?
+  creatorSignatureDate        DateTime?
+  chairpersonDigitalSignature String?
+  chairpersonSignatureDate    DateTime?
+  
+  // Additional fields
+  partiesDetailedAttendance   Json?
+  recommendedActionsDetails   Json?
+  documentHash                String?
+  internalSatgasNotes         String?
+  
+  // Timestamps
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  
+  // Relations
+  process                     InvestigationProcess @relation(fields: [processId], references: [id])
+  report                      Report              @relation(fields: [reportId], references: [id])
+  
+  @@index([reportId])
+  @@index([processId])
+  @@index([createdAt])
+  @@index([schedulingDateTime])
 }
 
 model Recommendation {
@@ -269,6 +350,7 @@ model Report {
    activityLogs ActivityLog[] @relation(name: "ReportActivityLogs")
    processes    InvestigationProcess[]
    recommendations Recommendation[]
+   results      InvestigationResult[]
 
    @@index([reporterId])
    @@index([assigneeId])
@@ -314,7 +396,8 @@ model InvestigationProcess {
     createdAt             DateTime              @default(now())
     updatedAt             DateTime              @updatedAt
 
-    // Comprehensive Investigation Scheduling Fields (from user proposal)
+    // Relations
+   results            InvestigationResult[]
     activityTitle         String?               // Judul kegiatan spesifik
     activityType          InvestigationActivityType? // Jenis kegiatan investigasi
     caseAutoInfo          Json?                 // Auto-populated case information

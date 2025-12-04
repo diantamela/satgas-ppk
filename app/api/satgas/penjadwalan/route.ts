@@ -3,6 +3,7 @@ import { reportService } from "@/lib/services/reports/report-service";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
 import { db } from "@/db";
+import { ReportStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -37,10 +38,10 @@ export async function GET(request: NextRequest) {
     // Build filters
     let filters: any = {
       OR: [
-        { status: 'SCHEDULED' },
-        { status: 'IN_PROGRESS' },
-        { status: 'COMPLETED' },
-        { status: 'CANCELLED' }
+        { status: ReportStatus.SCHEDULED },
+        { status: ReportStatus.IN_PROGRESS },
+        { status: ReportStatus.COMPLETED },
+        { status: ReportStatus.REJECTED }
       ]
     };
 
@@ -60,7 +61,19 @@ export async function GET(request: NextRequest) {
     // Apply status filter
     if (status && status !== 'all') {
       filters.AND = filters.AND || [];
-      filters.AND.push({ status: status.toUpperCase() });
+      const statusMap: { [key: string]: ReportStatus } = {
+        'pending': ReportStatus.PENDING,
+        'verified': ReportStatus.VERIFIED,
+        'scheduled': ReportStatus.SCHEDULED,
+        'in_progress': ReportStatus.IN_PROGRESS,
+        'completed': ReportStatus.COMPLETED,
+        'rejected': ReportStatus.REJECTED
+      };
+      
+      const mappedStatus = statusMap[status.toLowerCase()];
+      if (mappedStatus) {
+        filters.AND.push({ status: mappedStatus });
+      }
     }
 
     // Apply date range filter
@@ -202,11 +215,11 @@ export async function GET(request: NextRequest) {
     };
     
     try {
-      const [pendingCount, inProgressCount, completedCount, cancelledCount] = await Promise.all([
-        db.report.count({ where: { ...filters, status: 'SCHEDULED' } }),
-        db.report.count({ where: { ...filters, status: 'IN_PROGRESS' } }),
-        db.report.count({ where: { ...filters, status: 'COMPLETED' } }),
-        db.report.count({ where: { ...filters, status: 'CANCELLED' } })
+      const [pendingCount, inProgressCount, completedCount, rejectedCount] = await Promise.all([
+        db.report.count({ where: { ...filters, status: ReportStatus.SCHEDULED } }),
+        db.report.count({ where: { ...filters, status: ReportStatus.IN_PROGRESS } }),
+        db.report.count({ where: { ...filters, status: ReportStatus.COMPLETED } }),
+        db.report.count({ where: { ...filters, status: ReportStatus.REJECTED } })
       ]);
       
       stats = {
@@ -214,7 +227,7 @@ export async function GET(request: NextRequest) {
         pending: pendingCount,
         inProgress: inProgressCount,
         completed: completedCount,
-        cancelled: cancelledCount
+        cancelled: rejectedCount
       };
       console.log('[PENJADWALAN] Statistics calculated:', stats);
     } catch (statsError) {
