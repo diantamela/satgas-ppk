@@ -112,6 +112,20 @@ export default function PenjadwalanPage() {
         setStats(data.data.stats);
       } else {
         console.error('Error fetching penjadwalan data:', data.message);
+        
+        // Handle different types of errors more gracefully
+        if (data.message?.includes('Unauthorized') || data.status === 401) {
+          // Authentication error - this is expected if user is not logged in
+          console.log('Authentication required to access penjadwalan data');
+        } else if (data.message?.includes('connection') || data.message?.includes('database')) {
+          // Database connection error
+          console.error('Database connection issue - please check database configuration');
+          alert('Koneksi database bermasalah. Silakan hubungi administrator sistem.');
+        } else {
+          // General error
+          console.error('General error fetching penjadwalan data:', data.message);
+        }
+        
         setInvestigations([]);
         setFilteredInvestigations([]);
         setStats({
