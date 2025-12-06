@@ -176,8 +176,24 @@ export default function ReportDetailPage() {
     }
   };
 
-  const handleForward = () => {
-    handleUpdateStatus('IN_PROGRESS');
+  const handleForward = async () => {
+    // First update status to VERIFIED or IN_PROGRESS
+    const response = await fetch(`/api/reports/${id}/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'VERIFIED' }), // Use VERIFIED to indicate it's approved but needs scheduling
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setReport(data.report);
+      setAlertMessage({ type: 'success', message: 'Status laporan berhasil diperbarui. Silakan lanjutkan ke penjadwalan.' });
+      setTimeout(() => setAlertMessage(null), 3000);
+      // Redirect to the scheduling page for this report
+      router.push('/satgas/dashboard/penjadwalan');
+    } else {
+      setAlertMessage({ type: 'error', message: data.message || 'Gagal memperbarui status' });
+    }
   };
 
   const handleViewEvidence = async (documentId: string) => {

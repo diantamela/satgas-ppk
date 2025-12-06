@@ -138,6 +138,26 @@ export default function InvestigationProsesPage() {
           const processData = await processResponse.json();
           if (processData.success) {
             setProcess(processData.process);
+            
+            // Pre-populate form fields from the scheduled process data
+            if (processData.process) {
+              const process = processData.process;
+              setSchedulingId(process.id || '');
+              setSchedulingTitle(process.activityTitle || process.planSummary || 'Sesi Investigasi');
+              setSchedulingDateTime(process.startDateTime || reportData.report.scheduledDate || '');
+              setSchedulingLocation(process.location || reportData.report.scheduledNotes?.split(' - ')[0] || '');
+              
+              // Set initial values from scheduled process
+              setLocation(process.location || '');
+              setMethods(process.methods || []);
+              setPartiesInvolved(process.partiesInvolved || []);
+              setTeamMembers(process.teamMembers || []);
+              setConsentObtained(process.consentObtained || false);
+              setConsentDocumentation(process.consentDocumentation || '');
+              setRiskNotes(process.riskNotes || '');
+              setPlanSummary(process.planSummary || '');
+              setAccessLevel(process.accessLevel || 'CORE_TEAM_ONLY');
+            }
           }
         }
       } catch (error) {
@@ -397,6 +417,33 @@ export default function InvestigationProsesPage() {
       if (contentType && contentType.includes('application/json')) {
         const data = await response.json();
         if (response.ok && data.success) {
+          // Determine the final status based on caseStatusAfterResult
+          let finalStatus = 'IN_PROGRESS';
+          let statusNotes = 'Investigation process initiated';
+          
+          if (caseStatusAfterResult === 'READY_FOR_RECOMMENDATION' || 
+              caseStatusAfterResult === 'FORWARDED_TO_REKTORAT' || 
+              caseStatusAfterResult === 'CLOSED_TERMINATED') {
+            finalStatus = 'COMPLETED';
+            statusNotes = `Status updated after investigation. Case status: ${caseStatusAfterResult}`;
+          }
+          
+          // Update report status based on the investigation result
+          const reportId = Array.isArray(id) ? id[0] : id;
+          const statusUpdateResponse = await fetch(`/api/reports/${reportId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              status: finalStatus,
+              notes: statusNotes
+            }),
+          });
+          
+          if (statusUpdateResponse.ok) {
+            const statusData = await statusUpdateResponse.json();
+            // Optionally update local state
+          }
+          
           setAlertMessage({ type: 'success', message: 'Hasil investigasi berhasil dicatat' });
           setTimeout(() => {
             setAlertMessage(null);
@@ -467,10 +514,10 @@ export default function InvestigationProsesPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Form Proses & Hasil Investigasi</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Form Pelaksanaan Investigasi</h1>
               <div className="flex items-center gap-3 mt-2">
                 <span className="text-sm font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">{report?.reportNumber}</span>
-                <Badge className="bg-green-500 hover:bg-green-600 text-white">Investigasi Lengkap</Badge>
+                <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Sesi Investigasi Aktif</Badge>
               </div>
             </div>
           </div>
@@ -485,21 +532,21 @@ export default function InvestigationProsesPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Section 1: Metadata Kegiatan */}
+          {/* Section 1: Informasi Jadwal Referensi */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Calendar className="w-5 h-5" />
-                Metadata Kegiatan (Auto-fill)
+                Informasi Jadwal Referensi
               </CardTitle>
               <CardDescription>
-                Data ini diambil otomatis dari jadwal investigasi yang telah dibuat sebelumnya
+                Data ini diambil dari jadwal investigasi yang telah direncanakan sebelumnya (dapat diubah jika pelaksanaan berbeda)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="schedulingId">ID Kegiatan Penjadwalan</Label>
+                  <Label htmlFor="schedulingId">ID Jadwal</Label>
                   <Input
                     id="schedulingId"
                     value={schedulingId}
@@ -545,10 +592,10 @@ export default function InvestigationProsesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Users className="w-5 h-5" />
-                Data Kehadiran Pihak Terlibat
+                Data Kehadiran Aktual
               </CardTitle>
               <CardDescription>
-                Catat kehadiran Anggota Satuan Tugas dan pihak-pihak yang dipanggil
+                Catat kehadiran aktual Anggota Satuan Tugas dan pihak-pihak yang hadir pada pelaksanaan investigasi (berbeda dari rencana jadwal)
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

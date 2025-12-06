@@ -175,7 +175,7 @@ export default function InvestigationPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Investigasi</h1>
-            <p className="text-gray-600 dark:text-gray-400">Kelola proses investigasi laporan kekerasan</p>
+            <p className="text-gray-600 dark:text-gray-400">Monitor dan kelola proses investigasi - dari tahap terjadwal hingga selesai</p>
           </div>
         </div>
 
@@ -262,7 +262,7 @@ export default function InvestigationPage() {
                   }`}
                   onClick={() => setActiveTab("active")}
                 >
-                  Aktif
+                  Sedang Berlangsung
                 </button>
                 <button
                   className={`py-2 px-1 border-b-2 font-semibold text-sm transition-colors duration-200 ${

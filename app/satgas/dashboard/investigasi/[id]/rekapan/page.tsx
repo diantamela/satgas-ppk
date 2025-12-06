@@ -1014,71 +1014,89 @@ export default function InvestigationRekapanPage() {
                 </div>
 
                 {/* Metode */}
-                {selectedProcess.data.methods &&
-                  selectedProcess.data.methods.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Metode
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProcess.data.methods.map((m: string) => (
-                          <Badge key={m} variant="secondary">
-                            {methodLabels[m] ?? m}
-                          </Badge>
-                        ))}
-                      </div>
+                {(selectedProcess.data.methods && selectedProcess.data.methods.length > 0) ? (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Metode
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProcess.data.methods.map((m: string) => (
+                        <Badge key={m} variant="secondary">
+                          {methodLabels[m] ?? m}
+                        </Badge>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Metode
+                    </h4>
+                    <p className="text-gray-500">Belum dipilih</p>
+                  </div>
+                )}
 
                 {/* Pihak Terlibat */}
-                {selectedProcess.data.partiesInvolved &&
-                  selectedProcess.data.partiesInvolved.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Pihak Terlibat
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedProcess.data.partiesInvolved.map((p: string) => (
-                          <Badge key={p} variant="outline">
-                            {partyLabels[p] ?? p}
-                          </Badge>
-                        ))}
-                      </div>
-                      {selectedProcess.data.otherPartiesDetails && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                          {selectedProcess.data.otherPartiesDetails}
-                        </p>
-                      )}
+                {(selectedProcess.data.partiesInvolved && selectedProcess.data.partiesInvolved.length > 0) ? (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Pihak Terlibat
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedProcess.data.partiesInvolved.map((p: string) => (
+                        <Badge key={p} variant="outline">
+                          {partyLabels[p] ?? p}
+                        </Badge>
+                      ))}
                     </div>
-                  )}
+                    {selectedProcess.data.otherPartiesDetails && (
+                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                        {selectedProcess.data.otherPartiesDetails}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Pihak Terlibat
+                    </h4>
+                    <p className="text-gray-500">Belum ditentukan</p>
+                  </div>
+                )}
 
                 {/* Tim */}
-                {selectedProcess.data.teamMembers &&
-                  selectedProcess.data.teamMembers.length > 0 && (
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Tim Investigasi
-                      </h4>
-                      <div className="space-y-1">
-                        {selectedProcess.data.teamMembers.map(
-                          (member: any, idx: number) => (
-                            <div key={idx}>
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {member.userId || "Anggota"}
-                              </span>
-                              <span className="text-gray-600 dark:text-gray-400 ml-2">
-                                (
-                                {member.role === "OTHER"
-                                  ? member.customRole || roleLabels.OTHER
-                                  : roleLabels[member.role] ?? member.role}
-                                )
-                              </span>
-                            </div>
-                          )
-                        )}
-                      </div>
+                {(selectedProcess.data.teamMembers && selectedProcess.data.teamMembers.length > 0) ? (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tim Investigasi
+                    </h4>
+                    <div className="space-y-1">
+                      {selectedProcess.data.teamMembers.map(
+                        (member: any, idx: number) => (
+                          <div key={idx}>
+                            <span className="font-medium text-gray-900 dark:text-white">
+                              {member.userId || "Anggota"}
+                            </span>
+                            <span className="text-gray-600 dark:text-gray-400 ml-2">
+                              (
+                              {member.role === "OTHER"
+                                ? member.customRole || roleLabels.OTHER
+                                : roleLabels[member.role] ?? member.role}
+                              )
+                            </span>
+                          </div>
+                        )
+                      )}
                     </div>
-                  )}
+                  </div>
+                ) : (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tim Investigasi
+                    </h4>
+                    <p className="text-gray-500">Belum ditentukan</p>
+                  </div>
+                )}
 
                 {/* Catatan Risiko */}
                 {selectedProcess.data.riskNotes && (

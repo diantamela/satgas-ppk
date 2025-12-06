@@ -545,7 +545,7 @@ export default function PenjadwalanPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Penjadwalan Investigasi</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Kelola jadwal investigasi dari pengumpulan data hingga penyelesaian</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Rencanakan jadwal investigasi - tentukan kapan, dimana, dan bagaimana investigasi akan dilakukan</p>
           </div>
           <div className="flex gap-2 mt-4 md:mt-0">
             <Button onClick={() => setShowCreateForm(!showCreateForm)}>
