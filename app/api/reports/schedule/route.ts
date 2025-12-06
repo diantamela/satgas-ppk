@@ -2,8 +2,40 @@ import { NextRequest } from "next/server";
 import { reportService } from "@/lib/services/reports/report-service";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
+import { db } from "@/db";
 
 export const runtime = "nodejs";
+
+// Helper function to send notifications
+async function sendNotification(userId: string, type: string, title: string, message: string, relatedEntityId?: string, relatedEntityType?: string) {
+  try {
+    // Map string types to proper enum values
+    let notificationType: any = 'INFO';
+    switch (type) {
+      case 'INVESTIGATION_SCHEDULED':
+        notificationType = 'INFO';
+        break;
+      case 'INVESTIGATION_ASSIGNMENT':
+        notificationType = 'INFO';
+        break;
+      default:
+        notificationType = 'INFO';
+    }
+
+    await db.notification.create({
+      data: {
+        userId,
+        type: notificationType,
+        title,
+        message,
+        relatedEntityId: relatedEntityId || null,
+        relatedEntityType: relatedEntityType || null,
+      }
+    });
+  } catch (error) {
+    console.error('Error sending notification:', error);
+  }
+}
 
 // POST /api/reports/schedule - Schedule an investigation
 export async function POST(request: NextRequest) {
@@ -83,6 +115,42 @@ export async function POST(request: NextRequest) {
           createdById: session.user.id
         });
 
+        // Get report details for notifications
+        const report = await db.report.findUnique({
+          where: { id: body.reportId },
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        });
+
+        // Send notification to reporter
+        if (report?.reporter) {
+          await sendNotification(
+            report.reporter.id,
+            'INVESTIGATION_SCHEDULED',
+            'Investigasi Dijadwalkan',
+            `Jadwal investigasi untuk laporan ${report.reportNumber} telah dibuat. Lokasi: ${body.location}`,
+            body.reportId,
+            'REPORT'
+          );
+        }
+
+        // Notify team members
+        if (body.teamMembers && body.teamMembers.length > 0) {
+          for (const member of body.teamMembers) {
+            await sendNotification(
+              member.userId,
+              'INVESTIGATION_ASSIGNMENT',
+              'Penugasan Investigasi',
+              `Anda telah ditugaskan dalam investigasi laporan ${report?.reportNumber}`,
+              body.reportId,
+              'REPORT'
+            );
+          }
+        }
+
         return Response.json({
           success: true,
           process,
@@ -112,6 +180,42 @@ export async function POST(request: NextRequest) {
           uploadedFiles: [],
           createdById: session.user.id
         });
+
+        // Get report details for notifications
+        const report = await db.report.findUnique({
+          where: { id: body.reportId },
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        });
+
+        // Send notification to reporter
+        if (report?.reporter) {
+          await sendNotification(
+            report.reporter.id,
+            'INVESTIGATION_SCHEDULED',
+            'Investigasi Dijadwalkan',
+            `Jadwal investigasi untuk laporan ${report.reportNumber} telah dibuat. Lokasi: ${body.location}`,
+            body.reportId,
+            'REPORT'
+          );
+        }
+
+        // Notify team members
+        if (body.teamMembers && body.teamMembers.length > 0) {
+          for (const member of body.teamMembers) {
+            await sendNotification(
+              member.userId,
+              'INVESTIGATION_ASSIGNMENT',
+              'Penugasan Investigasi',
+              `Anda telah ditugaskan dalam investigasi laporan ${report?.reportNumber}`,
+              body.reportId,
+              'REPORT'
+            );
+          }
+        }
 
         return Response.json({
           success: true,
@@ -171,6 +275,42 @@ export async function POST(request: NextRequest) {
           createdById: session.user.id
         });
 
+        // Get report details for notifications
+        const report = await db.report.findUnique({
+          where: { id: body.reportId },
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        });
+
+        // Send notification to reporter
+        if (report?.reporter) {
+          await sendNotification(
+            report.reporter.id,
+            'INVESTIGATION_SCHEDULED',
+            'Investigasi Dijadwalkan',
+            `Jadwal investigasi untuk laporan ${report.reportNumber} telah dibuat. Lokasi: ${body.location}`,
+            body.reportId,
+            'REPORT'
+          );
+        }
+
+        // Notify team members
+        if (body.teamMembers && body.teamMembers.length > 0) {
+          for (const member of body.teamMembers) {
+            await sendNotification(
+              member.userId,
+              'INVESTIGATION_ASSIGNMENT',
+              'Penugasan Investigasi',
+              `Anda telah ditugaskan dalam investigasi laporan ${report?.reportNumber}`,
+              body.reportId,
+              'REPORT'
+            );
+          }
+        }
+
         return Response.json({
           success: true,
           process,
@@ -186,6 +326,28 @@ export async function POST(request: NextRequest) {
           session.user.id,
           `Jadwal: ${location} - ${planSummary || 'Investigasi terjadwal'}`
         );
+
+        // Get report details for notifications
+        const report = await db.report.findUnique({
+          where: { id: reportId },
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        });
+
+        // Send notification to reporter
+        if (report?.reporter) {
+          await sendNotification(
+            report.reporter.id,
+            'INVESTIGATION_SCHEDULED',
+            'Investigasi Dijadwalkan',
+            `Jadwal investigasi untuk laporan ${report.reportNumber} telah dibuat. Lokasi: ${location}`,
+            reportId,
+            'REPORT'
+          );
+        }
 
         return Response.json({
           success: true,

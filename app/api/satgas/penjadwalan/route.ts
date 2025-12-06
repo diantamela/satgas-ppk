@@ -7,6 +7,46 @@ import { ReportStatus } from "@prisma/client";
 
 export const runtime = "nodejs";
 
+// Helper function to send notifications
+async function sendNotification(userId: string, type: string, title: string, message: string, relatedEntityId?: string, relatedEntityType?: string) {
+  try {
+    // Map string types to proper enum values
+    let notificationType: any = 'INFO';
+    switch (type) {
+      case 'INVESTIGATION_SCHEDULED':
+        notificationType = 'INFO';
+        break;
+      case 'INVESTIGATION_SCHEDULE_UPDATED':
+        notificationType = 'INFO';
+        break;
+      case 'INVESTIGATION_CANCELLED':
+        notificationType = 'WARNING';
+        break;
+      case 'INVESTIGATION_STATUS_UPDATE':
+        notificationType = 'INFO';
+        break;
+      case 'INVESTIGATION_ASSIGNMENT':
+        notificationType = 'INFO';
+        break;
+      default:
+        notificationType = 'INFO';
+    }
+
+    await db.notification.create({
+      data: {
+        userId,
+        type: notificationType,
+        title,
+        message,
+        relatedEntityId: relatedEntityId || null,
+        relatedEntityType: relatedEntityType || null,
+      }
+    });
+  } catch (error) {
+    console.error('Error sending notification:', error);
+  }
+}
+
 // GET /api/satgas/penjadwalan - Get scheduled investigations with filters
 export async function GET(request: NextRequest) {
   try {
@@ -311,6 +351,18 @@ export async function POST(request: NextRequest) {
         }
       });
 
+      // Send notification to reporter about status change
+      if (updatedReport.reporter) {
+        await sendNotification(
+          updatedReport.reporter.id,
+          'INVESTIGATION_STATUS_UPDATE',
+          'Status Investigasi Diperbarui',
+          `Status investigasi untuk laporan ${updatedReport.reportNumber} telah diperbarui menjadi: ${status}`,
+          reportId,
+          'REPORT'
+        );
+      }
+
       return Response.json({
         success: true,
         message: "Status investigasi berhasil diperbarui",
@@ -327,6 +379,313 @@ export async function POST(request: NextRequest) {
     console.error("Error updating penjadwalan:", error);
     return Response.json(
       { success: false, message: "Terjadi kesalahan saat memperbarui penjadwalan" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/satgas/penjadwalan - Update investigation schedule
+export async function PUT(request: NextRequest) {
+  try {
+    // Get current user session
+    const session = await getSessionFromRequest(request);
+
+    if (!session || !isRoleAllowed(session, ['SATGAS'])) {
+      return Response.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { reportId, updateData } = body;
+
+    if (!reportId || !updateData) {
+      return Response.json(
+        { success: false, message: "Report ID and update data are required" },
+        { status: 400 }
+      );
+    }
+
+    // Get existing investigation process if it exists
+    const existingProcess = await db.investigationProcess.findFirst({
+      where: { reportId },
+      include: {
+        report: {
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        }
+      }
+    });
+
+    let updatedProcess;
+    if (existingProcess) {
+      // Update existing investigation process
+      const processUpdateData: any = {
+        ...updateData,
+        updatedAt: new Date()
+      };
+
+      // Handle team members update if provided
+      if (updateData.teamMembers) {
+        // Delete existing team members
+        await db.investigationTeamMember.deleteMany({
+          where: { processId: existingProcess.id }
+        });
+        
+        // Add new team members
+        processUpdateData.teamMembers = {
+          create: updateData.teamMembers.map((member: any) => ({
+            userId: member.userId,
+            role: member.role,
+            customRole: member.customRole
+          }))
+        };
+      }
+
+      updatedProcess = await db.investigationProcess.update({
+        where: { id: existingProcess.id },
+        data: processUpdateData,
+        include: {
+          teamMembers: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true }
+              }
+            }
+          },
+          report: {
+            include: {
+              reporter: {
+                select: { id: true, name: true, email: true }
+              }
+            }
+          }
+        }
+      });
+
+      // Update report scheduled date if provided
+      if (updateData.startDateTime) {
+        await db.report.update({
+          where: { id: reportId },
+          data: {
+            scheduledDate: new Date(updateData.startDateTime),
+            scheduledNotes: updateData.planSummary || existingProcess.planSummary
+          }
+        });
+      }
+    } else {
+      // Create new investigation process if it doesn't exist
+      updatedProcess = await db.investigationProcess.create({
+        data: {
+          reportId,
+          location: updateData.location,
+          methods: updateData.methods || [],
+          partiesInvolved: updateData.partiesInvolved || [],
+          otherPartiesDetails: updateData.otherPartiesDetails,
+          consentObtained: updateData.consentObtained || false,
+          consentDocumentation: updateData.consentDocumentation,
+          riskNotes: updateData.riskNotes,
+          planSummary: updateData.planSummary,
+          followUpAction: updateData.followUpAction,
+          followUpDate: updateData.followUpDate ? new Date(updateData.followUpDate) : null,
+          followUpNotes: updateData.followUpNotes,
+          accessLevel: updateData.accessLevel || 'CORE_TEAM_ONLY',
+          startDateTime: updateData.startDateTime ? new Date(updateData.startDateTime) : null,
+          endDateTime: updateData.endDateTime ? new Date(updateData.endDateTime) : null,
+          createdById: session.user.id,
+          teamMembers: {
+            create: (updateData.teamMembers || []).map((member: any) => ({
+              userId: member.userId,
+              role: member.role,
+              customRole: member.customRole
+            }))
+          }
+        },
+        include: {
+          teamMembers: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true }
+              }
+            }
+          },
+          report: {
+            include: {
+              reporter: {
+                select: { id: true, name: true, email: true }
+              }
+            }
+          }
+        }
+      });
+
+      // Update report status to SCHEDULED
+      await db.report.update({
+        where: { id: reportId },
+        data: {
+          status: ReportStatus.SCHEDULED,
+          scheduledDate: updateData.startDateTime ? new Date(updateData.startDateTime) : new Date(),
+          scheduledNotes: updateData.planSummary
+        }
+      });
+    }
+
+    // Send notification to reporter about schedule update
+    if (updatedProcess.report?.reporter) {
+      await sendNotification(
+        updatedProcess.report.reporter.id,
+        'INVESTIGATION_SCHEDULE_UPDATED',
+        'Jadwal Investigasi Diperbarui',
+        `Jadwal investigasi untuk laporan ${updatedProcess.report.reportNumber} telah diperbarui. Lokasi: ${updateData.location}`,
+        reportId,
+        'REPORT'
+      );
+
+      // Notify team members
+      if (updatedProcess.teamMembers) {
+        for (const member of updatedProcess.teamMembers) {
+          await sendNotification(
+            member.user.id,
+            'INVESTIGATION_ASSIGNMENT',
+            'Penugasan Investigasi',
+            `Anda telah ditugaskan dalam investigasi laporan ${updatedProcess.report.reportNumber}`,
+            reportId,
+            'REPORT'
+          );
+        }
+      }
+    }
+
+    return Response.json({
+      success: true,
+      message: "Jadwal investigasi berhasil diperbarui",
+      data: updatedProcess
+    });
+
+  } catch (error) {
+    console.error("Error updating investigation schedule:", error);
+    return Response.json(
+      { success: false, message: "Terjadi kesalahan saat memperbarui jadwal investigasi" },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/satgas/penjadwalan - Delete investigation schedule
+export async function DELETE(request: NextRequest) {
+  try {
+    // Get current user session
+    const session = await getSessionFromRequest(request);
+
+    if (!session || !isRoleAllowed(session, ['SATGAS'])) {
+      return Response.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const reportId = searchParams.get('reportId');
+
+    if (!reportId) {
+      return Response.json(
+        { success: false, message: "Report ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Get the investigation process and report before deletion
+    const investigationProcess = await db.investigationProcess.findFirst({
+      where: { reportId },
+      include: {
+        teamMembers: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        },
+        report: {
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        }
+      }
+    });
+
+    // Delete investigation process if exists
+    if (investigationProcess) {
+      await db.investigationTeamMember.deleteMany({
+        where: { processId: investigationProcess.id }
+      });
+
+      await db.investigationProcess.delete({
+        where: { id: investigationProcess.id }
+      });
+    }
+
+    // Reset report status and clear scheduling data
+    const updatedReport = await db.report.update({
+      where: { id: reportId },
+      data: {
+        status: ReportStatus.IN_PROGRESS, // Reset to in progress
+        scheduledDate: null,
+        scheduledBy: null,
+        scheduledNotes: null
+      },
+      include: {
+        reporter: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Send notification to reporter about cancellation
+    if (updatedReport.reporter) {
+      await sendNotification(
+        updatedReport.reporter.id,
+        'INVESTIGATION_CANCELLED',
+        'Investigasi Dibatalkan',
+        `Jadwal investigasi untuk laporan ${updatedReport.reportNumber} telah dibatalkan`,
+        reportId,
+        'REPORT'
+      );
+
+      // Notify team members about cancellation
+      if (investigationProcess?.teamMembers) {
+        for (const member of investigationProcess.teamMembers) {
+          await sendNotification(
+            member.user.id,
+            'INVESTIGATION_CANCELLED',
+            'Investigasi Dibatalkan',
+            `Investigasi untuk laporan ${updatedReport.reportNumber} telah dibatalkan`,
+            reportId,
+            'REPORT'
+          );
+        }
+      }
+    }
+
+    return Response.json({
+      success: true,
+      message: "Jadwal investigasi berhasil dihapus",
+      data: updatedReport
+    });
+
+  } catch (error) {
+    console.error("Error deleting investigation schedule:", error);
+    return Response.json(
+      { success: false, message: "Terjadi kesalahan saat menghapus jadwal investigasi" },
       { status: 500 }
     );
   }

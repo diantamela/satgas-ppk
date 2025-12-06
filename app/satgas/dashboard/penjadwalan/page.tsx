@@ -90,6 +90,9 @@ export default function PenjadwalanPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string>("");
+  const [editingInvestigation, setEditingInvestigation] = useState<ScheduledInvestigation | null>(null);
+  const [viewingInvestigation, setViewingInvestigation] = useState<ScheduledInvestigation | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [formData, setFormData] = useState({
     scheduledDate: "",
     scheduledTime: "",
@@ -97,10 +100,13 @@ export default function PenjadwalanPage() {
     endTime: "",
     location: "",
     methods: [] as string[],
-    partiesInvolved: "",
-    teamMembers: "",
+    partiesInvolved: [] as string[],
+    consentObtained: false,
+    consentDocumentation: "",
     riskNotes: "",
     planSummary: "",
+    followUpAction: "",
+    followUpDate: "",
     accessLevel: "CORE_TEAM_ONLY"
   });
 
@@ -151,34 +157,20 @@ export default function PenjadwalanPage() {
           endDateTime,
           location: formData.location,
           methods: formData.methods,
-          partiesInvolved: formData.partiesInvolved.split(',').map(p => p.trim()).filter(p => p),
-          teamMembers: formData.teamMembers.split(',').map(t => t.trim()).filter(t => t).map((member, index) => ({
-            userId: `temp-${index}`, // Temporary ID since we're not using real user IDs
-            role: 'INVESTIGATOR',
-            customRole: member
-          })),
+          partiesInvolved: formData.partiesInvolved,
+          consentObtained: formData.consentObtained,
+          consentDocumentation: formData.consentDocumentation,
           riskNotes: formData.riskNotes,
           planSummary: formData.planSummary,
+          followUpAction: formData.followUpAction,
+          followUpDate: formData.followUpDate || null,
           accessLevel: formData.accessLevel,
         })
       });
 
       if (response.ok) {
         setShowCreateForm(false);
-        setFormData({
-          scheduledDate: "",
-          scheduledTime: "",
-          endDate: "",
-          endTime: "",
-          location: "",
-          methods: [],
-          partiesInvolved: "",
-          teamMembers: "",
-          riskNotes: "",
-          planSummary: "",
-          accessLevel: "CORE_TEAM_ONLY"
-        });
-        setSelectedReportId("");
+        resetForm();
         fetchData();
         alert('Jadwal investigasi berhasil dibuat');
       } else {
@@ -190,6 +182,126 @@ export default function PenjadwalanPage() {
       alert('Gagal membuat jadwal investigasi');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      scheduledDate: "",
+      scheduledTime: "",
+      endDate: "",
+      endTime: "",
+      location: "",
+      methods: [],
+      partiesInvolved: [],
+      consentObtained: false,
+      consentDocumentation: "",
+      riskNotes: "",
+      planSummary: "",
+      followUpAction: "",
+      followUpDate: "",
+      accessLevel: "CORE_TEAM_ONLY"
+    });
+    setSelectedReportId("");
+    setEditingInvestigation(null);
+  };
+
+  const handleEdit = (investigation: ScheduledInvestigation) => {
+    setEditingInvestigation(investigation);
+    setShowCreateForm(true);
+    
+    // Populate form with investigation data
+    const startDate = new Date(investigation.scheduledDateTime);
+    const endDate = new Date(investigation.endDateTime);
+    
+    setFormData({
+      scheduledDate: startDate.toISOString().split('T')[0],
+      scheduledTime: startDate.toTimeString().slice(0, 5),
+      endDate: endDate.toISOString().split('T')[0],
+      endTime: endDate.toTimeString().slice(0, 5),
+      location: investigation.location || '',
+      methods: investigation.methods || [],
+      partiesInvolved: investigation.partiesInvolved || [],
+      consentObtained: investigation.consentObtained || false,
+      consentDocumentation: '',
+      riskNotes: investigation.riskNotes || '',
+      planSummary: investigation.planSummary || '',
+      followUpAction: investigation.followUpAction || '',
+      followUpDate: investigation.followUpDate ? new Date(investigation.followUpDate).toISOString().split('T')[0] : '',
+      accessLevel: investigation.accessLevel || 'CORE_TEAM_ONLY'
+    });
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInvestigation) return;
+
+    setSubmitting(true);
+    try {
+      const scheduledDateTime = `${formData.scheduledDate}T${formData.scheduledTime}:00`;
+      const endDateTime = `${formData.endDate}T${formData.endTime}:00`;
+
+      const response = await fetch('/api/satgas/penjadwalan', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportId: editingInvestigation.reportId,
+          updateData: {
+            startDateTime: scheduledDateTime,
+            endDateTime,
+            location: formData.location,
+            methods: formData.methods,
+            partiesInvolved: formData.partiesInvolved,
+            consentObtained: formData.consentObtained,
+            consentDocumentation: formData.consentDocumentation,
+            riskNotes: formData.riskNotes,
+            planSummary: formData.planSummary,
+            followUpAction: formData.followUpAction,
+            followUpDate: formData.followUpDate || null,
+            accessLevel: formData.accessLevel,
+          }
+        })
+      });
+
+      if (response.ok) {
+        setShowCreateForm(false);
+        resetForm();
+        fetchData();
+        alert('Jadwal investigasi berhasil diperbarui');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Gagal memperbarui jadwal investigasi');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      alert('Gagal memperbarui jadwal investigasi');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (investigation: ScheduledInvestigation) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus jadwal investigasi untuk laporan "${investigation.reportTitle}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/satgas/penjadwalan?reportId=${investigation.reportId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchData();
+        alert('Jadwal investigasi berhasil dihapus');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Gagal menghapus jadwal investigasi');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Gagal menghapus jadwal investigasi');
     }
   };
 
@@ -350,6 +462,26 @@ export default function PenjadwalanPage() {
     }
   };
 
+  const handleViewDetail = (investigation: ScheduledInvestigation) => {
+    setViewingInvestigation(investigation);
+    setShowDetailModal(true);
+  };
+
+  const handleEditFromDetail = () => {
+    if (viewingInvestigation) {
+      handleEdit(viewingInvestigation);
+      setShowDetailModal(false);
+    }
+  };
+
+  const handleDeleteFromDetail = async () => {
+    if (viewingInvestigation) {
+      await handleDelete(viewingInvestigation);
+      setShowDetailModal(false);
+      setViewingInvestigation(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'scheduled':
@@ -415,40 +547,59 @@ export default function PenjadwalanPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Penjadwalan Investigasi</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Kelola jadwal investigasi dari pengumpulan data hingga penyelesaian</p>
           </div>
-          <Button onClick={() => setShowCreateForm(!showCreateForm)}>
-            <Plus className="w-4 h-4 mr-2" />
-            {showCreateForm ? 'Batal' : 'Buat Jadwal'}
-          </Button>
+          <div className="flex gap-2 mt-4 md:mt-0">
+            <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+              <Plus className="w-4 h-4 mr-2" />
+              {showCreateForm ? 'Batal' : 'Buat Jadwal'}
+            </Button>
+          </div>
         </div>
 
         {/* Create Schedule Form */}
         {showCreateForm && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Buat Jadwal Investigasi Baru</CardTitle>
+              <CardTitle>{editingInvestigation ? 'Edit Jadwal Investigasi' : 'Buat Jadwal Investigasi Baru'}</CardTitle>
               <CardDescription>
-                Jadwalkan investigasi untuk laporan yang telah diterima
+                {editingInvestigation 
+                  ? 'Perbarui jadwal investigasi yang telah dibuat' 
+                  : 'Jadwalkan investigasi untuk laporan yang telah diterima'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleCreateSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Pilih Laporan
-                  </label>
-                  <Select value={selectedReportId} onValueChange={setSelectedReportId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih laporan untuk dijadwalkan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {reports.map((report) => (
-                        <SelectItem key={report.id} value={report.id}>
-                          {report.reportNumber} - {report.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <form onSubmit={editingInvestigation ? handleUpdate : handleCreateSubmit} className="space-y-4">
+                {!editingInvestigation && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Pilih Laporan
+                    </label>
+                    <Select value={selectedReportId} onValueChange={setSelectedReportId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih laporan untuk dijadwalkan" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {reports.map((report) => (
+                          <SelectItem key={report.id} value={report.id}>
+                            {report.reportNumber} - {report.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {editingInvestigation && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Laporan
+                    </label>
+                    <div className="p-2 bg-gray-50 dark:bg-gray-800 rounded-md">
+                      <p className="font-medium">{editingInvestigation.reportTitle}</p>
+                      <p className="text-sm text-gray-500">{editingInvestigation.reportNumber}</p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -517,21 +668,28 @@ export default function PenjadwalanPage() {
                     Metode Investigasi
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {['Wawancara', 'Pengumpulan Dokumen', 'Observasi', 'Analisis Data', 'Mediasi'].map((method) => (
-                      <label key={method} className="flex items-center gap-2 cursor-pointer">
+                    {[
+                      { value: 'INTERVIEW', label: 'Wawancara' },
+                      { value: 'WRITTEN_CLARIFICATION', label: 'Klarifikasi Tertulis' },
+                      { value: 'LOCATION_OBSERVATION', label: 'Observasi Lokasi' },
+                      { value: 'DIGITAL_EVIDENCE_COLLECTION', label: 'Pengumpulan Bukti Digital' },
+                      { value: 'MEDIATION', label: 'Mediasi' },
+                      { value: 'OTHER', label: 'Lainnya' }
+                    ].map((method) => (
+                      <label key={method.value} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={formData.methods.includes(method)}
+                          checked={formData.methods.includes(method.value)}
                           onChange={(e) => {
                             if (e.target.checked) {
-                              setFormData({...formData, methods: [...formData.methods, method]});
+                              setFormData({...formData, methods: [...formData.methods, method.value]});
                             } else {
-                              setFormData({...formData, methods: formData.methods.filter(m => m !== method)});
+                              setFormData({...formData, methods: formData.methods.filter(m => m !== method.value)});
                             }
                           }}
                           className="rounded border-gray-300"
                         />
-                        <span className="text-sm">{method}</span>
+                        <span className="text-sm">{method.label}</span>
                       </label>
                     ))}
                   </div>
@@ -541,23 +699,57 @@ export default function PenjadwalanPage() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Pihak yang Terlibat
                   </label>
-                  <Textarea
-                    value={formData.partiesInvolved}
-                    onChange={(e) => setFormData({...formData, partiesInvolved: e.target.value})}
-                    placeholder="Pisahkan dengan koma. Contoh: Pelapor, Terlapor, Saksi 1, Saksi 2"
-                  />
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: 'VICTIM_SURVIVOR', label: 'Korban/Penyintas' },
+                      { value: 'REPORTED_PERSON', label: 'Terlapor' },
+                      { value: 'WITNESS', label: 'Saksi' },
+                      { value: 'OTHER_PARTY', label: 'Pihak Lain' }
+                    ].map((party) => (
+                      <label key={party.value} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.partiesInvolved.includes(party.value)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({...formData, partiesInvolved: [...formData.partiesInvolved, party.value]});
+                            } else {
+                              setFormData({...formData, partiesInvolved: formData.partiesInvolved.filter(p => p !== party.value)});
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm">{party.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tim Investigasi
-                  </label>
-                  <Textarea
-                    value={formData.teamMembers}
-                    onChange={(e) => setFormData({...formData, teamMembers: e.target.value})}
-                    placeholder="Pisahkan dengan koma. Contoh: Dr. Ahmad, Ibu Siti, Pak Budi"
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="consentObtained"
+                    checked={formData.consentObtained}
+                    onChange={(e) => setFormData({...formData, consentObtained: e.target.checked})}
+                    className="rounded border-gray-300"
                   />
+                  <label htmlFor="consentObtained" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Persetujuan Diperoleh
+                  </label>
                 </div>
+
+                {formData.consentObtained && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Dokumentasi Persetujuan
+                    </label>
+                    <Input
+                      value={formData.consentDocumentation}
+                      onChange={(e) => setFormData({...formData, consentDocumentation: e.target.value})}
+                      placeholder="Contoh: Tertulis / Lisan Terekam"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -583,26 +775,32 @@ export default function PenjadwalanPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Level Akses
-                  </label>
-                  <Select value={formData.accessLevel} onValueChange={(value) => setFormData({...formData, accessLevel: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="CORE_TEAM_ONLY">Tim Inti Saja</SelectItem>
-                      <SelectItem value="FULL_SATGAS">Satgas Penuh</SelectItem>
-                      <SelectItem value="LEADERSHIP_ONLY">Pimpinan Tertentu</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex gap-2">
+                  <Button 
+                    type="submit" 
+                    disabled={submitting || (!editingInvestigation && !selectedReportId)}
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    {submitting 
+                      ? (editingInvestigation ? 'Memperbarui...' : 'Menyimpan...') 
+                      : (editingInvestigation ? 'Perbarui Jadwal' : 'Buat Jadwal Investigasi')
+                    }
+                  </Button>
+                  
+                  {editingInvestigation && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowCreateForm(false);
+                        resetForm();
+                      }}
+                      disabled={submitting}
+                    >
+                      Batal
+                    </Button>
+                  )}
                 </div>
-
-                <Button type="submit" disabled={submitting || !selectedReportId}>
-                  <Send className="w-4 h-4 mr-2" />
-                  {submitting ? 'Menyimpan...' : 'Buat Jadwal Investigasi'}
-                </Button>
               </form>
             </CardContent>
           </Card>
@@ -873,33 +1071,32 @@ export default function PenjadwalanPage() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        asChild
+                        onClick={() => handleViewDetail(investigation)}
                       >
-                        <Link href={`/satgas/dashboard/investigasi/${investigation.reportId}`} className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
-                          Detail
-                        </Link>
+                        <Eye className="w-4 h-4" />
+                        Detail
                       </Button>
                       
                       {investigation.status === 'SCHEDULED' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedReport({
-                              id: investigation.reportId,
-                              title: investigation.reportTitle,
-                              reportNumber: investigation.reportNumber,
-                              category: investigation.category,
-                              severity: investigation.severity,
-                              status: investigation.status
-                            });
-                            setShowScheduleModal(true);
-                          }}
-                        >
-                          <Edit className="w-4 h-4" />
-                          Edit
-                        </Button>
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEdit(investigation)}
+                          >
+                            <Edit className="w-4 h-4" />
+                            Edit
+                          </Button>
+                          
+                          <Button 
+                            variant="destructive" 
+                            size="sm"
+                            onClick={() => handleDelete(investigation)}
+                          >
+                            <XCircle className="w-4 h-4" />
+                            Hapus
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -926,6 +1123,172 @@ export default function PenjadwalanPage() {
             reportStatus={selectedReport?.status}
           />
         )}
+
+        {/* Detail Modal */}
+        <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Detail Jadwal Investigasi</DialogTitle>
+              <DialogDescription>
+                Informasi lengkap jadwal investigasi
+              </DialogDescription>
+            </DialogHeader>
+            
+            {viewingInvestigation && (
+              <div className="space-y-6">
+                {/* Report Info */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <h4 className="font-semibold text-lg mb-2">{viewingInvestigation.reportTitle}</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">{viewingInvestigation.reportNumber}</p>
+                  <div className="mt-2">
+                    {getStatusBadge(viewingInvestigation.status)}
+                  </div>
+                </div>
+
+                {/* Schedule Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Tanggal & Waktu Mulai</label>
+                    <p className="font-medium">
+                      {format(new Date(viewingInvestigation.scheduledDateTime), 'dd MMMM yyyy, HH:mm', { locale: id })}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Tanggal & Waktu Selesai</label>
+                    <p className="font-medium">
+                      {format(new Date(viewingInvestigation.endDateTime), 'dd MMMM yyyy, HH:mm', { locale: id })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Lokasi</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <MapPin className="w-4 h-4 text-gray-400" />
+                    <p className="font-medium">{viewingInvestigation.location}</p>
+                  </div>
+                </div>
+
+                {/* Methods */}
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Metode Investigasi</label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {viewingInvestigation.methods?.length > 0 ? (
+                      viewingInvestigation.methods.map((method, index) => (
+                        <Badge key={index} variant="secondary">{method}</Badge>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">Belum dipilih</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Parties Involved */}
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Pihak yang Terlibat</label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {viewingInvestigation.partiesInvolved?.length > 0 ? (
+                      viewingInvestigation.partiesInvolved.map((party, index) => (
+                        <Badge key={index} variant="outline">{party}</Badge>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">Belum ditentukan</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Team Members */}
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Tim Investigasi</label>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {viewingInvestigation.teamMembers?.length > 0 ? (
+                      viewingInvestigation.teamMembers.map((member, index) => (
+                        <div key={index} className="flex items-center gap-1 bg-blue-50 dark:bg-blue-900/30 px-2 py-1 rounded">
+                          <User className="w-3 h-3" />
+                          <span className="text-sm">{member.customRole || member.user?.name || 'Anggota'}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">Belum ditentukan</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Risk Notes */}
+                {viewingInvestigation.riskNotes && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Catatan Risiko</label>
+                    <div className="mt-1 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-yellow-600 mt-0.5" />
+                        <p className="text-sm">{viewingInvestigation.riskNotes}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Plan Summary */}
+                {viewingInvestigation.planSummary && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Ringkasan Rencana</label>
+                    <p className="mt-1 text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                      {viewingInvestigation.planSummary}
+                    </p>
+                  </div>
+                )}
+
+                {/* Access Level */}
+                <div>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Level Akses</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Shield className="w-4 h-4 text-gray-400" />
+                    <p className="font-medium">
+                      {viewingInvestigation.accessLevel === 'CORE_TEAM_ONLY' ? 'Tim Inti Saja' :
+                       viewingInvestigation.accessLevel === 'FULL_SATGAS' ? 'Satgas Penuh' :
+                       viewingInvestigation.accessLevel === 'LEADERSHIP_ONLY' ? 'Pimpinan Tertentu' : viewingInvestigation.accessLevel}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Created Info */}
+                <div className="text-xs text-gray-500 dark:text-gray-400 border-t pt-4">
+                  <p>Dibuat pada: {format(new Date(viewingInvestigation.createdAt), 'dd MMMM yyyy, HH:mm', { locale: id })}</p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="flex flex-wrap gap-2 mt-6">
+              {/* Update - Perbarui */}
+              <Button 
+                variant="outline" 
+                onClick={handleEditFromDetail}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Perbarui
+              </Button>
+              
+              {/* Delete - Hapus */}
+              <Button 
+                variant="destructive" 
+                onClick={handleDeleteFromDetail}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Hapus
+              </Button>
+              
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  setShowDetailModal(false);
+                  setViewingInvestigation(null);
+                }}
+              >
+                Tutup
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </RoleGuard>
   );
