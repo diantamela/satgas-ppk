@@ -304,7 +304,7 @@ export default function InvestigationRekapanPage() {
       case "IN_PROGRESS":
         return (
           <Badge className="bg-orange-500 hover:bg-orange-600 text-white">
-            Dalam Investigasi
+            Sedang Berlangsung
           </Badge>
         );
       case "SCHEDULED":
@@ -689,7 +689,7 @@ export default function InvestigationRekapanPage() {
                             {result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION' 
                               ? 'Siap Rekomendasi'
                               : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
-                              ? 'Dalam Investigasi'
+                              ? 'Sedang Berlangsung'
                               : result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
                               ? 'Ke Rektorat'
                               : result.caseStatusAfterResult === 'CLOSED_TERMINATED'

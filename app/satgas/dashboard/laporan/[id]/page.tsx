@@ -74,7 +74,7 @@ export default function ReportDetailPage() {
       case "VERIFIED":
         return <Badge variant="default">Terverifikasi</Badge>;
       case "IN_PROGRESS":
-        return <Badge variant="default">Dalam Investigasi</Badge>;
+        return <Badge variant="default">Sedang Berlangsung</Badge>;
       case "REJECTED":
         return <Badge variant="destructive">Ditolak</Badge>;
       case "COMPLETED":
@@ -253,10 +253,6 @@ export default function ReportDetailPage() {
             <Button variant="outline">
               <Edit className="w-4 h-4 mr-2" />
               Edit
-            </Button>
-            <Button onClick={() => setShowNotesDialog(true)}>
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Tambah Catatan
             </Button>
           </div>
         </div>
@@ -475,14 +471,7 @@ export default function ReportDetailPage() {
                   <Download className="w-4 h-4 mr-2" />
                   Unduh Laporan
                 </Button>
-                <Button
-                  className="w-full"
-                  onClick={() => setShowNotesDialog(true)}
-                  disabled={isSubmitting}
-                >
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Tambah Catatan
-                </Button>
+
                 <div className="flex flex-col gap-2">
                   <Button
                     variant="outline"

@@ -348,7 +348,7 @@ export default function ComprehensiveScheduleInvestigationModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[1400px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
@@ -373,7 +373,7 @@ export default function ComprehensiveScheduleInvestigationModal({
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">ID/Nomor Laporan</Label>
                   <Input value={reportNumber || "Auto-generated"} readOnly className="bg-gray-50" />
@@ -475,7 +475,7 @@ export default function ComprehensiveScheduleInvestigationModal({
               </div>
 
               {/* Location */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="locationType">Tipe Lokasi</Label>
                   <Select value={locationType} onValueChange={setLocationType}>
@@ -519,7 +519,7 @@ export default function ComprehensiveScheduleInvestigationModal({
               {/* Methods */}
               <div className="space-y-3">
                 <Label>Metode/Bentuk Kegiatan</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {investigationMethods.map((method) => (
                     <div key={method.value} className="flex items-center space-x-2">
                       <Checkbox
@@ -714,7 +714,7 @@ export default function ComprehensiveScheduleInvestigationModal({
 
                 {showTeamSelection && (
                   <div className="mt-4 p-4 border rounded-lg space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="newMemberUserId">Anggota Satgas</Label>
                         <Select value={newMember.userId} onValueChange={(value) => setNewMember({...newMember, userId: value})}>
@@ -866,7 +866,7 @@ export default function ComprehensiveScheduleInvestigationModal({
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="followUpDate">Jadwal Tindak Lanjut</Label>
                   <Input

@@ -19,6 +19,9 @@ import {
   Filter,
   Calendar as CalendarIcon,
   RefreshCw,
+  Clock,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -142,9 +145,9 @@ export default function InvestigationPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "IN_PROGRESS":
-        return <Badge className="bg-orange-500 hover:bg-orange-600 text-white">Dalam Investigasi</Badge>;
+        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Sedang Berlangsung</Badge>;
       case "SCHEDULED":
-        return <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Terjadwal</Badge>;
+        return <Badge className="bg-purple-500 hover:bg-purple-600 text-white">Terjadwal</Badge>;
       case "COMPLETED":
         return <Badge className="bg-green-500 hover:bg-green-600 text-white">Selesai</Badge>;
       default:
@@ -152,12 +155,24 @@ export default function InvestigationPage() {
     }
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "IN_PROGRESS":
+        return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+      case "SCHEDULED":
+        return <Clock className="w-4 h-4 text-blue-500" />;
+      case "COMPLETED":
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      default:
+        return <FileText className="w-4 h-4 text-blue-500" />;
+    }
+  };
+
 
   return (
     <RoleGuard>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0 font-['Inter']">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 pt-4 border-b pb-4 dark:border-gray-700">
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Investigasi</h1>
             <p className="text-gray-600 dark:text-gray-400">Kelola proses investigasi laporan kekerasan</p>
@@ -180,18 +195,7 @@ export default function InvestigationPage() {
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
-                <select 
-                  className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800"
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <option value="all">Semua Jenis Kejadian</option>
-                  {incidentTypes.map((incidentType) => (
-                    <option key={incidentType.value} value={incidentType.value}>
-                      {incidentType.label}
-                    </option>
-                  ))}
-                </select>
+
                 
                 {/* Date Filter */}
                 <Popover>
@@ -376,3 +380,4 @@ export default function InvestigationPage() {
     </RoleGuard>
   );
 }
+

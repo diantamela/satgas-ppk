@@ -195,7 +195,7 @@ export default function InvestigationProsesPage() {
   ];
 
   const caseStatusOptions = [
-    { value: 'UNDER_INVESTIGATION', label: 'Dalam Investigasi' },
+    { value: 'UNDER_INVESTIGATION', label: 'Sedang Berlangsung' },
     { value: 'EVIDENCE_COLLECTION', label: 'Pengumpulan Bukti' },
     { value: 'STATEMENT_ANALYSIS', label: 'Analisis Keterangan' },
     { value: 'PENDING_EXTERNAL_INPUT', label: 'Menunggu Input Eksternal' },

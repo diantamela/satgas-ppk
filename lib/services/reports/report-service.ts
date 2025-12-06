@@ -566,8 +566,10 @@ export const reportService = {
     accessLevel: string;
     
     // Auto-populated info
-    caseAutoInfo: any;
+    caseAutoInfo?: any;
     caseSummary?: string;
+    locationType?: string;
+    purpose?: string;
     
     createdById: string;
   }) {

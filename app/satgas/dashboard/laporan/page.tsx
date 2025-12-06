@@ -101,17 +101,19 @@ export default function ReportsPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "PENDING":
         return <Badge variant="secondary">Menunggu</Badge>;
-      case "verified":
+      case "VERIFIED":
         return <Badge variant="default">Terverifikasi</Badge>;
-      case "under_investigation":
-        return <Badge variant="default">Dalam Investigasi</Badge>;
-      case "rejected":
+      case "IN_PROGRESS":
+        return <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">Sedang Berlangsung</Badge>;
+      case "REJECTED":
         return <Badge variant="destructive">Ditolak</Badge>;
-      case "completed":
+      case "COMPLETED":
         return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Selesai</Badge>;
-      case "deleted":
+      case "SCHEDULED":
+        return <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">Terjadwal</Badge>;
+      case "DELETED":
         return <Badge variant="outline">Dihapus</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
@@ -288,21 +290,7 @@ export default function ReportsPage() {
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-2">
-                            <Badge variant="outline" className={
-                              report.status === 'PENDING' 
-                                ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'
-                                : report.status === 'VERIFIED'
-                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                : report.status === 'IN_PROGRESS'
-                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                                : report.status === 'COMPLETED'
-                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                : report.status === 'REJECTED'
-                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-                            }>
-                              {report.status}
-                            </Badge>
+                            {getStatusBadge(report.status)}
                           </div>
                         </div>
                       </div>

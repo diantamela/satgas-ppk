@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Calendar, 
   Clock, 
@@ -24,7 +26,8 @@ import {
   User,
   Shield,
   ArrowRight,
-  Activity
+  Activity,
+  Send
 } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
@@ -62,6 +65,14 @@ interface ScheduledInvestigation {
   severity?: string;
 }
 
+interface Report {
+  id: string;
+  reportNumber: string;
+  title: string;
+  description: string;
+  status: string;
+}
+
 export default function PenjadwalanPage() {
   const [investigations, setInvestigations] = useState<ScheduledInvestigation[]>([]);
   const [filteredInvestigations, setFilteredInvestigations] = useState<ScheduledInvestigation[]>([]);
@@ -73,6 +84,25 @@ export default function PenjadwalanPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<any>(null);
+  
+  // Form state for creating new schedule
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [selectedReportId, setSelectedReportId] = useState<string>("");
+  const [formData, setFormData] = useState({
+    scheduledDate: "",
+    scheduledTime: "",
+    endDate: "",
+    endTime: "",
+    location: "",
+    methods: [] as string[],
+    partiesInvolved: "",
+    teamMembers: "",
+    riskNotes: "",
+    planSummary: "",
+    accessLevel: "CORE_TEAM_ONLY"
+  });
 
   // Statistics
   const [stats, setStats] = useState({
@@ -86,7 +116,82 @@ export default function PenjadwalanPage() {
   // Fetch data
   useEffect(() => {
     fetchData();
+    fetchReports();
   }, []);
+
+  const fetchReports = async () => {
+    try {
+      const response = await fetch('/api/reports');
+      if (response.ok) {
+        const data = await response.json();
+        setReports(data.reports || []);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    }
+  };
+
+  const handleCreateSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedReportId) return;
+
+    setSubmitting(true);
+    try {
+      const scheduledDateTime = `${formData.scheduledDate}T${formData.scheduledTime}:00`;
+      const endDateTime = `${formData.endDate}T${formData.endTime}:00`;
+
+      const response = await fetch('/api/reports/schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reportId: selectedReportId,
+          startDateTime: scheduledDateTime,
+          endDateTime,
+          location: formData.location,
+          methods: formData.methods,
+          partiesInvolved: formData.partiesInvolved.split(',').map(p => p.trim()).filter(p => p),
+          teamMembers: formData.teamMembers.split(',').map(t => t.trim()).filter(t => t).map((member, index) => ({
+            userId: `temp-${index}`, // Temporary ID since we're not using real user IDs
+            role: 'INVESTIGATOR',
+            customRole: member
+          })),
+          riskNotes: formData.riskNotes,
+          planSummary: formData.planSummary,
+          accessLevel: formData.accessLevel,
+        })
+      });
+
+      if (response.ok) {
+        setShowCreateForm(false);
+        setFormData({
+          scheduledDate: "",
+          scheduledTime: "",
+          endDate: "",
+          endTime: "",
+          location: "",
+          methods: [],
+          partiesInvolved: "",
+          teamMembers: "",
+          riskNotes: "",
+          planSummary: "",
+          accessLevel: "CORE_TEAM_ONLY"
+        });
+        setSelectedReportId("");
+        fetchData();
+        alert('Jadwal investigasi berhasil dibuat');
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Gagal membuat jadwal investigasi');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      alert('Gagal membuat jadwal investigasi');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -250,7 +355,7 @@ export default function PenjadwalanPage() {
       case 'scheduled':
         return <Badge variant="secondary">Terjadwal</Badge>;
       case 'in_progress':
-        return <Badge variant="default">Berlangsung</Badge>;
+        return <Badge variant="default">Sedang Berlangsung</Badge>;
       case 'completed':
         return <Badge variant="default" className="bg-green-600 hover:bg-green-700">Selesai</Badge>;
       case 'cancelled':
@@ -310,7 +415,198 @@ export default function PenjadwalanPage() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Penjadwalan Investigasi</h1>
             <p className="text-gray-600 dark:text-gray-400 mt-1">Kelola jadwal investigasi dari pengumpulan data hingga penyelesaian</p>
           </div>
+          <Button onClick={() => setShowCreateForm(!showCreateForm)}>
+            <Plus className="w-4 h-4 mr-2" />
+            {showCreateForm ? 'Batal' : 'Buat Jadwal'}
+          </Button>
         </div>
+
+        {/* Create Schedule Form */}
+        {showCreateForm && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Buat Jadwal Investigasi Baru</CardTitle>
+              <CardDescription>
+                Jadwalkan investigasi untuk laporan yang telah diterima
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Pilih Laporan
+                  </label>
+                  <Select value={selectedReportId} onValueChange={setSelectedReportId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pilih laporan untuk dijadwalkan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {reports.map((report) => (
+                        <SelectItem key={report.id} value={report.id}>
+                          {report.reportNumber} - {report.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tanggal Mulai
+                    </label>
+                    <Input
+                      type="date"
+                      value={formData.scheduledDate}
+                      onChange={(e) => setFormData({...formData, scheduledDate: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Waktu Mulai
+                    </label>
+                    <Input
+                      type="time"
+                      value={formData.scheduledTime}
+                      onChange={(e) => setFormData({...formData, scheduledTime: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Tanggal Selesai
+                    </label>
+                    <Input
+                      type="date"
+                      value={formData.endDate}
+                      onChange={(e) => setFormData({...formData, endDate: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Waktu Selesai
+                    </label>
+                    <Input
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => setFormData({...formData, endTime: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Lokasi Investigasi
+                  </label>
+                  <Input
+                    value={formData.location}
+                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    placeholder="Contoh: Ruang Rapat Gedung A Lt. 3"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Metode Investigasi
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Wawancara', 'Pengumpulan Dokumen', 'Observasi', 'Analisis Data', 'Mediasi'].map((method) => (
+                      <label key={method} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.methods.includes(method)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({...formData, methods: [...formData.methods, method]});
+                            } else {
+                              setFormData({...formData, methods: formData.methods.filter(m => m !== method)});
+                            }
+                          }}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm">{method}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Pihak yang Terlibat
+                  </label>
+                  <Textarea
+                    value={formData.partiesInvolved}
+                    onChange={(e) => setFormData({...formData, partiesInvolved: e.target.value})}
+                    placeholder="Pisahkan dengan koma. Contoh: Pelapor, Terlapor, Saksi 1, Saksi 2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Tim Investigasi
+                  </label>
+                  <Textarea
+                    value={formData.teamMembers}
+                    onChange={(e) => setFormData({...formData, teamMembers: e.target.value})}
+                    placeholder="Pisahkan dengan koma. Contoh: Dr. Ahmad, Ibu Siti, Pak Budi"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Catatan Risiko
+                  </label>
+                  <Textarea
+                    value={formData.riskNotes}
+                    onChange={(e) => setFormData({...formData, riskNotes: e.target.value})}
+                    placeholder="Jelaskan potensi risiko dan mitigasinya"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Ringkasan Rencana
+                  </label>
+                  <Textarea
+                    value={formData.planSummary}
+                    onChange={(e) => setFormData({...formData, planSummary: e.target.value})}
+                    placeholder="Jelaskan rencana investigasi secara singkat"
+                    rows={4}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Level Akses
+                  </label>
+                  <Select value={formData.accessLevel} onValueChange={(value) => setFormData({...formData, accessLevel: value})}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CORE_TEAM_ONLY">Tim Inti Saja</SelectItem>
+                      <SelectItem value="FULL_SATGAS">Satgas Penuh</SelectItem>
+                      <SelectItem value="LEADERSHIP_ONLY">Pimpinan Tertentu</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button type="submit" disabled={submitting || !selectedReportId}>
+                  <Send className="w-4 h-4 mr-2" />
+                  {submitting ? 'Menyimpan...' : 'Buat Jadwal Investigasi'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
@@ -336,7 +632,7 @@ export default function PenjadwalanPage() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardDescription className="text-xs font-medium">Berlangsung</CardDescription>
+              <CardDescription className="text-xs font-medium">Sedang Berlangsung</CardDescription>
               <Activity className="w-4 h-4 text-orange-500" />
             </CardHeader>
             <CardContent>
@@ -605,30 +901,6 @@ export default function PenjadwalanPage() {
                           Edit
                         </Button>
                       )}
-                      
-                      <Button 
-                        variant="default" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedReport({
-                            id: investigation.reportId,
-                            title: investigation.reportTitle,
-                            reportNumber: investigation.reportNumber,
-                            category: investigation.category,
-                            severity: investigation.severity,
-                            status: investigation.status
-                          });
-                          setShowScheduleModal(true);
-                        }}
-                        className="flex items-center gap-1"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Jadwalkan
-                      </Button>
-                      
-                      <Button variant="outline" size="sm">
-                        <Download className="w-4 h-4" />
-                      </Button>
                     </div>
                   </div>
                 </CardContent>

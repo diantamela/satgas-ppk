@@ -19,6 +19,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    
+    // Validate reportId is provided and not empty
+    if (!body.reportId || body.reportId.trim() === '') {
+      return Response.json(
+        { success: false, message: "Report ID is required. Please select a report first." },
+        { status: 400 }
+      );
+    }
 
     // Check if this is comprehensive scheduling (has activityTitle/activityType)
     const isComprehensive = body.activityTitle && body.activityType;
@@ -36,12 +44,12 @@ export async function POST(request: NextRequest) {
           estimatedDuration: body.estimatedDuration,
           location: body.location,
           locationType: body.locationType,
+          purpose: body.purpose,
           
           // Investigation details
           methods: body.methods || [],
           partiesInvolved: body.partiesInvolved || [],
           otherPartiesDetails: body.otherPartiesDetails,
-          purpose: body.purpose,
           
           // Equipment and logistics
           equipmentChecklist: body.equipmentChecklist || [],
@@ -212,8 +220,15 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Error scheduling investigation:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error("Error details:", { message: errorMessage, stack: errorStack });
     return Response.json(
-      { success: false, message: "Terjadi kesalahan saat menjadwalkan investigasi" },
+      { 
+        success: false, 
+        message: "Terjadi kesalahan saat menjadwalkan investigasi",
+        error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      },
       { status: 500 }
     );
   }
