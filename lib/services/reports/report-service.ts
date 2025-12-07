@@ -318,26 +318,7 @@ export const reportService = {
       }
 
       const process = await db.investigationProcess.create({
-        data: scheduleData,
-        include: {
-          teamMembers: {
-            include: {
-              user: {
-                select: { name: true, email: true }
-              }
-            }
-          },
-          attachments: {
-            include: {
-              uploadedBy: {
-                select: { name: true }
-              }
-            }
-          },
-          createdBy: {
-            select: { name: true }
-          }
-        }
+        data: scheduleData
       });
 
       // Update report status to SCHEDULED
@@ -440,26 +421,7 @@ export const reportService = {
       }
 
       const process = await db.investigationProcess.create({
-        data: processData,
-        include: {
-          teamMembers: {
-            include: {
-              user: {
-                select: { name: true, email: true }
-              }
-            }
-          },
-          attachments: {
-            include: {
-              uploadedBy: {
-                select: { name: true }
-              }
-            }
-          },
-          createdBy: {
-            select: { name: true }
-          }
-        }
+        data: processData
       });
 
       // Update report status to IN_PROGRESS (ongoing investigation)
@@ -489,26 +451,6 @@ export const reportService = {
     try {
       const process = await db.investigationProcess.findFirst({
         where: { reportId },
-        include: {
-          teamMembers: {
-            include: {
-              user: {
-                select: { id: true, name: true, email: true }
-              }
-            }
-          },
-          attachments: {
-            include: {
-              uploadedBy: {
-                select: { name: true }
-              }
-            },
-            orderBy: { createdAt: 'desc' }
-          },
-          createdBy: {
-            select: { name: true }
-          }
-        },
         orderBy: { createdAt: 'desc' }
       });
 
@@ -612,30 +554,7 @@ export const reportService = {
       };
 
       const process = await db.investigationProcess.create({
-        data: scheduleData,
-        include: {
-          teamMembers: {
-            include: {
-              user: {
-                select: { id: true, name: true, email: true }
-              }
-            }
-          },
-          attachments: {
-            include: {
-              uploadedBy: {
-                select: { name: true }
-              }
-            },
-            orderBy: { createdAt: 'desc' }
-          },
-          createdBy: {
-            select: { name: true }
-          },
-          report: {
-            select: { reportNumber: true, title: true, category: true }
-          }
-        }
+        data: scheduleData
       });
 
       // Update report status to SCHEDULED
@@ -723,20 +642,7 @@ export const reportService = {
 
         scheduledReports.push(updatedReport);
 
-        // Log the activity
-        await db.activityLog.create({
-          data: {
-            action: 'AUTO_SCHEDULED',
-            entityType: 'Report',
-            entityId: report.id,
-            details: {
-              scheduledDate: suggestedDate,
-              scheduledBy,
-              method: 'automatic'
-            },
-            timestamp: new Date()
-          }
-        });
+
       }
 
       return {

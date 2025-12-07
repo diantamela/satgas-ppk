@@ -36,42 +36,39 @@ export async function GET(
         id: resultId,
         reportId: reportId
       },
-      include: {
-        process: {
-          include: {
-            teamMembers: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    role: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        report: {
-          select: {
-            id: true,
-            reportNumber: true,
-            title: true,
-            description: true,
-            category: true,
-            severity: true,
-            incidentDate: true,
-            incidentLocation: true,
-            reporter: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        }
+      select: {
+        id: true,
+        processId: true,
+        reportId: true,
+        schedulingId: true,
+        schedulingTitle: true,
+        schedulingDateTime: true,
+        schedulingLocation: true,
+        caseTitle: true,
+        reportNumber: true,
+        satgasMembersPresent: true,
+        partiesPresent: true,
+        identityVerified: true,
+        attendanceNotes: true,
+        partiesStatementSummary: true,
+        newPhysicalEvidence: true,
+        evidenceFiles: true,
+        statementConsistency: true,
+        sessionInterimConclusion: true,
+        recommendedImmediateActions: true,
+        caseStatusAfterResult: true,
+        statusChangeReason: true,
+        dataVerificationConfirmed: true,
+        creatorDigitalSignature: true,
+        creatorSignatureDate: true,
+        chairpersonDigitalSignature: true,
+        chairpersonSignatureDate: true,
+        partiesDetailedAttendance: true,
+        recommendedActionsDetails: true,
+        documentHash: true,
+        internalSatgasNotes: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
 
@@ -89,7 +86,7 @@ export async function GET(
     return new Response(pdfContent, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="berita-acara-${investigationResult.report.reportNumber}-${resultId}.pdf"`,
+        'Content-Disposition': `attachment; filename="berita-acara-${investigationResult?.reportNumber || 'unknown'}-${resultId}.pdf"`,
       },
     });
 
@@ -188,19 +185,19 @@ ID Kegiatan Penjadwalan: ${result.schedulingId || '-'}
 Judul Kegiatan: ${result.schedulingTitle || '-'}
 Tanggal & Waktu Pelaksanaan: ${formatDateTime(result.schedulingDateTime)}
 Lokasi Pelaksanaan: ${result.schedulingLocation || '-'}
-Judul Kasus: ${result.caseTitle || result.report.title || '-'}
+Judul Kasus: ${result.caseTitle || '-'}
 Nomor Laporan: ${result.reportNumber || result.report.reportNumber || '-'}
 Tanggal Pembuatan BA: ${formatDateTime(result.createdAt)}
 
 INFORMASI LAPORAN:
 ------------------
-Nomor Laporan: ${result.report.reportNumber}
-Judul Kasus: ${result.report.title}
-Kategori: ${result.report.category || '-'}
-Tingkat Keparahan: ${result.report.severity || '-'}
-Tanggal Insiden: ${formatDate(result.report.incidentDate)}
-Lokasi Insiden: ${result.report.incidentLocation || '-'}
-Pelapor: ${result.report.reporter.name || '-'} (${result.report.reporter.email || '-'})
+Nomor Laporan: ${result.reportNumber || '-'}
+Judul Kasus: ${result.caseTitle || '-'}
+Kategori: Informasi tidak tersedia
+Tingkat Keparahan: Informasi tidak tersedia
+Tanggal Insiden: Informasi tidak tersedia
+Lokasi Insiden: Informasi tidak tersedia
+Pelapor: Informasi tidak tersedia
 
 KEHADIRAN PIHAK TERLIBAT:
 -------------------------

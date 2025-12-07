@@ -16,9 +16,6 @@ model User {
   isActive            Boolean                   @default(true)
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
-  activityLogs        ActivityLog[]
-  createdArticles     Article[]
-  uploadedAttachments InvestigationAttachment[] @relation("UserUploadedAttachments")
   uploadedDocuments   InvestigationDocument[]   @relation("UserDocuments")
   createdProcesses    InvestigationProcess[]    @relation("UserCreatedProcesses")
   teamMemberships     InvestigationTeamMember[]
@@ -46,6 +43,8 @@ model Session {
   @@index([expiresAt])
 }
 
+
+
 model Report {
   id                    String                  @id @default(cuid())
   reportNumber          String                  @unique
@@ -70,7 +69,6 @@ model Report {
   scheduledNotes        String?
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
-  activityLogs          ActivityLog[]           @relation("ReportActivityLogs")
   documents             InvestigationDocument[]
   processes             InvestigationProcess[]
   assignee              User?                   @relation("ReportAssignee", fields: [assigneeId], references: [id])
@@ -125,20 +123,7 @@ model InvestigationTeamMember {
   @@index([userId])
 }
 
-model InvestigationAttachment {
-  id           String   @id @default(cuid())
-  fileName     String
-  fileType     String
-  fileSize     Int
-  storagePath  String
-  description  String?
-  uploadedById String?
-  createdAt    DateTime @default(now())
-  processId    String
-  uploadedBy   User?    @relation("UserUploadedAttachments", fields: [uploadedById], references: [id])
 
-  @@index([uploadedById])
-}
 
 model InvestigationDocument {
   id           String       @id @default(cuid())
@@ -254,59 +239,11 @@ model Notification {
   @@index([createdAt])
 }
 
-model Article {
-  id          String        @id @default(cuid())
-  slug        String        @unique
-  title       String
-  content     String
-  excerpt     String?
-  status      ArticleStatus @default(DRAFT)
-  authorId    String?
-  publishedAt DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  author      User?         @relation(fields: [authorId], references: [id])
 
-  @@index([authorId])
-  @@index([status])
-  @@index([publishedAt])
-}
 
-model ActivityLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  action     String
-  entityType String?
-  entityId   String?
-  details    Json?
-  ipAddress  String?
-  userAgent  String?
-  timestamp  DateTime @default(now())
-  reportId   String?
-  report     Report?  @relation("ReportActivityLogs", fields: [reportId], references: [id])
-  user       User?    @relation(fields: [userId], references: [id])
 
-  @@index([userId])
-  @@index([reportId])
-  @@index([timestamp])
-  @@index([action])
-}
 
-model Gallery {
-  id           String   @id @default(cuid())
-  title        String
-  description  String
-  date         String
-  location     String
-  category     String
-  image        String
-  uploadedById String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
 
-  @@index([uploadedById])
-  @@index([createdAt])
-}
 
 model InvestigationActivity {
   id              String       @id
@@ -336,20 +273,7 @@ model InvestigationActivity {
   @@index([scheduleId])
 }
 
-model InvestigationActivityAttachment {
-  id           String   @id
-  activityId   String
-  fileName     String
-  fileType     String
-  fileSize     Int
-  storagePath  String
-  description  String?
-  uploadedById String?
-  createdAt    DateTime @default(now())
 
-  @@index([activityId])
-  @@index([uploadedById])
-}
 
 enum Role {
   USER
@@ -382,11 +306,7 @@ enum DocumentType {
   RECOMMENDATION
 }
 
-enum ArticleStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
+
 
 enum DecisionType {
   APPROVED

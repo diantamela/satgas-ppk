@@ -34,24 +34,6 @@ export async function GET(
     // Get investigation results for this report
     const results = await db.investigationResult.findMany({
       where: { reportId },
-      include: {
-        process: {
-          include: {
-            teamMembers: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    role: true
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -219,24 +201,6 @@ export async function POST(
         recommendedActionsDetails: recommendedActionsDetails || {},
         documentHash: hash,
         internalSatgasNotes
-      },
-      include: {
-        process: {
-          include: {
-            teamMembers: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    role: true
-                  }
-                }
-              }
-            }
-          }
-        }
       }
     });
 
@@ -266,21 +230,7 @@ export async function POST(
       }
     }
 
-    // Create activity log
-    await db.activityLog.create({
-      data: {
-        userId: session.user.id,
-        action: 'CREATE_INVESTIGATION_RESULT',
-        entityType: 'InvestigationResult',
-        entityId: investigationResult.id,
-        details: {
-          reportId,
-          processId,
-          caseStatusAfterResult
-        },
-        reportId: reportId
-      }
-    });
+
 
     return Response.json({
       success: true,
