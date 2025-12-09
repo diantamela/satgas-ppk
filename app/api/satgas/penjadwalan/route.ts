@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         'scheduled': ReportStatus.SCHEDULED,
         'in_progress': ReportStatus.IN_PROGRESS,
         'completed': ReportStatus.COMPLETED,
-        'rejected': ReportStatus.REJECTED
+        'cancelled': ReportStatus.REJECTED
       };
       
       const mappedStatus = statusMap[status.toLowerCase()];
@@ -148,27 +148,88 @@ export async function GET(request: NextRequest) {
     console.log('[PENJADWALAN] Executing database query...');
     let reports: any[] = [];
     try {
-      reports = await db.report.findMany({
-        where: filters,
-        include: {
-          reporter: {
-            select: {
-              id: true,
-              name: true,
-              email: true
+      console.log('[PENJADWALAN] Applying filters:', JSON.stringify(filters, null, 2));
+      
+      // Try main query with processes first
+      try {
+        reports = await db.report.findMany({
+          where: filters,
+          include: {
+            reporter: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+            processes: {
+              take: 1,
+              orderBy: {
+                createdAt: 'desc'
+              },
+              include: {
+                teamMembers: {
+                  include: {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true
+                      }
+                    }
+                  }
+                }
+              }
             }
-          }
-        },
-        orderBy: [
-          { scheduledDate: 'desc' },
-          { createdAt: 'desc' }
-        ],
-        skip: (page - 1) * limit,
-        take: limit
-      });
-      console.log('[PENJADWALAN] Reports query completed, found:', reports.length, 'reports');
+          },
+          orderBy: [
+            { scheduledDate: 'desc' },
+            { createdAt: 'desc' }
+          ],
+          skip: (page - 1) * limit,
+          take: limit
+        });
+        console.log('[PENJADWALAN] Reports query with processes completed, found:', reports.length, 'reports');
+      } catch (processError) {
+        console.error('[PENJADWALAN] Error with processes query, trying without:', processError);
+        
+        // Fallback: query without processes if there's a schema issue
+        try {
+          reports = await db.report.findMany({
+            where: filters,
+            include: {
+              reporter: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
+              }
+              // Skip processes for now to avoid schema issues
+            },
+            orderBy: [
+              { scheduledDate: 'desc' },
+              { createdAt: 'desc' }
+            ],
+            skip: (page - 1) * limit,
+            take: limit
+          });
+          console.log('[PENJADWALAN] Reports query without processes completed, found:', reports.length, 'reports');
+        } catch (fallbackError) {
+          console.error('[PENJADWALAN] Even fallback query failed:', fallbackError);
+          throw new Error(`All database query attempts failed: ${fallbackError instanceof Error ? fallbackError.message : 'Unknown error'}`);
+        }
+      }
     } catch (reportError) {
-      console.error('[PENJADWALAN] Error fetching reports:', reportError);
+      console.error('[PENJADWALAN] Critical error in reports query:', reportError);
+      console.error('[PENJADWALAN] Error type:', reportError?.constructor?.name);
+      console.error('[PENJADWALAN] Error message:', reportError instanceof Error ? reportError.message : String(reportError));
+      
+      // Check if it's a schema/mapping error
+      if (reportError instanceof Error && (reportError.message.includes('table') || reportError.message.includes('column') || reportError.message.includes('mapping'))) {
+        console.error('[PENJADWALAN] SCHEMA MAPPING ERROR DETECTED - Check Prisma schema and database sync');
+      }
+      
       throw new Error(`Database query failed: ${reportError instanceof Error ? reportError.message : 'Unknown error'}`);
     }
 
@@ -181,6 +242,7 @@ export async function GET(request: NextRequest) {
     if (reportIds.length > 0) {
       try {
         // Use a simpler approach with findMany and manual grouping
+        console.log('[PENJADWALAN] Querying documents for report IDs:', reportIds.length);
         const documents = await db.investigationDocument.findMany({
           where: {
             reportId: { in: reportIds }
@@ -199,9 +261,11 @@ export async function GET(request: NextRequest) {
           }
         }));
         
-        console.log('[PENJADWALAN] Documents data query completed');
+        console.log('[PENJADWALAN] Documents data query completed, found:', documents.length, 'documents');
       } catch (docError) {
         console.error('[PENJADWALAN] Error fetching documents:', docError);
+        console.error('[PENJADWALAN] Documents error type:', docError?.constructor?.name);
+        console.error('[PENJADWALAN] Documents error message:', docError instanceof Error ? docError.message : String(docError));
         // Continue without documents data if query fails
         documentsData = [];
       }
@@ -211,6 +275,7 @@ export async function GET(request: NextRequest) {
     const scheduledInvestigations = reports.map(report => {
       const documentsCount = documentsData.find(d => d.reportId === report.id)?._count.id || 0;
       const createdByName = report.scheduledBy ? `User ${report.scheduledBy}` : 'Unknown';
+      const process = report.processes?.[0]; // Get the most recent process
       
       return {
         id: report.id,
@@ -219,19 +284,15 @@ export async function GET(request: NextRequest) {
         reportNumber: report.reportNumber,
         status: report.status,
         scheduledDateTime: report.scheduledDate?.toISOString() || report.createdAt.toISOString(),
-        endDateTime: report.scheduledDate ? 
+        endDateTime: report.scheduledDate ?
           new Date(report.scheduledDate.getTime() + 2 * 60 * 60 * 1000).toISOString() : // Default 2 hours duration
           report.createdAt.toISOString(),
-        location: report.scheduledNotes?.split(' - ')[0] || 'Tempat belum ditentukan',
-        methods: [], // TODO: Extract from detailed investigation process if exists
-        partiesInvolved: [], // TODO: Extract from detailed investigation process if exists
-        teamMembers: [], // TODO: Extract from detailed investigation process if exists
-        consentObtained: false,
-        riskNotes: '',
-        planSummary: report.scheduledNotes || '',
-        followUpAction: '',
-        followUpDate: '',
-        accessLevel: 'CORE_TEAM_ONLY',
+        location: process?.location || report.scheduledNotes?.split(' - ')[0] || 'Tempat belum ditentukan',
+        methods: process?.methods || [],
+        partiesInvolved: process?.partiesInvolved || [],
+        teamMembers: process?.teamMembers || [],
+        riskNotes: process?.riskNotes || '',
+        planSummary: process?.planSummary || report.scheduledNotes || '',
         createdBy: createdByName,
         createdAt: report.createdAt.toISOString(),
         reporter: report.reporter,
@@ -293,20 +354,48 @@ export async function GET(request: NextRequest) {
 
 
   } catch (error) {
+    console.error("[PENJADWALAN] === CRITICAL ERROR ANALYSIS ===");
     console.error("[PENJADWALAN] Error occurred in catch block:", error);
     console.error("[PENJADWALAN] Error name:", error instanceof Error ? error.name : 'Unknown');
     console.error("[PENJADWALAN] Error message:", error instanceof Error ? error.message : String(error));
     console.error("[PENJADWALAN] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
     
-    // Provide more specific error details in development
+    // Check if it's a database connection error
+    if (error instanceof Error && error.message.includes('connection')) {
+      console.error("[PENJADWALAN] DATABASE CONNECTION ERROR DETECTED");
+    }
+    
+    // Check if it's a Prisma error
+    if (error instanceof Error && error.message.includes('P')) {
+      console.error("[PENJADWALAN] PRISMA ERROR DETECTED");
+    }
+    
+    // Check if it's an authentication error
+    if (error instanceof Error && error.message.includes('session')) {
+      console.error("[PENJADWALAN] AUTHENTICATION ERROR DETECTED");
+    }
+    
+    console.error("[PENJADWALAN] Environment check:");
+    console.error("[PENJADWALAN] NODE_ENV:", process.env.NODE_ENV);
+    console.error("[PENJADWALAN] DATABASE_URL exists:", !!process.env.DATABASE_URL);
+    console.error("[PENJADWALAN] DATABASE_URL sample:", process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 50) + '...' : 'NOT SET');
+    
+    // Provide detailed error information
     const errorDetails = {
-      success: false, 
+      success: false,
       message: "Terjadi kesalahan saat mengambil data penjadwalan",
-      error: process.env.NODE_ENV === 'development' ? {
+      timestamp: new Date().toISOString(),
+      error: {
         name: error instanceof Error ? error.name : 'Unknown',
         message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      } : undefined
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        type: error?.constructor?.name || 'Unknown'
+      },
+      environment: {
+        nodeEnv: process.env.NODE_ENV,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        timestamp: new Date().toISOString()
+      }
     };
     
     return Response.json(errorDetails, { status: 500 });
@@ -433,7 +522,7 @@ export async function PUT(request: NextRequest) {
       if (updateData.teamMembers) {
         // Delete existing team members
         await db.investigationTeamMember.deleteMany({
-          where: { scheduleId: existingProcess.id }
+          where: { processId: existingProcess.id }
         });
         
         // Add new team members
@@ -485,14 +574,8 @@ export async function PUT(request: NextRequest) {
         methods: updateData.methods || [],
         partiesInvolved: updateData.partiesInvolved || [],
         otherPartiesDetails: updateData.otherPartiesDetails,
-        consentObtained: updateData.consentObtained || false,
-        consentDocumentation: updateData.consentDocumentation,
         riskNotes: updateData.riskNotes,
         planSummary: updateData.planSummary,
-        followUpAction: updateData.followUpAction,
-        followUpDate: updateData.followUpDate ? new Date(updateData.followUpDate) : undefined,
-        followUpNotes: updateData.followUpNotes,
-        accessLevel: updateData.accessLevel || 'CORE_TEAM_ONLY',
         createdById: session.user.id,
         teamMembers: {
           create: (updateData.teamMembers || []).map((member: any) => ({
@@ -623,7 +706,7 @@ export async function DELETE(request: NextRequest) {
     // Delete investigation process if exists
     if (investigationProcess) {
       await db.investigationTeamMember.deleteMany({
-        where: { scheduleId: investigationProcess.id }
+        where: { processId: investigationProcess.id }
       });
 
       await db.investigationProcess.delete({

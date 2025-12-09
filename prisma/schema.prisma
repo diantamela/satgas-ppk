@@ -84,7 +84,7 @@ model Report {
 }
 
 model InvestigationProcess {
-  id                   String                @id(map: "InvestigationSchedule_pkey") @default(cuid())
+  id                   String                @id @default(cuid())
   reportId             String
   startDateTime        DateTime
   endDateTime          DateTime
@@ -104,23 +104,26 @@ model InvestigationProcess {
   createdById          String?
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
-  createdBy            User?                 @relation("UserCreatedProcesses", fields: [createdById], references: [id], map: "InvestigationSchedule_createdById_fkey")
-  report               Report                @relation(fields: [reportId], references: [id], onDelete: Cascade, map: "InvestigationSchedule_reportId_fkey")
+  createdBy            User?                 @relation("UserCreatedProcesses", fields: [createdById], references: [id])
+  report               Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  teamMembers          InvestigationTeamMember[]
 
-  @@index([createdAt], map: "InvestigationSchedule_createdAt_idx")
-  @@index([reportId], map: "InvestigationSchedule_reportId_idx")
-  @@index([status], map: "InvestigationSchedule_status_idx")
+  @@index([createdAt])
+  @@index([reportId])
+  @@index([status])
 }
 
 model InvestigationTeamMember {
   id         String   @id @default(cuid())
-  scheduleId String
+  processId  String
   userId     String
   role       TeamRole
   customRole String?
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  process    InvestigationProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([processId])
 }
 
 

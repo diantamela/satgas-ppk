@@ -88,7 +88,7 @@ function buildProcessReportText(
   entryIndex: number,
   reportNumber: string
 ) {
-  const d = processEntry.data;
+  const d = processEntry.data || {};
 
   const methodsText = d.methods
     ? d.methods
@@ -392,7 +392,7 @@ export default function InvestigationRekapanPage() {
       const lines = doc.splitTextToSize(content, 180);
       doc.text(lines, 10, 10);
 
-      const d = processEntry.data;
+      const d = processEntry.data || {};
 
       // Sisipkan gambar lampiran (kalau ada & bisa diakses)
       if (d.uploadedFiles && d.uploadedFiles.length > 0) {
@@ -623,7 +623,6 @@ export default function InvestigationRekapanPage() {
           </CardContent>
         </Card>
 
-
         {/* Riwayat Hasil Investigasi */}
         {investigationResults.length > 0 && (
           <Card>
@@ -642,22 +641,22 @@ export default function InvestigationRekapanPage() {
                 <table className="w-full border-collapse border border-gray-200 dark:border-gray-700 text-sm">
                   <thead>
                     <tr className="bg-gray-50 dark:bg-gray-800">
-                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
                         No
                       </th>
-                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
                         Tanggal Dibuat
                       </th>
-                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
                         Status Kasus
                       </th>
-                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
                         TTD Pembuat
                       </th>
-                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left">
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
                         TTD Ketua
                       </th>
-                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-center">
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold">
                         Aksi
                       </th>
                     </tr>
@@ -666,62 +665,104 @@ export default function InvestigationRekapanPage() {
                     {investigationResults.map((result: any, index: number) => (
                       <tr
                         key={result.id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-150"
                       >
-                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3 text-gray-900 dark:text-white font-medium">
                           {index + 1}
                         </td>
-                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
-                          {formatDate(result.createdAt)}
-                          <br />
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
+                          <div className="text-gray-900 dark:text-white font-medium">
+                            {formatDate(result.createdAt)}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {new Date(result.createdAt).toLocaleTimeString("id-ID")}
-                          </span>
+                          </div>
                         </td>
-                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2">
-                          <Badge className={
-                            result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION' 
-                              ? 'bg-green-500 hover:bg-green-600 text-white'
-                              : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
-                              ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                              : 'bg-orange-500 hover:bg-orange-600 text-white'
-                          }>
-                            {result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION' 
-                              ? 'Siap Rekomendasi'
-                              : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
-                              ? 'Sedang Berlangsung'
-                              : result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
-                              ? 'Ke Rektorat'
-                              : result.caseStatusAfterResult === 'CLOSED_TERMINATED'
-                              ? 'Ditutup'
-                              : result.caseStatusAfterResult}
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
+                          <Badge
+                            className={
+                              result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION'
+                                ? 'bg-green-500 hover:bg-green-600 text-white border-green-500'
+                                : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white border-blue-500'
+                                : result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
+                                ? 'bg-purple-500 hover:bg-purple-600 text-white border-purple-500'
+                                : result.caseStatusAfterResult === 'CLOSED_TERMINATED'
+                                ? 'bg-red-500 hover:bg-red-600 text-white border-red-500'
+                                : 'bg-orange-500 hover:bg-orange-600 text-white border-orange-500'
+                            }
+                            variant="outline"
+                          >
+                            <div className="flex items-center gap-1">
+                              {result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION' && <span className="w-2 h-2 bg-white rounded-full"></span>}
+                              {result.caseStatusAfterResult === 'UNDER_INVESTIGATION' && <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>}
+                              {result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT' && <span className="w-2 h-2 bg-white rounded-full"></span>}
+                              {result.caseStatusAfterResult === 'CLOSED_TERMINATED' && <span className="w-2 h-2 bg-white rounded-full"></span>}
+                              {result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION'
+                                ? 'Siap Rekomendasi'
+                                : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
+                                ? 'Sedang Berlangsung'
+                                : result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
+                                ? 'Ke Rektorat'
+                                : result.caseStatusAfterResult === 'CLOSED_TERMINATED'
+                                ? 'Ditutup'
+                                : result.caseStatusAfterResult}
+                            </div>
                           </Badge>
                         </td>
-                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
-                          {result.creatorDigitalSignature ? '✓' : '✗'}
-                          {result.creatorDigitalSignature && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                              ({formatDate(result.creatorSignatureDate)})
-                            </span>
-                          )}
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${
+                              result.creatorDigitalSignature
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                            }`}>
+                              {result.creatorDigitalSignature ? '✓' : '✗'}
+                            </div>
+                            <div className="text-sm">
+                              <div className="text-gray-900 dark:text-white font-medium">
+                                {result.creatorDigitalSignature ? 'Tertanda' : 'Belum Tanda'}
+                              </div>
+                              {result.creatorDigitalSignature && result.creatorSignatureDate && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatDate(result.creatorSignatureDate)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
-                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
-                          {result.chairpersonDigitalSignature ? '✓' : '✗'}
-                          {result.chairpersonDigitalSignature && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                              ({formatDate(result.chairpersonSignatureDate)})
-                            </span>
-                          )}
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${
+                              result.chairpersonDigitalSignature
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                            }`}>
+                              {result.chairpersonDigitalSignature ? '✓' : '✗'}
+                            </div>
+                            <div className="text-sm">
+                              <div className="text-gray-900 dark:text-white font-medium">
+                                {result.chairpersonDigitalSignature ? 'Tertanda' : 'Belum Tanda'}
+                              </div>
+                              {result.chairpersonDigitalSignature && result.chairpersonSignatureDate && (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {formatDate(result.chairpersonSignatureDate)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </td>
-                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-center">
-                          <div className="flex gap-2 justify-center">
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3 text-center">
+                          <div className="flex gap-1 justify-center">
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-8 px-2 text-xs"
                               onClick={() => {
                                 // Open results form in edit/view mode
                                 window.open(`/satgas/dashboard/investigasi/${id}/hasil`, '_blank');
                               }}
+                              title="Lihat detail berita acara"
                             >
                               <Eye className="w-3 h-3 mr-1" />
                               Lihat
@@ -729,7 +770,9 @@ export default function InvestigationRekapanPage() {
                             <Button
                               variant="outline"
                               size="sm"
+                              className="h-8 px-2 text-xs"
                               onClick={() => handleDownloadResultPdf(result.id)}
+                              title="Unduh PDF berita acara"
                             >
                               <Download className="w-3 h-3 mr-1" />
                               PDF
@@ -799,35 +842,35 @@ export default function InvestigationRekapanPage() {
                           </span>
                         </td>
                         <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-900 dark:text-white">
-                          {processEntry.data.location || "-"}
+                          {processEntry.data?.location || "-"}
                         </td>
                         <td className="border border-gray-200 dark:border-gray-700 px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-900 dark:text-white">
-                            {processEntry.data.uploadedFiles
-                              ? `${processEntry.data.uploadedFiles.length} file`
-                              : "0 file"}
-                          </span>
-                          {processEntry.data.uploadedFiles && processEntry.data.uploadedFiles.length > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                // Open all documents in new tabs
-                                processEntry.data.uploadedFiles.forEach((file: any, idx: number) => {
-                                  if (file.path) {
-                                    setTimeout(() => {
-                                      window.open(file.path, '_blank');
-                                    }, idx * 300);
-                                  }
-                                });
-                              }}
-                            >
-                              <Eye className="w-3 h-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-900 dark:text-white">
+                              {processEntry.data?.uploadedFiles
+                                ? `${processEntry.data.uploadedFiles.length} file`
+                                : "0 file"}
+                            </span>
+                            {processEntry.data?.uploadedFiles && processEntry.data.uploadedFiles.length > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  // Open all documents in new tabs
+                                  processEntry.data.uploadedFiles.forEach((file: any, idx: number) => {
+                                    if (file.path) {
+                                      setTimeout(() => {
+                                        window.open(file.path, '_blank');
+                                      }, idx * 300);
+                                    }
+                                  });
+                                }}
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
                         <td className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-center">
                           <div className="flex gap-2 justify-center">
                             {/* Lihat (modal detail) */}
@@ -866,7 +909,7 @@ export default function InvestigationRekapanPage() {
         )}
 
         {/* Informasi Penjadwalan */}
-        {(report.scheduledDate || latestProcess?.data.followUpAction) && (
+        {(report.scheduledDate || latestProcess?.data?.followUpAction) && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -907,7 +950,7 @@ export default function InvestigationRekapanPage() {
                 <>
                   <Separator />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {latestProcess.data.startDateTime && (
+                    {latestProcess.data?.startDateTime && (
                       <div>
                         <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Waktu Mulai Proses Terbaru
@@ -917,7 +960,7 @@ export default function InvestigationRekapanPage() {
                         </p>
                       </div>
                     )}
-                    {latestProcess.data.endDateTime && (
+                    {latestProcess.data?.endDateTime && (
                       <div>
                         <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Waktu Selesai Proses Terbaru
@@ -929,29 +972,6 @@ export default function InvestigationRekapanPage() {
                     )}
                   </div>
 
-                  {latestProcess.data.followUpAction && (
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Tindak Lanjut Terbaru
-                      </h4>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <Badge variant="secondary">
-                          {followUpLabels[latestProcess.data.followUpAction] ??
-                            latestProcess.data.followUpAction}
-                        </Badge>
-                        {latestProcess.data.followUpDate && (
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            Target: {formatDate(latestProcess.data.followUpDate)}
-                          </span>
-                        )}
-                      </div>
-                      {latestProcess.data.followUpNotes && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                          {latestProcess.data.followUpNotes}
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </>
               )}
             </CardContent>
@@ -992,7 +1012,7 @@ export default function InvestigationRekapanPage() {
                       Lokasi
                     </h4>
                     <p className="text-gray-900 dark:text-white">
-                      {selectedProcess.data.location || "-"}
+                      {selectedProcess.data?.location || "-"}
                     </p>
                   </div>
                   <div>
@@ -1000,7 +1020,7 @@ export default function InvestigationRekapanPage() {
                       Waktu Mulai
                     </h4>
                     <p className="text-gray-900 dark:text-white">
-                      {formatDateTime(selectedProcess.data.startDateTime)}
+                      {formatDateTime(selectedProcess.data?.startDateTime)}
                     </p>
                   </div>
                   <div>
@@ -1008,19 +1028,19 @@ export default function InvestigationRekapanPage() {
                       Waktu Selesai
                     </h4>
                     <p className="text-gray-900 dark:text-white">
-                      {formatDateTime(selectedProcess.data.endDateTime)}
+                      {formatDateTime(selectedProcess.data?.endDateTime)}
                     </p>
                   </div>
                 </div>
 
                 {/* Metode */}
-                {(selectedProcess.data.methods && selectedProcess.data.methods.length > 0) ? (
+                {(selectedProcess.data?.methods && selectedProcess.data?.methods?.length > 0) ? (
                   <div>
                     <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Metode
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {selectedProcess.data.methods.map((m: string) => (
+                      {selectedProcess.data?.methods?.map((m: string) => (
                         <Badge key={m} variant="secondary">
                           {methodLabels[m] ?? m}
                         </Badge>
@@ -1037,21 +1057,21 @@ export default function InvestigationRekapanPage() {
                 )}
 
                 {/* Pihak Terlibat */}
-                {(selectedProcess.data.partiesInvolved && selectedProcess.data.partiesInvolved.length > 0) ? (
+                {(selectedProcess.data?.partiesInvolved && selectedProcess.data?.partiesInvolved?.length > 0) ? (
                   <div>
                     <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Pihak Terlibat
                     </h4>
                     <div className="flex flex-wrap gap-2">
-                      {selectedProcess.data.partiesInvolved.map((p: string) => (
+                      {selectedProcess.data?.partiesInvolved?.map((p: string) => (
                         <Badge key={p} variant="outline">
                           {partyLabels[p] ?? p}
                         </Badge>
                       ))}
                     </div>
-                    {selectedProcess.data.otherPartiesDetails && (
+                    {selectedProcess.data?.otherPartiesDetails && (
                       <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
-                        {selectedProcess.data.otherPartiesDetails}
+                        {selectedProcess.data?.otherPartiesDetails}
                       </p>
                     )}
                   </div>
@@ -1065,13 +1085,13 @@ export default function InvestigationRekapanPage() {
                 )}
 
                 {/* Tim */}
-                {(selectedProcess.data.teamMembers && selectedProcess.data.teamMembers.length > 0) ? (
+                {(selectedProcess.data?.teamMembers && selectedProcess.data?.teamMembers?.length > 0) ? (
                   <div>
                     <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Tim Investigasi
                     </h4>
                     <div className="space-y-1">
-                      {selectedProcess.data.teamMembers.map(
+                      {selectedProcess.data?.teamMembers?.map(
                         (member: any, idx: number) => (
                           <div key={idx}>
                             <span className="font-medium text-gray-900 dark:text-white">
@@ -1099,38 +1119,38 @@ export default function InvestigationRekapanPage() {
                 )}
 
                 {/* Catatan Risiko */}
-                {selectedProcess.data.riskNotes && (
+                {selectedProcess.data?.riskNotes && (
                   <div>
                     <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Catatan Risiko & Keamanan
                     </h4>
                     <p className="text-xs text-gray-900 dark:text-white bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded border border-yellow-200 dark:border-yellow-800">
-                      {selectedProcess.data.riskNotes}
+                      {selectedProcess.data?.riskNotes}
                     </p>
                   </div>
                 )}
 
                 {/* Ringkasan Rencana */}
-                {selectedProcess.data.planSummary && (
+                {selectedProcess.data?.planSummary && (
                   <div>
                     <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Ringkasan Rencana
                     </h4>
                     <p className="text-xs text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-2 rounded border border-blue-200 dark:border-blue-800">
-                      {selectedProcess.data.planSummary}
+                      {selectedProcess.data?.planSummary}
                     </p>
                   </div>
                 )}
 
                 {/* Dokumen / Lampiran */}
-                {selectedProcess.data.uploadedFiles &&
-                  selectedProcess.data.uploadedFiles.length > 0 && (
+                {selectedProcess.data?.uploadedFiles &&
+                  selectedProcess.data?.uploadedFiles?.length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Dokumen Lampiran
                       </h4>
                       <ul className="space-y-2">
-                        {selectedProcess.data.uploadedFiles.map(
+                        {selectedProcess.data?.uploadedFiles?.map(
                           (file: any, idx: number) => (
                             <li
                               key={idx}

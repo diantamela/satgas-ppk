@@ -52,12 +52,8 @@ interface ScheduledInvestigation {
   methods: string[];
   partiesInvolved: string[];
   teamMembers: any[];
-  consentObtained: boolean;
   riskNotes: string;
   planSummary: string;
-  followUpAction: string;
-  followUpDate: string;
-  accessLevel: string;
   createdBy: string;
   createdAt: string;
   // Additional fields for comprehensive modal
@@ -101,13 +97,8 @@ export default function PenjadwalanPage() {
     location: "",
     methods: [] as string[],
     partiesInvolved: [] as string[],
-    consentObtained: false,
-    consentDocumentation: "",
     riskNotes: "",
-    planSummary: "",
-    followUpAction: "",
-    followUpDate: "",
-    accessLevel: "CORE_TEAM_ONLY"
+    planSummary: ""
   });
 
   // Statistics
@@ -158,13 +149,8 @@ export default function PenjadwalanPage() {
           location: formData.location,
           methods: formData.methods,
           partiesInvolved: formData.partiesInvolved,
-          consentObtained: formData.consentObtained,
-          consentDocumentation: formData.consentDocumentation,
           riskNotes: formData.riskNotes,
-          planSummary: formData.planSummary,
-          followUpAction: formData.followUpAction,
-          followUpDate: formData.followUpDate || null,
-          accessLevel: formData.accessLevel,
+          planSummary: formData.planSummary
         })
       });
 
@@ -194,13 +180,8 @@ export default function PenjadwalanPage() {
       location: "",
       methods: [],
       partiesInvolved: [],
-      consentObtained: false,
-      consentDocumentation: "",
       riskNotes: "",
-      planSummary: "",
-      followUpAction: "",
-      followUpDate: "",
-      accessLevel: "CORE_TEAM_ONLY"
+      planSummary: ""
     });
     setSelectedReportId("");
     setEditingInvestigation(null);
@@ -222,13 +203,8 @@ export default function PenjadwalanPage() {
       location: investigation.location || '',
       methods: investigation.methods || [],
       partiesInvolved: investigation.partiesInvolved || [],
-      consentObtained: investigation.consentObtained || false,
-      consentDocumentation: '',
       riskNotes: investigation.riskNotes || '',
-      planSummary: investigation.planSummary || '',
-      followUpAction: investigation.followUpAction || '',
-      followUpDate: investigation.followUpDate ? new Date(investigation.followUpDate).toISOString().split('T')[0] : '',
-      accessLevel: investigation.accessLevel || 'CORE_TEAM_ONLY'
+      planSummary: investigation.planSummary || ''
     });
   };
 
@@ -254,13 +230,8 @@ export default function PenjadwalanPage() {
             location: formData.location,
             methods: formData.methods,
             partiesInvolved: formData.partiesInvolved,
-            consentObtained: formData.consentObtained,
-            consentDocumentation: formData.consentDocumentation,
             riskNotes: formData.riskNotes,
-            planSummary: formData.planSummary,
-            followUpAction: formData.followUpAction,
-            followUpDate: formData.followUpDate || null,
-            accessLevel: formData.accessLevel,
+            planSummary: formData.planSummary
           }
         })
       });
@@ -725,31 +696,6 @@ export default function PenjadwalanPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="consentObtained"
-                    checked={formData.consentObtained}
-                    onChange={(e) => setFormData({...formData, consentObtained: e.target.checked})}
-                    className="rounded border-gray-300"
-                  />
-                  <label htmlFor="consentObtained" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Persetujuan Diperoleh
-                  </label>
-                </div>
-
-                {formData.consentObtained && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Dokumentasi Persetujuan
-                    </label>
-                    <Input
-                      value={formData.consentDocumentation}
-                      onChange={(e) => setFormData({...formData, consentDocumentation: e.target.value})}
-                      placeholder="Contoh: Tertulis / Lisan Terekam"
-                    />
-                  </div>
-                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1037,11 +983,11 @@ export default function PenjadwalanPage() {
                         </div>
 
                         {/* Additional Info */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-gray-500 dark:text-gray-400">Tim:</span>
                             <p className="font-medium">
-                              {investigation.teamMembers?.length > 0 
+                              {investigation.teamMembers?.length > 0
                                 ? `${investigation.teamMembers.length} anggota`
                                 : 'Belum ditentukan'}
                             </p>
@@ -1049,17 +995,9 @@ export default function PenjadwalanPage() {
                           <div>
                             <span className="text-gray-500 dark:text-gray-400">Metode:</span>
                             <p className="font-medium">
-                              {investigation.methods?.length > 0 
+                              {investigation.methods?.length > 0
                                 ? `${investigation.methods.length} metode`
                                 : 'Belum dipilih'}
-                            </p>
-                          </div>
-                          <div>
-                            <span className="text-gray-500 dark:text-gray-400">Akses:</span>
-                            <p className="font-medium">
-                              {investigation.accessLevel === 'CORE_TEAM_ONLY' ? 'Tim Inti' :
-                               investigation.accessLevel === 'FULL_SATGAS' ? 'Satgas Penuh' :
-                               investigation.accessLevel === 'LEADERSHIP_ONLY' ? 'Pimpinan Tertentu' : 'Lainnya'}
                             </p>
                           </div>
                         </div>
@@ -1238,18 +1176,6 @@ export default function PenjadwalanPage() {
                   </div>
                 )}
 
-                {/* Access Level */}
-                <div>
-                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400">Level Akses</label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Shield className="w-4 h-4 text-gray-400" />
-                    <p className="font-medium">
-                      {viewingInvestigation.accessLevel === 'CORE_TEAM_ONLY' ? 'Tim Inti Saja' :
-                       viewingInvestigation.accessLevel === 'FULL_SATGAS' ? 'Satgas Penuh' :
-                       viewingInvestigation.accessLevel === 'LEADERSHIP_ONLY' ? 'Pimpinan Tertentu' : viewingInvestigation.accessLevel}
-                    </p>
-                  </div>
-                </div>
 
                 {/* Created Info */}
                 <div className="text-xs text-gray-500 dark:text-gray-400 border-t pt-4">

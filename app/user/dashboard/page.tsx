@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { User, FileText, Clock, CheckCircle, Eye, Plus, AlertTriangle, MessageSquare, BookOpen, Phone, Settings, Bell, LogOut, Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { User, FileText, Clock, CheckCircle, Eye, Plus, AlertTriangle, MessageSquare, BookOpen, Phone, Settings, Bell, LogOut, Loader2, X, Check } from "lucide-react";
 import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -23,6 +24,10 @@ export default function UserDashboardPage() {
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
   const { data: session } = useSession();
 
   const handleSignOut = async () => {
@@ -79,6 +84,71 @@ export default function UserDashboardPage() {
     fetchUserData();
   }, [session]);
 
+  // Fetch notifications
+  const fetchNotifications = async () => {
+    try {
+      setNotificationsLoading(true);
+      const response = await fetch('/api/notifications');
+      const data = await response.json();
+      
+      if (data.success) {
+        setNotifications(data.data.notifications || []);
+        const unreadCount = data.data.notifications?.filter((n: any) => !n.isRead).length || 0;
+        setUnreadNotifications(unreadCount);
+        
+        // Update user stats with unread notifications
+        setUserStats(prev => ({
+          ...prev,
+          unreadMessages: unreadCount
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  // Mark notification as read
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notificationId,
+          isRead: true
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        setNotifications(prev => 
+          prev.map(n => 
+            n.id === notificationId ? { ...n, isRead: true, readAt: new Date() } : n
+          )
+        );
+        
+        // Update unread count
+        setUnreadNotifications(prev => Math.max(0, prev - 1));
+        setUserStats(prev => ({
+          ...prev,
+          unreadMessages: Math.max(0, prev.unreadMessages - 1)
+        }));
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
+
+  // Handle notifications dialog open
+  const handleNotificationsOpen = () => {
+    setNotificationsDialogOpen(true);
+    fetchNotifications();
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "PENDING":
@@ -100,6 +170,40 @@ export default function UserDashboardPage() {
     return report.investigationProgress || 0;
   };
 
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'WARNING':
+        return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+      case 'INFO':
+        return <Bell className="w-4 h-4 text-blue-500" />;
+      case 'SUCCESS':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      default:
+        return <Bell className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const formatNotificationTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+      return `${diffInMinutes} menit yang lalu`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} jam yang lalu`;
+    } else {
+      return date.toLocaleDateString('id-ID', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  };
+
   return (
     <RoleGuard requiredRoles={['USER']}>
       <div className={styles.root}>
@@ -119,11 +223,103 @@ export default function UserDashboardPage() {
               </div>
             </div>
             <div className="flex gap-2 mt-4 md:mt-0">
-              {/* Konsultasi */}
-              <Button variant="outline" size="sm" className="border-red-500 text-red-600 hover:bg-red-50">
-                <Bell className="w-4 h-4 mr-2" />
-                Konsultasi ({userStats.unreadMessages})
-              </Button>
+              {/* Notifikasi */}
+              <Dialog open={notificationsDialogOpen} onOpenChange={setNotificationsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="border-red-500 text-red-600 hover:bg-red-50 relative"
+                    onClick={handleNotificationsOpen}
+                  >
+                    <Bell className="w-4 h-4 mr-2" />
+                    Notifikasi
+                    {unreadNotifications > 0 && (
+                      <Badge className="ml-2 bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[1.2rem] h-5 rounded-full flex items-center justify-center">
+                        {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                      </Badge>
+                    )}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Bell className="w-5 h-5" />
+                      Notifikasi
+                      {unreadNotifications > 0 && (
+                        <Badge className="bg-red-500 text-white">
+                          {unreadNotifications} baru
+                        </Badge>
+                      )}
+                    </DialogTitle>
+                    <DialogDescription>
+                      Daftar notifikasi terkait laporan dan jadwal investigasi Anda.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4 max-h-[60vh] overflow-y-auto">
+                    {notificationsLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Memuat notifikasi...
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p className="font-semibold">Belum ada notifikasi</p>
+                        <p className="text-sm mt-1">Notifikasi akan muncul di sini ketika ada pembaruan status laporan</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`p-4 border rounded-lg transition-colors ${
+                              notification.isRead 
+                                ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700' 
+                                : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 mt-1">
+                                {getNotificationIcon(notification.type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <h4 className="font-semibold text-gray-900 dark:text-white">
+                                      {notification.title}
+                                    </h4>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                      {notification.message}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                      {formatNotificationTime(notification.createdAt)}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-4">
+                                    {!notification.isRead && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => markNotificationAsRead(notification.id)}
+                                        className="text-xs h-7 px-2"
+                                      >
+                                        <Check className="w-3 h-3 mr-1" />
+                                        Tandai dibaca
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
               {/* Pengaturan */}
               <Button variant="outline" size="sm" asChild className="border-red-500 text-red-600 hover:bg-red-50">
                 <Link href="/user/settings" className="flex items-center">
@@ -183,15 +379,15 @@ export default function UserDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Pesan */}
+            {/* Notifikasi */}
             <Card className="border-l-4 border-l-purple-600 bg-white dark:bg-gray-800 shadow-lg">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription className="text-purple-600 font-semibold">Pesan Baru</CardDescription>
-                <MessageSquare className="w-5 h-5 text-purple-600" />
+                <CardDescription className="text-purple-600 font-semibold">Notifikasi Baru</CardDescription>
+                <Bell className="w-5 h-5 text-purple-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-extrabold text-gray-900 dark:text-white">{userStats.unreadMessages}</div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pesan/notifikasi belum dibaca</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Notifikasi belum dibaca</p>
               </CardContent>
             </Card>
           </div>
