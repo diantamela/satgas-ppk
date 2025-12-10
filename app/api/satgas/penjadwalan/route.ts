@@ -10,6 +10,8 @@ export const runtime = "nodejs";
 // Helper function to send notifications
 async function sendNotification(userId: string, type: string, title: string, message: string, relatedEntityId?: string, relatedEntityType?: string) {
   try {
+    console.log('[NOTIFICATION] Sending notification:', { userId, type, title, message, relatedEntityId, relatedEntityType });
+    
     // Map string types to proper enum values
     let notificationType: any = 'REPORT_STATUS_CHANGED';
     switch (type) {
@@ -32,18 +34,24 @@ async function sendNotification(userId: string, type: string, title: string, mes
         notificationType = 'REPORT_STATUS_CHANGED';
     }
 
-    await db.notification.create({
-      data: {
-        userId,
-        type: notificationType,
-        title,
-        message,
-        relatedEntityId: relatedEntityId || null,
-        relatedEntityType: relatedEntityType || null,
-      }
+    const notificationData = {
+      userId,
+      type: notificationType,
+      title,
+      message,
+      relatedEntityId: relatedEntityId || null,
+      relatedEntityType: relatedEntityType || null,
+    };
+    
+    console.log('[NOTIFICATION] Notification data to create:', notificationData);
+    
+    const notification = await db.notification.create({
+      data: notificationData
     });
+    
+    console.log('[NOTIFICATION] Notification created successfully:', notification);
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error('[NOTIFICATION] Error sending notification:', error);
   }
 }
 
@@ -489,12 +497,47 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { reportId, updateData } = body;
 
+    console.log("[PENJADWALAN] PUT - Request body:", { reportId, updateData });
+
     if (!reportId || !updateData) {
       return Response.json(
         { success: false, message: "Report ID and update data are required" },
         { status: 400 }
       );
     }
+
+    // Validate required fields
+    if (!updateData.location) {
+      return Response.json(
+        { success: false, message: "Location is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate date formats if provided
+    if (updateData.startDateTime && isNaN(new Date(updateData.startDateTime).getTime())) {
+      return Response.json(
+        { success: false, message: "Invalid start date time format" },
+        { status: 400 }
+      );
+    }
+
+    if (updateData.endDateTime && isNaN(new Date(updateData.endDateTime).getTime())) {
+      return Response.json(
+        { success: false, message: "Invalid end date time format" },
+        { status: 400 }
+      );
+    }
+
+    // Validate team members if provided
+    if (updateData.teamMembers && !Array.isArray(updateData.teamMembers)) {
+      return Response.json(
+        { success: false, message: "Team members must be an array" },
+        { status: 400 }
+      );
+    }
+
+    console.log("[PENJADWALAN] PUT - Starting database operations for reportId:", reportId);
 
     // Get existing investigation process if it exists
     const existingProcess = await db.investigationProcess.findFirst({
@@ -510,51 +553,76 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-    let updatedProcess;
-    if (existingProcess) {
-      // Update existing investigation process
-      const processUpdateData: any = {
-        ...updateData,
-        updatedAt: new Date()
+    console.log("[PENJADWALAN] PUT - Existing process found:", !!existingProcess);
+
+  let updatedProcess;
+  if (existingProcess) {
+    console.log("[PENJADWALAN] PUT - Updating existing process:", existingProcess.id);
+    
+    // Update existing investigation process
+    const processUpdateData: any = {
+      location: updateData.location || existingProcess.location,
+      methods: updateData.methods || existingProcess.methods,
+      partiesInvolved: updateData.partiesInvolved || existingProcess.partiesInvolved,
+      otherPartiesDetails: updateData.otherPartiesDetails,
+      riskNotes: updateData.riskNotes,
+      planSummary: updateData.planSummary,
+      updatedAt: new Date()
+    };
+
+    console.log("[PENJADWALAN] PUT - Update data prepared:", JSON.stringify(processUpdateData, null, 2));
+
+    // Handle required date fields
+    if (updateData.startDateTime) {
+      processUpdateData.startDateTime = new Date(updateData.startDateTime);
+    }
+    if (updateData.endDateTime) {
+      processUpdateData.endDateTime = new Date(updateData.endDateTime);
+    }
+
+    // Handle team members update if provided
+    if (updateData.teamMembers) {
+      console.log("[PENJADWALAN] PUT - Processing team members:", updateData.teamMembers.length);
+      
+      // Delete existing team members
+      await db.investigationTeamMember.deleteMany({
+        where: { processId: existingProcess.id }
+      });
+      
+      // Add new team members
+      processUpdateData.teamMembers = {
+        create: updateData.teamMembers.map((member: any) => ({
+          userId: member.userId,
+          role: member.role,
+          customRole: member.customRole
+        }))
       };
+    }
 
-      // Handle team members update if provided
-      if (updateData.teamMembers) {
-        // Delete existing team members
-        await db.investigationTeamMember.deleteMany({
-          where: { processId: existingProcess.id }
-        });
-        
-        // Add new team members
-        processUpdateData.teamMembers = {
-          create: updateData.teamMembers.map((member: any) => ({
-            userId: member.userId,
-            role: member.role,
-            customRole: member.customRole
-          }))
-        };
-      }
-
-      updatedProcess = await db.investigationProcess.update({
-        where: { id: existingProcess.id },
-        data: processUpdateData,
-        include: {
-          teamMembers: {
-            include: {
-              user: {
-                select: { id: true, name: true, email: true }
-              }
+    console.log("[PENJADWALAN] PUT - Executing update with data:", JSON.stringify(processUpdateData, null, 2));
+    
+    updatedProcess = await db.investigationProcess.update({
+      where: { id: existingProcess.id },
+      data: processUpdateData,
+      include: {
+        teamMembers: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true }
             }
-          },
-          report: {
-            include: {
-              reporter: {
-                select: { id: true, name: true, email: true }
-              }
+          }
+        },
+        report: {
+          include: {
+            reporter: {
+              select: { id: true, name: true, email: true }
             }
           }
         }
-      });
+      }
+    });
+    
+    console.log("[PENJADWALAN] PUT - Process updated successfully:", updatedProcess.id);
 
       // Update report scheduled date if provided
       if (updateData.startDateTime) {
@@ -567,15 +635,17 @@ export async function PUT(request: NextRequest) {
         });
       }
     } else {
+      console.log("[PENJADWALAN] PUT - Creating new investigation process");
+      
       // Create new investigation process if it doesn't exist
       const createData: any = {
         reportId,
-        location: updateData.location,
+        location: updateData.location || '',
         methods: updateData.methods || [],
         partiesInvolved: updateData.partiesInvolved || [],
         otherPartiesDetails: updateData.otherPartiesDetails,
         riskNotes: updateData.riskNotes,
-        planSummary: updateData.planSummary,
+        planSummary: updateData.planSummary || '',
         createdById: session.user.id,
         teamMembers: {
           create: (updateData.teamMembers || []).map((member: any) => ({
@@ -586,13 +656,14 @@ export async function PUT(request: NextRequest) {
         }
       };
 
-      // Only add date fields if they are provided
-      if (updateData.startDateTime) {
-        createData.startDateTime = new Date(updateData.startDateTime);
-      }
-      if (updateData.endDateTime) {
-        createData.endDateTime = new Date(updateData.endDateTime);
-      }
+      // Set required date fields - provide defaults if not provided
+      const startDateTime = updateData.startDateTime ? new Date(updateData.startDateTime) : new Date();
+      const endDateTime = updateData.endDateTime ? new Date(updateData.endDateTime) : new Date(Date.now() + 2 * 60 * 60 * 1000); // Default 2 hours later
+      
+      createData.startDateTime = startDateTime;
+      createData.endDateTime = endDateTime;
+
+      console.log("[PENJADWALAN] PUT - Creating process with data:", JSON.stringify(createData, null, 2));
 
       updatedProcess = await db.investigationProcess.create({
         data: createData,
@@ -613,16 +684,24 @@ export async function PUT(request: NextRequest) {
           }
         }
       });
+      
+      console.log("[PENJADWALAN] PUT - Process created successfully:", updatedProcess.id);
 
       // Update report status to SCHEDULED
+      const reportUpdateData = {
+        status: ReportStatus.SCHEDULED,
+        scheduledDate: updateData.startDateTime ? new Date(updateData.startDateTime) : new Date(),
+        scheduledNotes: updateData.planSummary
+      };
+      
+      console.log("[PENJADWALAN] PUT - Updating report status:", JSON.stringify(reportUpdateData, null, 2));
+      
       await db.report.update({
         where: { id: reportId },
-        data: {
-          status: ReportStatus.SCHEDULED,
-          scheduledDate: updateData.startDateTime ? new Date(updateData.startDateTime) : new Date(),
-          scheduledNotes: updateData.planSummary
-        }
+        data: reportUpdateData
       });
+      
+      console.log("[PENJADWALAN] PUT - Report updated successfully");
     }
 
     // Send notification to reporter about schedule update
@@ -631,7 +710,11 @@ export async function PUT(request: NextRequest) {
       include: { reporter: true }
     });
     
+    console.log("[PENJADWALAN] PUT - Found report for notification:", !!report, "reporter:", !!report?.reporter);
+    
     if (report?.reporter) {
+      console.log("[PENJADWALAN] PUT - Sending notification to reporter:", report.reporter.id);
+      
       await sendNotification(
         report.reporter.id,
         'INVESTIGATION_SCHEDULE_UPDATED',
@@ -641,8 +724,12 @@ export async function PUT(request: NextRequest) {
         'REPORT'
       );
 
+      console.log("[PENJADWALAN] PUT - Notification sent successfully");
+      
       // Note: Team member notifications would be sent here if teamMembers data was available
     }
+
+    console.log("[PENJADWALAN] PUT - Operation completed successfully");
 
     return Response.json({
       success: true,
@@ -651,9 +738,39 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error("Error updating investigation schedule:", error);
+    console.error("[PENJADWALAN] PUT - Critical error:", error);
+    console.error("[PENJADWALAN] PUT - Error name:", error instanceof Error ? error.name : 'Unknown');
+    console.error("[PENJADWALAN] PUT - Error message:", error instanceof Error ? error.message : String(error));
+    console.error("[PENJADWALAN] PUT - Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Check for specific error types
+    if (error instanceof Error) {
+      if (error.message.includes('required')) {
+        return Response.json(
+          { success: false, message: "Data yang diperlukan tidak lengkap", details: error.message },
+          { status: 400 }
+        );
+      }
+      if (error.message.includes('foreign key')) {
+        return Response.json(
+          { success: false, message: "Data referensi tidak ditemukan", details: error.message },
+          { status: 400 }
+        );
+      }
+      if (error.message.includes('connection')) {
+        return Response.json(
+          { success: false, message: "Koneksi database bermasalah", details: error.message },
+          { status: 500 }
+        );
+      }
+    }
+    
     return Response.json(
-      { success: false, message: "Terjadi kesalahan saat memperbarui jadwal investigasi" },
+      {
+        success: false,
+        message: "Terjadi kesalahan saat memperbarui jadwal investigasi",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

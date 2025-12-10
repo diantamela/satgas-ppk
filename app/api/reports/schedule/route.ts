@@ -9,6 +9,8 @@ export const runtime = "nodejs";
 // Helper function to send notifications
 async function sendNotification(userId: string, type: string, title: string, message: string, relatedEntityId?: string, relatedEntityType?: string) {
   try {
+    console.log('[NOTIFICATION] Sending notification:', { userId, type, title, message, relatedEntityId, relatedEntityType });
+    
     // Map string types to proper enum values
     let notificationType: any = 'REPORT_STATUS_CHANGED';
     switch (type) {
@@ -22,18 +24,24 @@ async function sendNotification(userId: string, type: string, title: string, mes
         notificationType = 'REPORT_STATUS_CHANGED';
     }
 
-    await db.notification.create({
-      data: {
-        userId,
-        type: notificationType,
-        title,
-        message,
-        relatedEntityId: relatedEntityId || null,
-        relatedEntityType: relatedEntityType || null,
-      }
+    const notificationData = {
+      userId,
+      type: notificationType,
+      title,
+      message,
+      relatedEntityId: relatedEntityId || null,
+      relatedEntityType: relatedEntityType || null,
+    };
+    
+    console.log('[NOTIFICATION] Notification data to create:', notificationData);
+    
+    const notification = await db.notification.create({
+      data: notificationData
     });
+    
+    console.log('[NOTIFICATION] Notification created successfully:', notification);
   } catch (error) {
-    console.error('Error sending notification:', error);
+    console.error('[NOTIFICATION] Error sending notification:', error);
   }
 }
 

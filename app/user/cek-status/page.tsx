@@ -45,12 +45,19 @@ export default function StatusCheckPage() {
       const response = await fetch('/api/notifications');
       const data = await response.json();
       
+      console.log('All notifications response:', data);
+      
       if (data.success) {
         // Filter notifications related to this specific report
-        const reportNotifications = data.data.notifications?.filter((n: any) =>
-          n.relatedEntityId === reportId || n.relatedEntityType === 'REPORT'
-        ) || [];
+        const allNotifications = data.data.notifications || [];
+        console.log('All notifications:', allNotifications);
         
+        const reportNotifications = allNotifications.filter((n: any) => {
+          console.log('Checking notification:', { id: n.id, relatedEntityId: n.relatedEntityId, relatedEntityType: n.relatedEntityType, reportId });
+          return n.relatedEntityId === reportId || n.relatedEntityType === 'REPORT';
+        });
+        
+        console.log('Filtered report notifications:', reportNotifications);
         setNotifications(reportNotifications);
         const unreadCount = reportNotifications.filter((n: any) => !n.isRead).length;
         setUnreadNotifications(unreadCount);
