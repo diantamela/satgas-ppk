@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import DigitalSignature from "@/components/ui/digital-signature";
 import {
   FileText,
   AlertTriangle,
@@ -31,12 +32,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-
-interface TeamMember {
-  userId: string;
-  role: string;
-  customRole?: string;
-}
 
 interface PartyAttendance {
   name: string;
@@ -67,9 +62,6 @@ export default function InvestigationProsesPage() {
   const [methods, setMethods] = useState<string[]>([]);
   const [partiesInvolved, setPartiesInvolved] = useState<string[]>([]);
   const [otherPartiesDetails, setOtherPartiesDetails] = useState("");
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [consentObtained, setConsentObtained] = useState(false);
-  const [consentDocumentation, setConsentDocumentation] = useState("");
   const [riskNotes, setRiskNotes] = useState("");
   const [planSummary, setPlanSummary] = useState("");
   const [followUpAction, setFollowUpAction] = useState("");
@@ -78,9 +70,7 @@ export default function InvestigationProsesPage() {
   const [accessLevel, setAccessLevel] = useState("CORE_TEAM_ONLY");
 
   // New states from hasil form
-  const [schedulingId, setSchedulingId] = useState("");
   const [schedulingTitle, setSchedulingTitle] = useState("");
-  const [schedulingDateTime, setSchedulingDateTime] = useState("");
   const [schedulingLocation, setSchedulingLocation] = useState("");
   const [caseTitle, setCaseTitle] = useState("");
   const [reportNumber, setReportNumber] = useState("");
@@ -106,7 +96,9 @@ export default function InvestigationProsesPage() {
   // Digital authentication
   const [dataVerificationConfirmed, setDataVerificationConfirmed] = useState(false);
   const [creatorDigitalSignature, setCreatorDigitalSignature] = useState("");
+  const [creatorSignerName, setCreatorSignerName] = useState("");
   const [chairpersonDigitalSignature, setChairpersonDigitalSignature] = useState("");
+  const [chairpersonSignerName, setChairpersonSignerName] = useState("");
   
   // Additional fields
   const [partiesDetailedAttendance, setPartiesDetailedAttendance] = useState<any>({});
@@ -142,18 +134,16 @@ export default function InvestigationProsesPage() {
             // Pre-populate form fields from the scheduled process data
             if (processData.process) {
               const process = processData.process;
-              setSchedulingId(process.id || '');
-              setSchedulingTitle(process.activityTitle || process.planSummary || 'Sesi Investigasi');
-              setSchedulingDateTime(process.startDateTime || reportData.report.scheduledDate || '');
-              setSchedulingLocation(process.location || reportData.report.scheduledNotes?.split(' - ')[0] || '');
+              setSchedulingTitle(process.planSummary || 'Sesi Investigasi');
+              setStartDateTime(process.startDateTime || '');
+              setEndDateTime(process.endDateTime || '');
+              setSchedulingLocation(process.location || '');
               
               // Set initial values from scheduled process
               setLocation(process.location || '');
               setMethods(process.methods || []);
               setPartiesInvolved(process.partiesInvolved || []);
-              setTeamMembers(process.teamMembers || []);
-              setConsentObtained(process.consentObtained || false);
-              setConsentDocumentation(process.consentDocumentation || '');
+              setOtherPartiesDetails(process.otherPartiesDetails || '');
               setRiskNotes(process.riskNotes || '');
               setPlanSummary(process.planSummary || '');
               setAccessLevel(process.accessLevel || 'CORE_TEAM_ONLY');
@@ -184,15 +174,6 @@ export default function InvestigationProsesPage() {
     { value: "REPORTED_PERSON", label: "Terlapor" },
     { value: "WITNESS", label: "Saksi" },
     { value: "OTHER_PARTY", label: " Pihak Lain" }
-  ];
-
-  const teamRoles = [
-    { value: "TEAM_LEADER", label: "Ketua Tim" },
-    { value: "NOTE_TAKER", label: "Pencatat" },
-    { value: "PSYCHOLOGICAL_SUPPORT", label: "Pendamping Psikologis" },
-    { value: "LEGAL_SUPPORT", label: "Pendamping Hukum" },
-    { value: "INVESTIGATOR", label: "Investigator" },
-    { value: "OTHER", label: "Lainnya" }
   ];
 
   const accessLevels = [
@@ -238,20 +219,6 @@ export default function InvestigationProsesPage() {
     } else {
       setPartiesInvolved(partiesInvolved.filter(p => p !== party));
     }
-  };
-
-  const addTeamMember = () => {
-    setTeamMembers([...teamMembers, { userId: "", role: "", customRole: "" }]);
-  };
-
-  const updateTeamMember = (index: number, field: keyof TeamMember, value: string) => {
-    const updated = [...teamMembers];
-    updated[index] = { ...updated[index], [field]: value };
-    setTeamMembers(updated);
-  };
-
-  const removeTeamMember = (index: number) => {
-    setTeamMembers(teamMembers.filter((_, i) => i !== index));
   };
 
   const handleFileUpload = async (files: FileList | null) => {
@@ -342,20 +309,17 @@ export default function InvestigationProsesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !location || !partiesStatementSummary) return;
+    if (!id || !methods.length || !partiesInvolved.length || !partiesStatementSummary) return;
 
     setIsSubmitting(true);
     try {
       const formData = {
         // Original process data
         processId: process?.id,
-        location,
+        location: schedulingLocation || location,
         methods,
         partiesInvolved,
         otherPartiesDetails: otherPartiesDetails || undefined,
-        teamMembers,
-        consentObtained,
-        consentDocumentation: consentDocumentation || undefined,
         riskNotes: riskNotes || undefined,
         planSummary: planSummary || undefined,
         followUpAction: followUpAction || undefined,
@@ -365,10 +329,9 @@ export default function InvestigationProsesPage() {
         uploadedFiles,
         
         // New results data
-        schedulingId,
         schedulingTitle,
-        schedulingDateTime,
-        schedulingLocation,
+        startDateTime: startDateTime || undefined,
+        endDateTime: endDateTime || undefined,
         caseTitle: report?.title,
         reportNumber: report?.reportNumber,
         
@@ -393,18 +356,16 @@ export default function InvestigationProsesPage() {
         // Digital authentication
         dataVerificationConfirmed,
         creatorDigitalSignature,
+        creatorSignerName,
         creatorSignatureDate: new Date().toISOString(),
         chairpersonDigitalSignature,
+        chairpersonSignerName,
         chairpersonSignatureDate: chairpersonDigitalSignature ? new Date().toISOString() : null,
         
         // Additional fields
         partiesDetailedAttendance,
         recommendedActionsDetails,
-        internalSatgasNotes,
-        
-        // Optional date fields (only include if provided)
-        ...(startDateTime && { startDateTime }),
-        ...(endDateTime && { endDateTime })
+        internalSatgasNotes
       };
 
       const response = await fetch(`/api/reports/${id}/results`, {
@@ -544,45 +505,116 @@ export default function InvestigationProsesPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="schedulingTitle">Judul Kegiatan</Label>
+                <Input
+                  id="schedulingTitle"
+                  value={schedulingTitle}
+                  onChange={(e) => setSchedulingTitle(e.target.value)}
+                  placeholder="Contoh: Wawancara Korban"
+                />
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="schedulingId">ID Jadwal</Label>
+                  <Label htmlFor="startDateTime">Tanggal & Waktu Mulai</Label>
                   <Input
-                    id="schedulingId"
-                    value={schedulingId}
-                    onChange={(e) => setSchedulingId(e.target.value)}
-                    placeholder="Contoh: SCHED-2024-001"
+                    id="startDateTime"
+                    type="datetime-local"
+                    value={startDateTime}
+                    onChange={(e) => setStartDateTime(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="schedulingTitle">Judul Kegiatan</Label>
+                  <Label htmlFor="endDateTime">Tanggal & Waktu Selesai</Label>
                   <Input
-                    id="schedulingTitle"
-                    value={schedulingTitle}
-                    onChange={(e) => setSchedulingTitle(e.target.value)}
-                    placeholder="Contoh: Wawancara Korban"
+                    id="endDateTime"
+                    type="datetime-local"
+                    value={endDateTime}
+                    onChange={(e) => setEndDateTime(e.target.value)}
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="schedulingDateTime">Tanggal & Waktu Pelaksanaan</Label>
-                  <Input
-                    id="schedulingDateTime"
-                    type="datetime-local"
-                    value={schedulingDateTime}
-                    onChange={(e) => setSchedulingDateTime(e.target.value)}
-                  />
+              
+              <div className="space-y-2">
+                <Label htmlFor="schedulingLocation">Lokasi Pelaksanaan</Label>
+                <Input
+                  id="schedulingLocation"
+                  value={schedulingLocation}
+                  onChange={(e) => setSchedulingLocation(e.target.value)}
+                  placeholder="Contoh: Ruang Konseling"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <Label>Metode Investigasi *</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {investigationMethods.map((method) => (
+                    <div key={method.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`method-${method.value}`}
+                        checked={methods.includes(method.value)}
+                        onCheckedChange={(checked) => handleMethodChange(method.value, checked as boolean)}
+                      />
+                      <Label htmlFor={`method-${method.value}`} className="text-sm">
+                        {method.label}
+                      </Label>
+                    </div>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="schedulingLocation">Lokasi Pelaksanaan</Label>
-                  <Input
-                    id="schedulingLocation"
-                    value={schedulingLocation}
-                    onChange={(e) => setSchedulingLocation(e.target.value)}
-                    placeholder="Contoh: Ruang Konseling"
-                  />
+              </div>
+              
+              <div className="space-y-3">
+                <Label>Pihak yang Terlibat *</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {investigationParties.map((party) => (
+                    <div key={party.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`party-${party.value}`}
+                        checked={partiesInvolved.includes(party.value)}
+                        onCheckedChange={(checked) => handlePartyChange(party.value, checked as boolean)}
+                      />
+                      <Label htmlFor={`party-${party.value}`} className="text-sm">
+                        {party.label}
+                      </Label>
+                    </div>
+                  ))}
                 </div>
+                
+                {(partiesInvolved.includes('OTHER_PARTY') || otherPartiesDetails) && (
+                  <div className="space-y-2">
+                    <Label htmlFor="otherPartiesDetails">Detail Pihak Lain</Label>
+                    <Textarea
+                      id="otherPartiesDetails"
+                      value={otherPartiesDetails}
+                      onChange={(e) => setOtherPartiesDetails(e.target.value)}
+                      placeholder="Jelaskan secara detail pihak lain yang terlibat..."
+                      rows={3}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="riskNotes">Catatan Risiko</Label>
+                <Textarea
+                  id="riskNotes"
+                  value={riskNotes}
+                  onChange={(e) => setRiskNotes(e.target.value)}
+                  placeholder="Identifikasi potensi risiko dan mitigasinya..."
+                  rows={3}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="planSummary">Ringkasan Rencana Investigasi</Label>
+                <Textarea
+                  id="planSummary"
+                  value={planSummary}
+                  onChange={(e) => setPlanSummary(e.target.value)}
+                  placeholder="Ringkasan singkat tentang tujuan dan langkah investigasi..."
+                  rows={3}
+                />
               </div>
             </CardContent>
           </Card>
@@ -1004,24 +1036,31 @@ export default function InvestigationProsesPage() {
               <Separator />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="creator-signature">Tanda Tangan Digital Anggota Sabtu **Pembuat BA**</Label>
-                  <Input
-                    id="creator-signature"
-                    value={creatorDigitalSignature}
-                    onChange={(e) => setCreatorDigitalSignature(e.target.value)}
-                    placeholder="Nama terang dan tanda tangan digital"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="chairperson-signature">Tanda Tangan Digital /**Ketua Forças** (persetujuan akhir)</Label>
-                  <Input
-                    id="chairperson-signature"
-                    value={chairpersonDigitalSignature}
-                    onChange={(e) => setChairpersonDigitalSignature(e.target.value)}
-                    placeholder="Nama terang dan tanda tangan digital"
-                  />
-                </div>
+                <DigitalSignature
+                  label="Tanda Tangan Digital Anggota Sabtu (Pembuat BA)"
+                  value={creatorDigitalSignature}
+                  onChange={(signatureData, signerName) => {
+                    setCreatorDigitalSignature(signatureData);
+                    setCreatorSignerName(signerName);
+                  }}
+                  signerName={creatorSignerName}
+                  onSignerNameChange={setCreatorSignerName}
+                  required
+                  signerNameLabel="Nama Anggota Sabtu (Pembuat BA)"
+                  placeholder="Tanda tangan di sini..."
+                />
+                <DigitalSignature
+                  label="Tanda Tangan Digital Ketua Forças (Persetujuan Akhir)"
+                  value={chairpersonDigitalSignature}
+                  onChange={(signatureData, signerName) => {
+                    setChairpersonDigitalSignature(signatureData);
+                    setChairpersonSignerName(signerName);
+                  }}
+                  signerName={chairpersonSignerName}
+                  onSignerNameChange={setChairpersonSignerName}
+                  signerNameLabel="Nama Ketua Forças"
+                  placeholder="Tanda tangan di sini..."
+                />
               </div>
 
               <div className="space-y-2">
@@ -1043,9 +1082,9 @@ export default function InvestigationProsesPage() {
                 Batal
               </Link>
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isSubmitting || !dataVerificationConfirmed || !partiesStatementSummary}
+            <Button
+              type="submit"
+              disabled={isSubmitting || !dataVerificationConfirmed || !partiesStatementSummary || methods.length === 0 || partiesInvolved.length === 0 || !creatorDigitalSignature || !creatorSignerName}
             >
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               <Save className="w-4 h-4 mr-2" />

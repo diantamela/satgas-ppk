@@ -171,8 +171,10 @@ model InvestigationResult {
   statusChangeReason          String?
   dataVerificationConfirmed   Boolean?               @default(false)
   creatorDigitalSignature     String?
+  creatorSignerName           String?
   creatorSignatureDate        DateTime?              @db.Timestamptz(6)
   chairpersonDigitalSignature String?
+  chairpersonSignerName       String?
   chairpersonSignatureDate    DateTime?              @db.Timestamptz(6)
   partiesDetailedAttendance   Json?
   recommendedActionsDetails   Json?

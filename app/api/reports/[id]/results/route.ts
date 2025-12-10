@@ -108,8 +108,10 @@ export async function POST(
       // Digital authentication
       dataVerificationConfirmed,
       creatorDigitalSignature,
+      creatorSignerName,
       creatorSignatureDate,
       chairpersonDigitalSignature,
+      chairpersonSignerName,
       chairpersonSignatureDate,
       
       // Additional fields
@@ -192,8 +194,10 @@ export async function POST(
         // Digital authentication
         dataVerificationConfirmed: dataVerificationConfirmed || false,
         creatorDigitalSignature,
+        creatorSignerName,
         creatorSignatureDate: creatorSignatureDate ? new Date(creatorSignatureDate) : null,
         chairpersonDigitalSignature,
+        chairpersonSignerName,
         chairpersonSignatureDate: chairpersonSignatureDate ? new Date(chairpersonSignatureDate) : null,
         
         // Additional fields

@@ -22,6 +22,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
+  CalendarDays,
+  Timer,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -168,6 +170,107 @@ export default function InvestigationPage() {
     }
   };
 
+  // Helper function to calculate investigation duration
+  const getInvestigationDuration = (report: any) => {
+    // If investigation hasn't started yet, show 0 hari
+    if (!report.investigationStartedAt) return "0 hari";
+    
+    const startDate = new Date(report.investigationStartedAt);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+      return diffHours > 0 ? `${diffHours} jam` : "Baru dimulai";
+    } else if (diffDays === 1) {
+      return "1 hari";
+    } else {
+      return `${diffDays} hari`;
+    }
+  };
+
+  // Helper function to get estimated completion time
+  const getEstimatedCompletion = (report: any) => {
+    // If no investigation started, show pending status
+    if (!report.investigationStartedAt) return "Menunggu dimulai";
+    
+    const startDate = new Date(report.investigationStartedAt);
+    const progress = report.investigationProgress || 0;
+    
+    if (progress >= 100) return "Selesai";
+    if (progress === 0) return "Belum ada progres";
+    
+    // Calculate estimated days based on progress
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - startDate.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) || 1;
+    
+    const remainingProgress = 100 - progress;
+    const dailyProgress = progress / diffDays;
+    
+    if (dailyProgress <= 0) return "Progres lambat";
+    
+    const estimatedRemainingDays = Math.ceil(remainingProgress / dailyProgress);
+    
+    if (estimatedRemainingDays === 0) return "Hampir selesai";
+    if (estimatedRemainingDays === 1) return "Estimasi besok";
+    if (estimatedRemainingDays <= 7) return `Estimasi ${estimatedRemainingDays} hari lagi`;
+    if (estimatedRemainingDays <= 30) return `Estimasi ${Math.ceil(estimatedRemainingDays / 7)} minggu lagi`;
+    return `Estimasi ${Math.ceil(estimatedRemainingDays / 30)} bulan lagi`;
+  };
+
+  // Helper function to get investigation timeline
+  const getInvestigationTimeline = (report: any) => {
+    const timeline = [];
+    
+    // Always start with report creation
+    if (report.createdAt) {
+      timeline.push({
+        date: new Date(report.createdAt),
+        label: "Laporan Dibuat",
+        status: "completed"
+      });
+    }
+    
+    // Add investigation started if available
+    if (report.investigationStartedAt) {
+      timeline.push({
+        date: new Date(report.investigationStartedAt),
+        label: "Investigasi Dimulai",
+        status: "completed"
+      });
+    }
+    
+    // Add current status based on investigation state
+    if (report.status === "IN_PROGRESS") {
+      timeline.push({
+        date: new Date(),
+        label: "Sedang Berlangsung",
+        status: "current"
+      });
+    } else if (report.status === "SCHEDULED") {
+      timeline.push({
+        date: new Date(),
+        label: "Menunggu Jadwal",
+        status: "pending"
+      });
+    }
+    
+    // Add completion if finished
+    if (report.status === "COMPLETED") {
+      const completionDate = report.investigationCompletedAt || new Date();
+      timeline.push({
+        date: new Date(completionDate),
+        label: "Investigasi Selesai",
+        status: "completed"
+      });
+    }
+    
+    // Sort timeline by date
+    return timeline.sort((a, b) => a.date.getTime() - b.date.getTime());
+  };
+
 
   return (
     <RoleGuard>
@@ -312,67 +415,138 @@ export default function InvestigationPage() {
               </CardContent>
             </Card>
           ) : (
-            filteredReports.map((report) => (
-              <Card key={report.id} className="hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 rounded-xl">
-                <CardContent className="p-4">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <div className="mt-1 flex-shrink-0">
-                        <AlertTriangle className="w-5 h-5 text-orange-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <h3 className="text-lg font-bold truncate max-w-full md:max-w-md text-gray-900 dark:text-white">{report.title}</h3>
-                          {getStatusBadge(report.status)}
+            filteredReports.map((report) => {
+              const duration = getInvestigationDuration(report);
+              const estimatedCompletion = getEstimatedCompletion(report);
+              const timeline = getInvestigationTimeline(report);
+              
+              return (
+                <Card key={report.id} className="hover:shadow-lg transition-shadow duration-300 dark:bg-gray-800 rounded-xl">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="mt-1 flex-shrink-0">
+                          <AlertTriangle className="w-5 h-5 text-orange-500" />
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
-                          <span className="font-mono text-xs">{report.reportNumber}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <BookOpen className="w-3 h-3" /> {report.category || 'N/A'}
-                          </span>
-                          <span>•</span>
-                          <span className="font-semibold text-red-500 dark:text-red-400">{report.severity || 'N/A'}</span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <User className="w-3 h-3" /> {report.reporter?.name || 'N/A'}
-                          </span>
-                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <h3 className="text-lg font-bold truncate max-w-full md:max-w-md text-gray-900 dark:text-white">{report.title}</h3>
+                            {getStatusBadge(report.status)}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                            <span className="font-mono text-xs">{report.reportNumber}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <BookOpen className="w-3 h-3" /> {report.category || 'N/A'}
+                            </span>
+                            <span>•</span>
+                            <span className="font-semibold text-red-500 dark:text-red-400">{report.severity || 'N/A'}</span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <User className="w-3 h-3" /> {report.reporter?.name || 'N/A'}
+                            </span>
+                          </div>
 
-                        {/* Progress Bar */}
-                        <div className="mt-3 w-full max-w-lg">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Progres {report.investigationProgress || 0}%</span>
+                          {/* Investigation Time Information */}
+                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                              {/* Duration */}
+                              <div className="flex items-center gap-2">
+                                <Timer className="w-4 h-4 text-blue-500" />
+                                <div>
+                                  <span className="text-gray-600 dark:text-gray-400">Durasi:</span>
+                                  <div className="font-medium text-gray-900 dark:text-white">
+                                    {duration || '0 hari'}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Estimated Completion */}
+                              <div className="flex items-center gap-2">
+                                <CalendarDays className="w-4 h-4 text-green-500" />
+                                <div>
+                                  <span className="text-gray-600 dark:text-gray-400">Estimasi:</span>
+                                  <div className="font-medium text-gray-900 dark:text-white">
+                                    {estimatedCompletion || 'Menunggu Dimulai'}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Timeline Status */}
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-orange-500" />
+                                <div>
+                                  <span className="text-gray-600 dark:text-gray-400">Status Waktu:</span>
+                                  <div className="font-medium text-gray-900 dark:text-white">
+                                    {report.status === 'IN_PROGRESS' ? 'Aktif' : 
+                                     report.status === 'SCHEDULED' ? 'Terjadwal' : 
+                                     report.status === 'COMPLETED' ? 'Selesai' : 'N/A'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Timeline Mini View */}
+                            {timeline.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Timeline:</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {timeline.map((item, index) => (
+                                    <div key={index} className="flex items-center gap-1">
+                                      <div className={`w-2 h-2 rounded-full ${
+                                        item.status === 'completed' ? 'bg-green-500' :
+                                        item.status === 'current' ? 'bg-blue-500' :
+                                        item.status === 'pending' ? 'bg-yellow-500' : 'bg-gray-400'
+                                      }`}></div>
+                                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                                        {format(item.date, "dd/MM", { locale: id })}
+                                      </span>
+                                      <span className="text-xs text-gray-500 dark:text-gray-500">{item.label}</span>
+                                      {index < timeline.length - 1 && <span className="text-gray-300 dark:text-gray-600">→</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                            <div
-                              className="bg-red-600 h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${report.investigationProgress || 0}%` }}
-                            ></div>
+
+                          {/* Progress Bar */}
+                          <div className="mt-3 w-full max-w-lg">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Progres {report.investigationProgress || 0}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div
+                                className="bg-red-600 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${report.investigationProgress || 0}%` }}
+                              ></div>
+                            </div>
                           </div>
                         </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/satgas/dashboard/investigasi/${report.id}/rekapan`} className="flex items-center gap-1">
+                            <Eye className="w-4 h-4" />
+                            Detail
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/satgas/dashboard/investigasi/${report.id}/proses`} className="hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-1">
+                            <Edit className="w-4 h-4" />
+                            Action
+                          </Link>
+                        </Button>
                       </div>
                     </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 flex-shrink-0">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/satgas/dashboard/investigasi/${report.id}/rekapan`} className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
-                          Detail
-                        </Link>
-                      </Button>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href={`/satgas/dashboard/investigasi/${report.id}/proses`} className="hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center gap-1">
-                          <Edit className="w-4 h-4" />
-                          Action
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
 
@@ -380,4 +554,3 @@ export default function InvestigationPage() {
     </RoleGuard>
   );
 }
-
