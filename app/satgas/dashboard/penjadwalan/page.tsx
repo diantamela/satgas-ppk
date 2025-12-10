@@ -7,13 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  Calendar, 
-  Clock, 
-  Users, 
-  FileText, 
-  Search, 
-  Filter,
+import {
+  Calendar,
+  Clock,
+  Search,
   Plus,
   Eye,
   Edit,
@@ -21,23 +18,17 @@ import {
   AlertTriangle,
   XCircle,
   RefreshCw,
-  Download,
   MapPin,
   User,
-  Shield,
-  ArrowRight,
   Activity,
   Send
 } from "lucide-react";
-import Link from "next/link";
 import { RoleGuard } from "@/components/auth/role-guard";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import ComprehensiveScheduleInvestigationModal from "@/components/comprehensive-schedule-investigation-modal";
 import { DateRange } from "react-day-picker";
 
 interface ScheduledInvestigation {
@@ -69,6 +60,26 @@ interface Report {
   status: string;
 }
 
+// Constants
+const INVESTIGATION_METHODS = [
+  { value: 'INTERVIEW', label: 'Wawancara' },
+  { value: 'WRITTEN_CLARIFICATION', label: 'Klarifikasi Tertulis' },
+  { value: 'LOCATION_OBSERVATION', label: 'Observasi Lokasi' },
+  { value: 'DIGITAL_EVIDENCE_COLLECTION', label: 'Pengumpulan Bukti Digital' },
+  { value: 'MEDIATION', label: 'Mediasi' },
+  { value: 'OTHER', label: 'Lainnya' }
+];
+
+const PARTIES_INVOLVED = [
+  { value: 'VICTIM_SURVIVOR', label: 'Korban/Penyintas' },
+  { value: 'REPORTED_PERSON', label: 'Terlapor' },
+  { value: 'WITNESS', label: 'Saksi' },
+  { value: 'OTHER_PARTY', label: ' Pihak Lain' }
+];
+
+const WORKFLOW_STAGES = ['Data Collection', 'Investigation', 'Analysis', 'Documentation', 'Completion'];
+const WORKFLOW_STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'IN_PROGRESS', 'IN_PROGRESS', 'COMPLETED'];
+
 export default function PenjadwalanPage() {
   const [investigations, setInvestigations] = useState<ScheduledInvestigation[]>([]);
   const [filteredInvestigations, setFilteredInvestigations] = useState<ScheduledInvestigation[]>([]);
@@ -76,12 +87,9 @@ export default function PenjadwalanPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>();
-  
   const [isLoading, setIsLoading] = useState(true);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedReport, setSelectedReport] = useState<any>(null);
   
-  // Form state for creating new schedule
+  // Form state
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -104,9 +112,9 @@ export default function PenjadwalanPage() {
   // Statistics
   const [stats, setStats] = useState({
     total: 0,
+    active: 0,
     pending: 0,
     inProgress: 0,
-    completed: 0,
     cancelled: 0
   });
 
@@ -276,6 +284,41 @@ export default function PenjadwalanPage() {
     }
   };
 
+  const handleComplete = async (investigation: ScheduledInvestigation) => {
+    if (!confirm(`Apakah Anda yakin ingin menandai jadwal investigasi untuk laporan "${investigation.reportTitle}" sebagai selesai?\n\nCatatan: Hanya jadwal investigasi ini yang akan ditandai sebagai selesai. Anda masih dapat membuat jadwal investigasi baru untuk laporan yang sama.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/satgas/penjadwalan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'completeSchedule',
+          reportId: investigation.reportId,
+          scheduleId: investigation.id,
+          updateData: {
+            status: 'COMPLETED',
+            notes: `Jadwal investigasi diselesaikan secara manual pada ${new Date().toLocaleString('id-ID')}`
+          }
+        })
+      });
+
+      if (response.ok) {
+        fetchData();
+        alert('Jadwal investigasi berhasil ditandai sebagai selesai. Anda dapat membuat jadwal investigasi baru untuk laporan ini.');
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Gagal menandai jadwal investigasi sebagai selesai');
+      }
+    } catch (error) {
+      console.error('Complete error:', error);
+      alert('Gagal menandai jadwal investigasi sebagai selesai');
+    }
+  };
+
   const fetchData = async () => {
     try {
       setIsLoading(true);
@@ -303,14 +346,28 @@ export default function PenjadwalanPage() {
       const data = await response.json();
       
       if (data.success) {
-        setInvestigations(data.data.investigations || []);
-        setFilteredInvestigations(data.data.investigations || []);
-        setStats(data.data.stats || {
-          total: 0,
-          pending: 0,
-          inProgress: 0,
-          completed: 0,
-          cancelled: 0
+        const allInvestigations = data.data.investigations || [];
+        
+        // Separate completed investigations from active ones
+        const activeInvestigations = allInvestigations.filter((inv: any) =>
+          inv.status !== 'COMPLETED'
+        );
+        const completed = allInvestigations.filter((inv: any) =>
+          inv.status === 'COMPLETED'
+        );
+        
+        setInvestigations(activeInvestigations);
+        setFilteredInvestigations(activeInvestigations);
+        
+        // Calculate active investigations count (non-completed)
+        const activeCount = activeInvestigations.length;
+        
+        setStats({
+          total: data.data.stats?.total || allInvestigations.length,
+          active: activeCount,
+          pending: data.data.stats?.pending || activeInvestigations.filter((inv: any) => inv.status === 'SCHEDULED').length,
+          inProgress: data.data.stats?.inProgress || activeInvestigations.filter((inv: any) => inv.status === 'IN_PROGRESS').length,
+          cancelled: data.data.stats?.cancelled || activeInvestigations.filter((inv: any) => inv.status === 'REJECTED').length
         });
       } else {
         const errorMessage = data.message || 'Unknown error occurred';
@@ -339,9 +396,9 @@ export default function PenjadwalanPage() {
         setFilteredInvestigations([]);
         setStats({
           total: 0,
+          active: 0,
           pending: 0,
           inProgress: 0,
-          completed: 0,
           cancelled: 0
         });
       }
@@ -360,9 +417,9 @@ export default function PenjadwalanPage() {
       setFilteredInvestigations([]);
       setStats({
         total: 0,
+        active: 0,
         pending: 0,
         inProgress: 0,
-        completed: 0,
         cancelled: 0
       });
     } finally {
@@ -370,13 +427,13 @@ export default function PenjadwalanPage() {
     }
   };
 
-  // Apply filters
-  useEffect(() => {
-    let result = investigations;
+  // Consolidated filtering function
+  const filterInvestigations = (investigationsList: ScheduledInvestigation[]) => {
+    let result = investigationsList;
 
     // Apply search filter
     if (searchTerm) {
-      result = result.filter(investigation => 
+      result = result.filter(investigation =>
         investigation.reportTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
         investigation.reportNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         investigation.location.toLowerCase().includes(searchTerm.toLowerCase())
@@ -385,7 +442,7 @@ export default function PenjadwalanPage() {
 
     // Apply status filter
     if (statusFilter !== "all") {
-      result = result.filter(investigation => 
+      result = result.filter(investigation =>
         investigation.status.toLowerCase() === statusFilter.toLowerCase()
       );
     }
@@ -393,7 +450,7 @@ export default function PenjadwalanPage() {
     // Apply date filter
     if (selectedDateRange?.from && selectedDateRange?.to) {
       const fromDate = selectedDateRange.from;
-      const toDate = selectedDateRange.to;
+      const toDate = new Date(selectedDateRange.to);
       toDate.setHours(23, 59, 59, 999);
       
       result = result.filter(investigation => {
@@ -402,36 +459,13 @@ export default function PenjadwalanPage() {
       });
     }
 
-    setFilteredInvestigations(result);
-  }, [searchTerm, statusFilter, selectedDateRange, investigations]);
-
-  const handleScheduleInvestigation = async (scheduleData: any) => {
-    try {
-      const response = await fetch('/api/reports/schedule', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reportId: selectedReport.id,
-          ...scheduleData,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Refresh data
-        await fetchData();
-        setShowScheduleModal(false);
-        setSelectedReport(null);
-      } else {
-        console.error('Error scheduling investigation:', result.message);
-      }
-    } catch (error) {
-      console.error('Error scheduling investigation:', error);
-    }
+    return result;
   };
+
+  // Apply filters
+  useEffect(() => {
+    setFilteredInvestigations(filterInvestigations(investigations));
+  }, [searchTerm, statusFilter, selectedDateRange, investigations]);
 
   const handleViewDetail = (investigation: ScheduledInvestigation) => {
     setViewingInvestigation(investigation);
@@ -516,7 +550,7 @@ export default function PenjadwalanPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Penjadwalan Investigasi</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">Rencanakan jadwal investigasi - tentukan kapan, dimana, dan bagaimana investigasi akan dilakukan</p>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Rencanakan jadwal investigasi - Anda dapat membuat beberapa jadwal untuk laporan yang sama. Menandai jadwal selesai bukan berarti investigasi selesai secara keseluruhan.</p>
           </div>
           <div className="flex gap-2 mt-4 md:mt-0">
             <Button onClick={() => setShowCreateForm(!showCreateForm)}>
@@ -532,9 +566,9 @@ export default function PenjadwalanPage() {
             <CardHeader>
               <CardTitle>{editingInvestigation ? 'Edit Jadwal Investigasi' : 'Buat Jadwal Investigasi Baru'}</CardTitle>
               <CardDescription>
-                {editingInvestigation 
-                  ? 'Perbarui jadwal investigasi yang telah dibuat' 
-                  : 'Jadwalkan investigasi untuk laporan yang telah diterima'
+                {editingInvestigation
+                  ? 'Perbarui jadwal investigasi yang telah dibuat'
+                  : 'Jadwalkan investigasi untuk laporan yang telah diterima. Anda dapat membuat beberapa jadwal untuk laporan yang sama.'
                 }
               </CardDescription>
             </CardHeader>
@@ -639,14 +673,7 @@ export default function PenjadwalanPage() {
                     Metode Investigasi
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'INTERVIEW', label: 'Wawancara' },
-                      { value: 'WRITTEN_CLARIFICATION', label: 'Klarifikasi Tertulis' },
-                      { value: 'LOCATION_OBSERVATION', label: 'Observasi Lokasi' },
-                      { value: 'DIGITAL_EVIDENCE_COLLECTION', label: 'Pengumpulan Bukti Digital' },
-                      { value: 'MEDIATION', label: 'Mediasi' },
-                      { value: 'OTHER', label: 'Lainnya' }
-                    ].map((method) => (
+                    {INVESTIGATION_METHODS.map((method) => (
                       <label key={method.value} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -671,12 +698,7 @@ export default function PenjadwalanPage() {
                     Pihak yang Terlibat
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      { value: 'VICTIM_SURVIVOR', label: 'Korban/Penyintas' },
-                      { value: 'REPORTED_PERSON', label: 'Terlapor' },
-                      { value: 'WITNESS', label: 'Saksi' },
-                      { value: 'OTHER_PARTY', label: 'Pihak Lain' }
-                    ].map((party) => (
+                    {PARTIES_INVOLVED.map((party) => (
                       <label key={party.value} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
@@ -766,6 +788,16 @@ export default function PenjadwalanPage() {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+              <CardDescription className="text-xs font-medium">Aktif</CardDescription>
+              <Activity className="w-4 h-4 text-purple-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">{stats.active}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
               <CardDescription className="text-xs font-medium">Menunggu</CardDescription>
               <Clock className="w-4 h-4 text-blue-500" />
             </CardHeader>
@@ -781,16 +813,6 @@ export default function PenjadwalanPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-orange-600">{stats.inProgress}</div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <CardDescription className="text-xs font-medium">Selesai</CardDescription>
-              <CheckCircle className="w-4 h-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
             </CardContent>
           </Card>
           
@@ -831,7 +853,6 @@ export default function PenjadwalanPage() {
                   <option value="all">Semua Status</option>
                   <option value="scheduled">Terjadwal</option>
                   <option value="in_progress">Berlangsung</option>
-                  <option value="completed">Selesai</option>
                   <option value="cancelled">Dibatalkan</option>
                 </select>
                 
@@ -884,31 +905,31 @@ export default function PenjadwalanPage() {
           </CardContent>
         </Card>
 
-        {/* Investigation List */}
+        {/* Active Investigation List */}
         <div className="space-y-4">
           {filteredInvestigations.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Tidak ada jadwal investigasi</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Tidak ada jadwal investigasi aktif</h3>
                 <p className="text-gray-500 dark:text-gray-400">
-                  {investigations.length === 0 
-                    ? "Belum ada jadwal investigasi yang dibuat." 
-                    : "Tidak ada jadwal yang sesuai dengan filter pencarian Anda."}
+                  {investigations.length === 0
+                    ? "Belum ada jadwal investigasi yang dibuat."
+                    : "Tidak ada jadwal aktif yang sesuai dengan filter pencarian Anda."}
                 </p>
               </CardContent>
             </Card>
           ) : (
             filteredInvestigations.map((investigation) => (
-              <Card 
-                key={investigation.id} 
+              <Card
+                key={investigation.id}
                 className="hover:shadow-md transition-shadow"
               >
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                     <div className="flex items-start gap-4 flex-1">
                       <div className={`p-3 rounded-lg ${
-                        investigation.status === 'SCHEDULED' 
+                        investigation.status === 'SCHEDULED'
                           ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                           : investigation.status === 'IN_PROGRESS'
                           ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
@@ -956,19 +977,19 @@ export default function PenjadwalanPage() {
                           
                           {/* Progress Bar */}
                           <div className="flex items-center gap-2">
-                            {['Data Collection', 'Investigation', 'Analysis', 'Documentation', 'Completion'].map((stage, index) => {
-                              const stages = ['SCHEDULED', 'IN_PROGRESS', 'IN_PROGRESS', 'IN_PROGRESS', 'COMPLETED'];
-                              const isActive = stages[index] === investigation.status || 
+                            {WORKFLOW_STAGES.map((stage, index) => {
+                              const stages = WORKFLOW_STATUSES;
+                              const isActive = stages[index] === investigation.status ||
                                 (stages.indexOf(investigation.status) > index);
                               const isCurrent = stages[index] === investigation.status;
                               
                               return (
                                 <div key={stage} className="flex items-center">
                                   <div className={`w-3 h-3 rounded-full ${
-                                    isCurrent 
-                                      ? 'bg-blue-500' 
-                                      : isActive 
-                                      ? 'bg-green-500' 
+                                    isCurrent
+                                      ? 'bg-blue-500'
+                                      : isActive
+                                      ? 'bg-green-500'
                                       : 'bg-gray-300 dark:bg-gray-600'
                                   }`} />
                                   {index < 4 && (
@@ -1006,8 +1027,8 @@ export default function PenjadwalanPage() {
                     
                     {/* Actions */}
                     <div className="flex gap-2 lg:flex-col">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => handleViewDetail(investigation)}
                       >
@@ -1017,8 +1038,8 @@ export default function PenjadwalanPage() {
                       
                       {investigation.status === 'SCHEDULED' && (
                         <>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleEdit(investigation)}
                           >
@@ -1026,8 +1047,8 @@ export default function PenjadwalanPage() {
                             Edit
                           </Button>
                           
-                          <Button 
-                            variant="destructive" 
+                          <Button
+                            variant="destructive"
                             size="sm"
                             onClick={() => handleDelete(investigation)}
                           >
@@ -1035,6 +1056,18 @@ export default function PenjadwalanPage() {
                             Hapus
                           </Button>
                         </>
+                      )}
+                      
+                      {(investigation.status === 'SCHEDULED' || investigation.status === 'IN_PROGRESS') && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleComplete(investigation)}
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Selesai
+                        </Button>
                       )}
                     </div>
                   </div>
@@ -1044,23 +1077,6 @@ export default function PenjadwalanPage() {
           )}
         </div>
 
-        {/* Schedule Investigation Modal */}
-        {showScheduleModal && (
-          <ComprehensiveScheduleInvestigationModal
-            isOpen={showScheduleModal}
-            onClose={() => {
-              setShowScheduleModal(false);
-              setSelectedReport(null);
-            }}
-            onSchedule={handleScheduleInvestigation}
-            reportId={selectedReport?.id || ""}
-            reportTitle={selectedReport?.title || ""}
-            reportNumber={selectedReport?.reportNumber}
-            reportCategory={selectedReport?.category}
-            reportSeverity={selectedReport?.severity}
-            reportStatus={selectedReport?.status}
-          />
-        )}
 
         {/* Detail Modal */}
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
@@ -1185,26 +1201,77 @@ export default function PenjadwalanPage() {
             )}
 
             <DialogFooter className="flex flex-wrap gap-2 mt-6">
+              {/* Complete - Selesai */}
+              {viewingInvestigation && (viewingInvestigation.status === 'SCHEDULED' || viewingInvestigation.status === 'IN_PROGRESS') && (
+                <Button
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={async () => {
+                    if (!confirm(`Apakah Anda yakin ingin menandai jadwal investigasi untuk laporan "${viewingInvestigation.reportTitle}" sebagai selesai?\n\nCatatan: Hanya jadwal investigasi ini yang akan ditandai sebagai selesai. Anda masih dapat membuat jadwal investigasi baru untuk laporan yang sama.`)) {
+                      return;
+                    }
+
+                    try {
+                      const response = await fetch('/api/satgas/penjadwalan', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          action: 'completeSchedule',
+                          reportId: viewingInvestigation.reportId,
+                          scheduleId: viewingInvestigation.id,
+                          updateData: {
+                            status: 'COMPLETED',
+                            notes: `Jadwal investigasi diselesaikan secara manual pada ${new Date().toLocaleString('id-ID')}`
+                          }
+                        })
+                      });
+
+                      if (response.ok) {
+                        fetchData();
+                        alert('Jadwal investigasi berhasil ditandai sebagai selesai. Anda dapat membuat jadwal investigasi baru untuk laporan ini.');
+                        setShowDetailModal(false);
+                        setViewingInvestigation(null);
+                      } else {
+                        const error = await response.json();
+                        alert(error.message || 'Gagal menandai jadwal investigasi sebagai selesai');
+                      }
+                    } catch (error) {
+                      console.error('Complete error:', error);
+                      alert('Gagal menandai jadwal investigasi sebagai selesai');
+                    }
+                  }}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Selesai
+                </Button>
+              )}
+              
               {/* Update - Perbarui */}
-              <Button 
-                variant="outline" 
-                onClick={handleEditFromDetail}
-              >
-                <Edit className="w-4 h-4 mr-2" />
-                Perbarui
-              </Button>
+              {viewingInvestigation?.status === 'SCHEDULED' && (
+                <Button
+                  variant="outline"
+                  onClick={handleEditFromDetail}
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Perbarui
+                </Button>
+              )}
               
               {/* Delete - Hapus */}
-              <Button 
-                variant="destructive" 
-                onClick={handleDeleteFromDetail}
-              >
-                <XCircle className="w-4 h-4 mr-2" />
-                Hapus
-              </Button>
+              {viewingInvestigation?.status === 'SCHEDULED' && (
+                <Button
+                  variant="destructive"
+                  onClick={handleDeleteFromDetail}
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Hapus
+                </Button>
+              )}
               
-              <Button 
-                variant="secondary" 
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowDetailModal(false);
                   setViewingInvestigation(null);

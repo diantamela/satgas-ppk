@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { reportFormStyles as styles } from '@/lib/styles/report-form-styles';
+import CurrentActivitySection from '@/components/current-activity-section';
 
 export default function StatusCheckPage() {
   const [reportNumber, setReportNumber] = useState("");
@@ -390,6 +391,9 @@ export default function StatusCheckPage() {
             {/* Jika laporan ditemukan */}
             {reportStatus && (
               <div className="space-y-5">
+                {/* Current Activity Section - Newly Added */}
+                <CurrentActivitySection reportId={reportStatus.id} />
+
                 {/* Ringkasan laporan */}
                 <Card className={styles.statusCard}>
                   <CardContent className="pt-5 pb-5">

@@ -88,7 +88,6 @@ export async function GET(request: NextRequest) {
       OR: [
         { status: ReportStatus.SCHEDULED },
         { status: ReportStatus.IN_PROGRESS },
-        { status: ReportStatus.COMPLETED },
         { status: ReportStatus.REJECTED }
       ]
     };
@@ -114,7 +113,6 @@ export async function GET(request: NextRequest) {
         'verified': ReportStatus.VERIFIED,
         'scheduled': ReportStatus.SCHEDULED,
         'in_progress': ReportStatus.IN_PROGRESS,
-        'completed': ReportStatus.COMPLETED,
         'cancelled': ReportStatus.REJECTED
       };
       
@@ -324,10 +322,9 @@ export async function GET(request: NextRequest) {
     };
     
     try {
-      const [pendingCount, inProgressCount, completedCount, rejectedCount] = await Promise.all([
+      const [pendingCount, inProgressCount, rejectedCount] = await Promise.all([
         db.report.count({ where: { ...filters, status: ReportStatus.SCHEDULED } }),
         db.report.count({ where: { ...filters, status: ReportStatus.IN_PROGRESS } }),
-        db.report.count({ where: { ...filters, status: ReportStatus.COMPLETED } }),
         db.report.count({ where: { ...filters, status: ReportStatus.REJECTED } })
       ]);
       
@@ -335,7 +332,6 @@ export async function GET(request: NextRequest) {
         total: totalCount,
         pending: pendingCount,
         inProgress: inProgressCount,
-        completed: completedCount,
         cancelled: rejectedCount
       };
       console.log('[PENJADWALAN] Statistics calculated:', stats);
@@ -410,7 +406,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/satgas/penjadwalan - Update investigation status
+// POST /api/satgas/penjadwalan - Update investigation status or complete schedule
 export async function POST(request: NextRequest) {
   try {
     // Get current user session
@@ -424,10 +420,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { action, reportId, updateData } = body;
+    const { action, reportId, scheduleId, updateData } = body;
 
     if (action === 'updateStatus') {
-      // Update investigation status
+      // Update overall investigation status (original behavior)
       const { status, notes } = updateData;
       
       const updatedReport = await db.report.update({
@@ -464,6 +460,67 @@ export async function POST(request: NextRequest) {
         success: true,
         message: "Status investigasi berhasil diperbarui",
         data: updatedReport
+      });
+    }
+
+    if (action === 'completeSchedule') {
+      // Complete only the specific schedule, not the entire investigation
+      const { status, notes } = updateData;
+      
+      if (!scheduleId) {
+        return Response.json(
+          { success: false, message: "Schedule ID diperlukan untuk menyelesaikan jadwal investigasi" },
+          { status: 400 }
+        );
+      }
+
+      // Update investigation process status to completed
+      const updatedProcess = await db.investigationProcess.updateMany({
+        where: {
+          reportId: reportId,
+          id: scheduleId
+        },
+        data: {
+          status: 'COMPLETED',
+          endDateTime: new Date(),
+          updatedAt: new Date(),
+          ...(notes && { notes: notes })
+        }
+      });
+
+      // Get report info for notification
+      const report = await db.report.findUnique({
+        where: { id: reportId },
+        include: {
+          reporter: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      // Send notification to reporter about schedule completion
+      if (report?.reporter) {
+        await sendNotification(
+          report.reporter.id,
+          'INVESTIGATION_SCHEDULE_COMPLETED',
+          'Jadwal Investigasi Selesai',
+          `Jadwal investigasi untuk laporan ${report.reportNumber} telah selesai. Anda dapat membuat jadwal investigasi baru jika diperlukan.`,
+          reportId,
+          'REPORT'
+        );
+      }
+
+      return Response.json({
+        success: true,
+        message: "Jadwal investigasi berhasil ditandai sebagai selesai. Anda dapat membuat jadwal investigasi baru untuk laporan ini.",
+        data: {
+          processUpdated: updatedProcess.count,
+          reportStatus: report?.status // Keep original report status
+        }
       });
     }
 

@@ -74,6 +74,7 @@ model Report {
   assignee              User?                   @relation("ReportAssignee", fields: [assigneeId], references: [id])
   reporter              User                    @relation("ReportReporter", fields: [reporterId], references: [id])
   timelines             ReportTimeline[]
+  activities            ReportActivity[]
 
   @@index([reporterId])
   @@index([assigneeId])
@@ -223,6 +224,31 @@ model ReportTimeline {
   @@index([reportId])
   @@index([userId])
   @@index([timestamp])
+}
+
+model ReportActivity {
+  id                     String              @id @default(cuid())
+  reportId               String
+  activityType           ActivityType
+  title                  String
+  description            String
+  status                 ActivityStatus      @default(IN_PROGRESS)
+  assignedTo             String?
+  priority               Priority            @default(MEDIUM)
+  startedAt              DateTime            @default(now())
+  estimatedCompletion    DateTime?
+  completedAt            DateTime?
+  isCurrent              Boolean             @default(true)
+  notes                  String?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  report                 Report              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([isCurrent])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([startedAt])
 }
 
 model Notification {
@@ -465,4 +491,12 @@ enum ScheduleStatus {
   IN_PROGRESS
   COMPLETED
   RESCHEDULED
+}
+
+enum ActivityStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
 }
