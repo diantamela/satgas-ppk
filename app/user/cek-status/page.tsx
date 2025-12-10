@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -19,15 +19,75 @@ import {
   Shield,
   Search,
   Download,
+  Bell,
+  X,
+  Loader2,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { reportFormStyles as styles } from '@/lib/styles/report-form-styles';
-
 
 export default function StatusCheckPage() {
   const [reportNumber, setReportNumber] = useState("");
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [reportStatus, setReportStatus] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Notification states
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
+
+  // Fetch notifications related to the found report
+  const fetchNotifications = async (reportId: string) => {
+    try {
+      setNotificationsLoading(true);
+      const response = await fetch('/api/notifications');
+      const data = await response.json();
+      
+      if (data.success) {
+        // Filter notifications related to this specific report
+        const reportNotifications = data.data.notifications?.filter((n: any) =>
+          n.relatedEntityId === reportId || n.relatedEntityType === 'REPORT'
+        ) || [];
+        
+        setNotifications(reportNotifications);
+        const unreadCount = reportNotifications.filter((n: any) => !n.isRead).length;
+        setUnreadNotifications(unreadCount);
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  // Mark notification as read
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          notificationId,
+          isRead: true
+        }),
+      });
+
+      if (response.ok) {
+        setNotifications(prev =>
+          prev.map(n =>
+            n.id === notificationId ? { ...n, isRead: true, readAt: new Date() } : n
+          )
+        );
+        setUnreadNotifications(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+    }
+  };
 
   const handleSearch = async () => {
     if (!reportNumber.trim()) return;
@@ -44,12 +104,20 @@ export default function StatusCheckPage() {
 
       if (result.success) {
         setReportStatus(result.report);
+        // Fetch notifications for this report
+        if (result.report.id) {
+          fetchNotifications(result.report.id);
+        }
       } else {
         setReportStatus(null);
+        setNotifications([]);
+        setUnreadNotifications(0);
       }
     } catch (error) {
       console.error("Error checking report status:", error);
       setReportStatus(null);
+      setNotifications([]);
+      setUnreadNotifications(0);
     } finally {
       setSearchPerformed(true);
       setIsLoading(false);
@@ -103,6 +171,50 @@ export default function StatusCheckPage() {
     }
   };
 
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'WARNING':
+        return <AlertCircle className="w-4 h-4 text-orange-500" />;
+      case 'INFO':
+        return <Bell className="w-4 h-4 text-blue-500" />;
+      case 'SUCCESS':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'REPORT_STATUS_CHANGED':
+        return <Clock className="w-4 h-4 text-blue-500" />;
+      case 'REPORT_ASSIGNED':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'NEW_RECOMMENDATION':
+        return <FileText className="w-4 h-4 text-purple-500" />;
+      case 'DECISION_MADE':
+        return <Shield className="w-4 h-4 text-green-500" />;
+      case 'DOCUMENT_UPLOADED':
+        return <FileText className="w-4 h-4 text-orange-500" />;
+      default:
+        return <Bell className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const formatNotificationTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+      return `${diffInMinutes} menit yang lalu`;
+    } else if (diffInHours < 24) {
+      return `${diffInHours} jam yang lalu`;
+    } else {
+      return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.wrap}>
@@ -116,7 +228,105 @@ export default function StatusCheckPage() {
                 <Search className="w-8 h-8 text-[#A13D3D]" />
               </div>
             </div>
-            <CardTitle className={styles.heading}>Cek Status Laporan</CardTitle>
+            <div className="flex items-center justify-center gap-4">
+              <CardTitle className={styles.heading}>Cek Status Laporan</CardTitle>
+              
+              {/* Notification Bell - Show when report is found */}
+              {reportStatus && (
+                <Dialog open={notificationsDialogOpen} onOpenChange={setNotificationsDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-red-500 text-red-600 hover:bg-red-50 relative"
+                    >
+                      <Bell className="w-4 h-4" />
+                      {unreadNotifications > 0 && (
+                        <Badge className="ml-1 bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[1.2rem] h-5 rounded-full flex items-center justify-center">
+                          {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Bell className="w-5 h-5" />
+                        Notifikasi Laporan
+                        {unreadNotifications > 0 && (
+                          <Badge className="bg-red-500 text-white">
+                            {unreadNotifications} baru
+                          </Badge>
+                        )}
+                      </DialogTitle>
+                      <DialogDescription>
+                        Notifikasi terkait laporan {reportStatus.reportNumber}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4 max-h-[60vh] overflow-y-auto">
+                      {notificationsLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Memuat notifikasi...
+                        </div>
+                      ) : notifications.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                          <Bell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                          <p className="font-semibold">Belum ada notifikasi</p>
+                          <p className="text-sm mt-1">Notifikasi akan muncul ketika ada pembaruan pada laporan Anda</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {notifications.map((notification) => (
+                            <div
+                              key={notification.id}
+                              className={`p-4 border rounded-lg transition-colors ${
+                                notification.isRead
+                                  ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                                  : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800'
+                              }`}
+                            >
+                              <div className="flex items-start gap-3">
+                                <div className="flex-shrink-0 mt-1">
+                                  {getNotificationIcon(notification.type)}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between">
+                                    <div>
+                                      <h4 className="font-semibold text-gray-900 dark:text-white">
+                                        {notification.title}
+                                      </h4>
+                                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                        {notification.message}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                                        {formatNotificationTime(notification.createdAt)}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 ml-4">
+                                      {!notification.isRead && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => markNotificationAsRead(notification.id)}
+                                          className="text-xs h-7 px-2"
+                                        >
+                                          Tandai dibaca
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
             <CardDescription className={styles.lead}>
               Masukkan nomor laporan untuk melihat status dan progres penanganan
               kasus yang telah Anda ajukan.

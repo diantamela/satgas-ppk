@@ -213,6 +213,8 @@ export default function InvestigationRekapanPage() {
   const [selectedProcess, setSelectedProcess] =
     useState<InvestigationProcess | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedResult, setSelectedResult] = useState<any>(null);
+  const [showResultDetailModal, setShowResultDetailModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -279,12 +281,20 @@ export default function InvestigationRekapanPage() {
         // Fetch investigation results
         try {
           const resultsResponse = await fetch(`/api/reports/${reportId}/results`);
-          const resultsData = await resultsResponse.json();
-          if (resultsData.success && resultsData.results) {
-            setInvestigationResults(resultsData.results);
+          if (resultsResponse.ok) {
+            const resultsData = await resultsResponse.json();
+            if (resultsData.success && resultsData.results) {
+              setInvestigationResults(resultsData.results);
+            }
+          } else {
+            console.warn("Failed to fetch investigation results:", resultsResponse.status, resultsResponse.statusText);
+            // Fallback: try to get data from localStorage or show empty state
+            setInvestigationResults([]);
           }
         } catch (error) {
           console.warn("Failed to fetch investigation results:", error);
+          // Fallback: show empty state instead of breaking the page
+          setInvestigationResults([]);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -752,16 +762,22 @@ export default function InvestigationRekapanPage() {
                         No
                       </th>
                       <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
-                        Tanggal Dibuat
+                        Tanggal & Waktu
                       </th>
                       <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
                         Status Kasus
                       </th>
                       <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
-                        TTD Pembuat
+                        Judul Kegiatan
                       </th>
                       <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
-                        TTD Ketua
+                        Ringkasan Keterangan
+                      </th>
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
+                        Rekomendasi
+                      </th>
+                      <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-left font-semibold">
+                        TTD
                       </th>
                       <th className="border border-gray-200 dark:border-gray-700 px-3 py-2 text-center font-semibold">
                         Aksi
@@ -818,54 +834,90 @@ export default function InvestigationRekapanPage() {
                           </Badge>
                         </td>
                         <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${
-                              result.creatorDigitalSignature
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                            }`}>
-                              {result.creatorDigitalSignature ? '✓' : '✗'}
+                          <div className="text-sm">
+                            <div className="text-gray-900 dark:text-white font-medium">
+                              {result.schedulingTitle || 'Sesi Investigasi'}
                             </div>
-                            <div className="text-sm">
-                              <div className="text-gray-900 dark:text-white font-medium">
-                                {result.creatorDigitalSignature ? 'Tertanda' : 'Belum Tanda'}
+                            {result.schedulingLocation && (
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                📍 {result.schedulingLocation}
                               </div>
-                              {result.creatorSignerName && (
-                                <div className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-                                  {result.creatorSignerName}
-                                </div>
-                              )}
-                              {result.creatorDigitalSignature && result.creatorSignatureDate && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {formatDate(result.creatorSignatureDate)}
-                                </div>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </td>
                         <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-semibold ${
-                              result.chairpersonDigitalSignature
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
-                            }`}>
-                              {result.chairpersonDigitalSignature ? '✓' : '✗'}
+                          <div className="text-sm">
+                            <div className="text-gray-900 dark:text-white">
+                              {result.partiesStatementSummary
+                                ? (result.partiesStatementSummary.length > 100
+                                  ? `${result.partiesStatementSummary.substring(0, 100)}...`
+                                  : result.partiesStatementSummary)
+                                : 'Belum ada keterangan'
+                              }
                             </div>
-                            <div className="text-sm">
-                              <div className="text-gray-900 dark:text-white font-medium">
-                                {result.chairpersonDigitalSignature ? 'Tertanda' : 'Belum Tanda'}
+                            {result.statementConsistency && (
+                              <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                💬 Analisis konsistensi tersedia
                               </div>
-                              {result.chairpersonSignerName && (
-                                <div className="text-xs text-gray-600 dark:text-gray-300 font-medium">
-                                  {result.chairpersonSignerName}
+                            )}
+                          </div>
+                        </td>
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
+                          <div className="text-sm">
+                            {result.recommendedImmediateActions && Array.isArray(result.recommendedImmediateActions) && result.recommendedImmediateActions.length > 0 ? (
+                              <div className="space-y-1">
+                                <div className="text-gray-900 dark:text-white font-medium">
+                                  {result.recommendedImmediateActions.length} rekomendasi
                                 </div>
-                              )}
-                              {result.chairpersonDigitalSignature && result.chairpersonSignatureDate && (
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {formatDate(result.chairpersonSignatureDate)}
+                                  {result.recommendedImmediateActions.slice(0, 2).map((action: any, idx: number) => (
+                                    <div key={idx} className="truncate">
+                                      • {action.action || 'Tindakan'}
+                                    </div>
+                                  ))}
+                                  {result.recommendedImmediateActions.length > 2 && (
+                                    <div className="text-gray-400">
+                                      +{result.recommendedImmediateActions.length - 2} lainnya
+                                    </div>
+                                  )}
                                 </div>
-                              )}
+                              </div>
+                            ) : (
+                              <div className="text-gray-500 dark:text-gray-400">
+                                Belum ada rekomendasi
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="border border-gray-200 dark:border-gray-700 px-3 py-3">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-4 h-4 rounded-full flex items-center justify-center text-xs font-semibold ${
+                                result.creatorDigitalSignature
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                              }`}>
+                                {result.creatorDigitalSignature ? '✓' : '✗'}
+                              </div>
+                              <div className="text-xs">
+                                <div className="text-gray-900 dark:text-white">
+                                  {result.creatorDigitalSignature ? 'Pembuat' : 'Pending'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-4 h-4 rounded-full flex items-center justify-center text-xs font-semibold ${
+                                result.chairpersonDigitalSignature
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                              }`}>
+                                {result.chairpersonDigitalSignature ? '✓' : '✗'}
+                              </div>
+                              <div className="text-xs">
+                                <div className="text-gray-900 dark:text-white">
+                                  {result.chairpersonDigitalSignature ? 'Ketua' : 'Pending'}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -876,13 +928,13 @@ export default function InvestigationRekapanPage() {
                               size="sm"
                               className="h-8 px-2 text-xs"
                               onClick={() => {
-                                // Open results form in edit/view mode
-                                window.open(`/satgas/dashboard/investigasi/${id}/hasil`, '_blank');
+                                setSelectedResult(result);
+                                setShowResultDetailModal(true);
                               }}
                               title="Lihat detail berita acara"
                             >
                               <Eye className="w-3 h-3 mr-1" />
-                              Lihat
+                              Detail
                             </Button>
                             <Button
                               variant="outline"
@@ -1178,6 +1230,289 @@ export default function InvestigationRekapanPage() {
                       </ul>
                     </div>
                   )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DETAIL HASIL INVESTIGASI */}
+        {selectedResult && showResultDetailModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Detail Berita Acara Investigasi
+                  </h2>
+                  {selectedResult.createdAt && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Dibuat pada: {formatDateTime(selectedResult.createdAt)}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowResultDetailModal(false);
+                    setSelectedResult(null);
+                  }}
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <Separator className="mb-6" />
+
+              <div className="space-y-6">
+                {/* Informasi Dasar */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Informasi Dasar</h3>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Judul Kegiatan:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">{selectedResult.schedulingTitle || 'Sesi Investigasi'}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Lokasi:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">{selectedResult.schedulingLocation || '-'}</span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Waktu:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {selectedResult.schedulingDateTime ? formatDateTime(selectedResult.schedulingDateTime) : '-'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Status & Tanda Tangan</h3>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Status Kasus:</span>
+                        <Badge className={`ml-2 ${
+                          selectedResult.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION'
+                            ? 'bg-green-500 hover:bg-green-600 text-white'
+                            : selectedResult.caseStatusAfterResult === 'UNDER_INVESTIGATION'
+                            ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                            : selectedResult.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
+                            ? 'bg-purple-500 hover:bg-purple-600 text-white'
+                            : selectedResult.caseStatusAfterResult === 'CLOSED_TERMINATED'
+                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                            : 'bg-orange-500 hover:bg-orange-600 text-white'
+                        }`}>
+                          {selectedResult.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION'
+                            ? 'Siap Rekomendasi'
+                            : selectedResult.caseStatusAfterResult === 'UNDER_INVESTIGATION'
+                            ? 'Sedang Berlangsung'
+                            : selectedResult.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
+                            ? 'Ke Rektorat'
+                            : selectedResult.caseStatusAfterResult === 'CLOSED_TERMINATED'
+                            ? 'Ditutup'
+                            : selectedResult.caseStatusAfterResult || '-'}
+                        </Badge>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Tanda Tangan Pembuat:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {selectedResult.creatorSignerName || 'Belum ditandatangani'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Tanda Tangan Ketua:</span>
+                        <span className="ml-2 text-gray-900 dark:text-white">
+                          {selectedResult.chairpersonSignerName || 'Belum ditandatangani'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Kehadiran */}
+                {(selectedResult.satgasMembersPresent || selectedResult.partiesPresent) && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Data Kehadiran</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {selectedResult.satgasMembersPresent && Array.isArray(selectedResult.satgasMembersPresent) && selectedResult.satgasMembersPresent.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Anggota Sabtu yang Hadir</h4>
+                          <div className="space-y-1">
+                            {selectedResult.satgasMembersPresent.map((member: any, idx: number) => (
+                              <div key={idx} className="text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                                <div className="font-medium text-gray-900 dark:text-white">{member.name || 'Anggota'}</div>
+                                {member.role && (
+                                  <div className="text-gray-600 dark:text-gray-400 text-xs">{member.role}</div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {selectedResult.partiesPresent && Array.isArray(selectedResult.partiesPresent) && selectedResult.partiesPresent.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Status Kehadiran Pihak</h4>
+                          <div className="space-y-1">
+                            {selectedResult.partiesPresent.map((party: any, idx: number) => (
+                              <div key={idx} className="text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                                <div className="font-medium text-gray-900 dark:text-white">{party.name || 'Pihak'}</div>
+                                <div className="text-gray-600 dark:text-gray-400 text-xs">
+                                  {party.role} - {party.status === 'PRESENT' ? 'Hadir' :
+                                   party.status === 'ABSENT_WITH_REASON' ? 'Tidak Hadir (Ada Alasan)' : 'Tidak Hadir'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {selectedResult.attendanceNotes && (
+                      <div>
+                        <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Catatan Kehadiran</h4>
+                        <p className="text-sm text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
+                          {selectedResult.attendanceNotes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Catatan Inti Investigasi */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Catatan Inti Investigasi</h3>
+                  
+                  {selectedResult.partiesStatementSummary && (
+                    <div>
+                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Ringkasan Keterangan Pihak</h4>
+                      <p className="text-sm text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 whitespace-pre-wrap">
+                        {selectedResult.partiesStatementSummary}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedResult.newPhysicalEvidence && (
+                    <div>
+                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Temuan Bukti Fisik/Digital Baru</h4>
+                      <p className="text-sm text-gray-900 dark:text-white bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded border border-yellow-200 dark:border-yellow-800 whitespace-pre-wrap">
+                        {selectedResult.newPhysicalEvidence}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedResult.statementConsistency && (
+                    <div>
+                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Konsistensi Keterangan</h4>
+                      <p className="text-sm text-gray-900 dark:text-white bg-purple-50 dark:bg-purple-900/20 p-3 rounded border border-purple-200 dark:border-purple-800 whitespace-pre-wrap">
+                        {selectedResult.statementConsistency}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Kesimpulan & Rekomendasi */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Kesimpulan & Rekomendasi</h3>
+                  
+                  {selectedResult.sessionInterimConclusion && (
+                    <div>
+                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Kesimpulan Sementara dari Sesi Ini</h4>
+                      <p className="text-sm text-gray-900 dark:text-white bg-green-50 dark:bg-green-900/20 p-3 rounded border border-green-200 dark:border-green-800 whitespace-pre-wrap">
+                        {selectedResult.sessionInterimConclusion}
+                      </p>
+                    </div>
+                  )}
+
+                  {selectedResult.recommendedImmediateActions && Array.isArray(selectedResult.recommendedImmediateActions) && selectedResult.recommendedImmediateActions.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Rekomendasi Tindak Lanjut Segera</h4>
+                      <div className="space-y-2">
+                        {selectedResult.recommendedImmediateActions.map((action: any, idx: number) => (
+                          <div key={idx} className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {action.action || 'Tindakan'}
+                              </span>
+                              <Badge variant={
+                                action.priority === 'HIGH' ? 'destructive' :
+                                action.priority === 'MEDIUM' ? 'default' : 'secondary'
+                              }>
+                                {action.priority === 'HIGH' ? 'Tinggi' :
+                                 action.priority === 'MEDIUM' ? 'Sedang' : 'Rendah'}
+                              </Badge>
+                            </div>
+                            {action.notes && (
+                              <div className="text-gray-600 dark:text-gray-400 text-xs">
+                                Catatan: {action.notes}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedResult.statusChangeReason && (
+                    <div>
+                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Alasan Perubahan Status</h4>
+                      <p className="text-sm text-gray-900 dark:text-white bg-orange-50 dark:bg-orange-900/20 p-3 rounded border border-orange-200 dark:border-orange-800 whitespace-pre-wrap">
+                        {selectedResult.statusChangeReason}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bukti yang Diupload */}
+                {selectedResult.evidenceFiles && Array.isArray(selectedResult.evidenceFiles) && selectedResult.evidenceFiles.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Bukti yang Diupload</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {selectedResult.evidenceFiles.map((file: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2 text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700">
+                          <FileText className="w-4 h-4 text-gray-500" />
+                          <div className="flex-1">
+                            <div className="text-gray-900 dark:text-white font-medium">{file.name}</div>
+                            <div className="text-gray-500 dark:text-gray-400 text-xs">
+                              {(file.size / 1024).toFixed(1)} KB • {file.type}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Catatan Internal OTAN */}
+                {selectedResult.internalSatgasNotes && (
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Catatan Internal OTAN</h3>
+                    <p className="text-sm text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 p-3 rounded border border-gray-300 dark:border-gray-600 whitespace-pre-wrap">
+                      {selectedResult.internalSatgasNotes}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="my-6" />
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownloadResultPdf(selectedResult.id)}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Unduh PDF
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowResultDetailModal(false);
+                    setSelectedResult(null);
+                  }}
+                >
+                  Tutup
+                </Button>
               </div>
             </div>
           </div>

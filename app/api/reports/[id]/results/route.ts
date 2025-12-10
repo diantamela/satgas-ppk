@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { createHash } from "crypto";
 import { reportService } from "@/lib/services/reports/report-service";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
@@ -157,55 +158,64 @@ export async function POST(
     };
     
     const documentHashString = JSON.stringify(documentData);
-    const hash = require('crypto').createHash('sha256').update(documentHashString).digest('hex');
+    const hash = createHash('sha256').update(documentHashString).digest('hex');
+
+    // Create investigation result with conditional fields for backward compatibility
+    const investigationResultData: any = {
+      processId,
+      reportId,
+      
+      // Auto-populated metadata
+      schedulingId,
+      schedulingTitle,
+      schedulingDateTime: schedulingDateTime ? new Date(schedulingDateTime) : null,
+      schedulingLocation,
+      caseTitle,
+      reportNumber,
+      
+      // Attendance tracking
+      satgasMembersPresent: satgasMembersPresent || [],
+      partiesPresent: partiesPresent || [],
+      identityVerified: identityVerified || false,
+      attendanceNotes,
+      
+      // Key investigation notes
+      partiesStatementSummary,
+      newPhysicalEvidence,
+      evidenceFiles: evidenceFiles || [],
+      statementConsistency,
+      
+      // Interim conclusions and recommendations
+      sessionInterimConclusion,
+      recommendedImmediateActions: recommendedImmediateActions || [],
+      caseStatusAfterResult: caseStatusAfterResult || 'UNDER_INVESTIGATION',
+      statusChangeReason,
+      
+      // Digital authentication
+      dataVerificationConfirmed: dataVerificationConfirmed || false,
+      creatorDigitalSignature,
+      creatorSignatureDate: creatorSignatureDate ? new Date(creatorSignatureDate) : null,
+      chairpersonDigitalSignature,
+      chairpersonSignatureDate: chairpersonSignatureDate ? new Date(chairpersonSignatureDate) : null,
+      
+      // Additional fields
+      partiesDetailedAttendance: partiesDetailedAttendance || {},
+      recommendedActionsDetails: recommendedActionsDetails || {},
+      documentHash: hash,
+      internalSatgasNotes
+    };
+
+    // Add signer name fields only if they exist (for backward compatibility)
+    if (creatorSignerName) {
+      investigationResultData.creatorSignerName = creatorSignerName;
+    }
+    if (chairpersonSignerName) {
+      investigationResultData.chairpersonSignerName = chairpersonSignerName;
+    }
 
     // Create investigation result
     const investigationResult = await db.investigationResult.create({
-      data: {
-        processId,
-        reportId,
-        
-        // Auto-populated metadata
-        schedulingId,
-        schedulingTitle,
-        schedulingDateTime: schedulingDateTime ? new Date(schedulingDateTime) : null,
-        schedulingLocation,
-        caseTitle,
-        reportNumber,
-        
-        // Attendance tracking
-        satgasMembersPresent: satgasMembersPresent || [],
-        partiesPresent: partiesPresent || [],
-        identityVerified: identityVerified || false,
-        attendanceNotes,
-        
-        // Key investigation notes
-        partiesStatementSummary,
-        newPhysicalEvidence,
-        evidenceFiles: evidenceFiles || [],
-        statementConsistency,
-        
-        // Interim conclusions and recommendations
-        sessionInterimConclusion,
-        recommendedImmediateActions: recommendedImmediateActions || [],
-        caseStatusAfterResult: caseStatusAfterResult || 'UNDER_INVESTIGATION',
-        statusChangeReason,
-        
-        // Digital authentication
-        dataVerificationConfirmed: dataVerificationConfirmed || false,
-        creatorDigitalSignature,
-        creatorSignerName,
-        creatorSignatureDate: creatorSignatureDate ? new Date(creatorSignatureDate) : null,
-        chairpersonDigitalSignature,
-        chairpersonSignerName,
-        chairpersonSignatureDate: chairpersonSignatureDate ? new Date(chairpersonSignatureDate) : null,
-        
-        // Additional fields
-        partiesDetailedAttendance: partiesDetailedAttendance || {},
-        recommendedActionsDetails: recommendedActionsDetails || {},
-        documentHash: hash,
-        internalSatgasNotes
-      }
+      data: investigationResultData
     });
 
     // Update report status if needed
@@ -243,8 +253,25 @@ export async function POST(
     });
   } catch (error) {
     console.error("Error creating investigation result:", error);
+    
+    // Provide more specific error messages based on error type
+    let errorMessage = "Terjadi kesalahan saat mencatat hasil investigasi";
+    
+    if (error instanceof SyntaxError) {
+      errorMessage = "Format data tidak valid";
+    } else if (error && typeof error === 'object' && 'name' in error && error.name === 'ValidationError') {
+      errorMessage = "Data yang dikirim tidak memenuhi validasi";
+    } else if (error && typeof error === 'object' && 'code' in error) {
+      const errorCode = (error as any).code;
+      if (errorCode === 'P2002') {
+        errorMessage = "Data sudah ada dalam sistem";
+      } else if (errorCode === 'P2025') {
+        errorMessage = "Data yang direferensikan tidak ditemukan";
+      }
+    }
+    
     return Response.json(
-      { success: false, message: "Terjadi kesalahan saat mencatat hasil investigasi" },
+      { success: false, message: errorMessage },
       { status: 500 }
     );
   }

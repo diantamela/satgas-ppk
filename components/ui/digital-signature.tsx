@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Trash2, Undo2, Download, Upload } from 'lucide-react';
+import { Trash2, Undo2, Download, Upload, PenTool } from 'lucide-react';
 
 interface DigitalSignatureProps {
   label: string;
@@ -158,10 +158,24 @@ export default function DigitalSignature({
             
             {/* Placeholder text when empty */}
             {isEmpty && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-gray-400 text-sm italic">
-                  {placeholder}
-                </span>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-gray-50 dark:bg-gray-800/50">
+                <div className="text-center space-y-2">
+                  <PenTool className="w-6 h-6 mx-auto text-gray-400" />
+                  <span className="text-gray-400 text-sm italic block">
+                    {placeholder}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    Klik dan drag untuk menandatangani
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            {/* Active drawing indicator */}
+            {!isEmpty && !disabled && (
+              <div className="absolute top-2 right-2 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                Tanda tangan aktif
               </div>
             )}
           </div>

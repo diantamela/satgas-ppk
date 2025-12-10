@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { formatDateTimeForInput, parseDateTimeFromInput } from "@/lib/utils/utils";
 
 interface PartyAttendance {
   name: string;
@@ -135,8 +136,8 @@ export default function InvestigationProsesPage() {
             if (processData.process) {
               const process = processData.process;
               setSchedulingTitle(process.planSummary || 'Sesi Investigasi');
-              setStartDateTime(process.startDateTime || '');
-              setEndDateTime(process.endDateTime || '');
+              setStartDateTime(formatDateTimeForInput(process.startDateTime) || '');
+              setEndDateTime(formatDateTimeForInput(process.endDateTime) || '');
               setSchedulingLocation(process.location || '');
               
               // Set initial values from scheduled process
@@ -221,6 +222,8 @@ export default function InvestigationProsesPage() {
     }
   };
 
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
 
@@ -260,7 +263,24 @@ export default function InvestigationProsesPage() {
       setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat mengupload file' });
     } finally {
       setIsUploading(false);
+      setIsDragOver(false);
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    handleFileUpload(e.dataTransfer.files);
   };
 
   const removeUploadedFile = (index: number) => {
@@ -330,8 +350,8 @@ export default function InvestigationProsesPage() {
         
         // New results data
         schedulingTitle,
-        startDateTime: startDateTime || undefined,
-        endDateTime: endDateTime || undefined,
+        startDateTime: parseDateTimeFromInput(startDateTime),
+        endDateTime: parseDateTimeFromInput(endDateTime),
         caseTitle: report?.title,
         reportNumber: report?.reportNumber,
         
@@ -813,35 +833,59 @@ export default function InvestigationProsesPage() {
 
               <div className="space-y-3">
                 <Label>Upload Bukti Baru</Label>
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-                  <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Seret & lepaskan file di sini, atau klik untuk memilih
-                  </p>
-                  <Input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf,.doc,.docx,.txt,.mp4,.mov,.xlsx,.xls,.ppt,.pptx"
-                    onChange={(e) => handleFileUpload(e.target.files)}
-                    disabled={isUploading}
-                    className="hidden"
-                    id="evidence-upload"
-                  />
-                  <Label htmlFor="evidence-upload" className="cursor-pointer">
-                    <Button type="button" variant="outline" disabled={isUploading}>
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Mengupload...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Pilih File
-                        </>
-                      )}
-                    </Button>
-                  </Label>
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 ${
+                    isDragOver
+                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 scale-[1.02]'
+                      : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <Upload className={`w-8 h-8 mx-auto mb-2 transition-colors ${
+                    isDragOver ? 'text-blue-500' : 'text-gray-400'
+                  }`} />
+                  {isDragOver ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                        Lepaskan file di sini
+                      </p>
+                      <p className="text-xs text-blue-500 dark:text-blue-300">
+                        File akan diupload secara otomatis
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Seret & lepaskan file di sini, atau klik untuk memilih
+                      </p>
+                      <Input
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf,.doc,.docx,.txt,.mp4,.mov,.xlsx,.xls,.ppt,.pptx"
+                        onChange={(e) => handleFileUpload(e.target.files)}
+                        disabled={isUploading}
+                        className="hidden"
+                        id="evidence-upload"
+                      />
+                      <Label htmlFor="evidence-upload" className="cursor-pointer">
+                        <Button type="button" variant="outline" disabled={isUploading}>
+                          {isUploading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Mengupload...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4 mr-2" />
+                              Pilih File
+                            </>
+                          )}
+                        </Button>
+                      </Label>
+                    </div>
+                  )}
                 </div>
 
                 {/* Uploaded Evidence Files */}

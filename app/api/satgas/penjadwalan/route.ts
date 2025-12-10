@@ -11,25 +11,25 @@ export const runtime = "nodejs";
 async function sendNotification(userId: string, type: string, title: string, message: string, relatedEntityId?: string, relatedEntityType?: string) {
   try {
     // Map string types to proper enum values
-    let notificationType: any = 'INFO';
+    let notificationType: any = 'REPORT_STATUS_CHANGED';
     switch (type) {
       case 'INVESTIGATION_SCHEDULED':
-        notificationType = 'INFO';
+        notificationType = 'REPORT_STATUS_CHANGED';
         break;
       case 'INVESTIGATION_SCHEDULE_UPDATED':
-        notificationType = 'INFO';
+        notificationType = 'REPORT_STATUS_CHANGED';
         break;
       case 'INVESTIGATION_CANCELLED':
-        notificationType = 'WARNING';
+        notificationType = 'REPORT_STATUS_CHANGED';
         break;
       case 'INVESTIGATION_STATUS_UPDATE':
-        notificationType = 'INFO';
+        notificationType = 'REPORT_STATUS_CHANGED';
         break;
       case 'INVESTIGATION_ASSIGNMENT':
-        notificationType = 'INFO';
+        notificationType = 'REPORT_ASSIGNED';
         break;
       default:
-        notificationType = 'INFO';
+        notificationType = 'REPORT_STATUS_CHANGED';
     }
 
     await db.notification.create({

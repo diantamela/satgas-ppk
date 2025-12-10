@@ -12,6 +12,7 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useSession } from "@/lib/auth/auth-client";
+import { formatDateTimeForInput, parseDateTimeFromInput } from "@/lib/utils/utils";
 
 import { reportFormStyles as styles } from '@/lib/styles/report-form-styles';
 
@@ -101,7 +102,7 @@ export default function ReportFormPage() {
       const reportData = {
         title: `Laporan ${data.jenis} - ${data.nama_terlapor}`,
         description: data.kronologi,
-        incidentDate: data.waktu ? new Date(data.waktu) : null,
+        incidentDate: parseDateTimeFromInput(data.waktu),
         incidentLocation: data.lokasi,
         reporterId: session.user.id,
         reporterEmail: data.email, // Include email from form data
