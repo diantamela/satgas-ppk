@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/database/prisma';
+import { prisma } from '../database/prisma';
 import crypto from 'crypto';
 
 const sha256 = (s: string) => crypto.createHash('sha256').update(s).digest('hex');

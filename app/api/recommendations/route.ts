@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const recommendations = await db.recommendation.findMany({
+    const recommendations = await (db.recommendation as any).findMany({
       include: {
         report: {
           select: {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform data to match the expected interface
-    const transformedRecommendations = recommendations.map((rec) => ({
+    const transformedRecommendations = recommendations.map((rec: any) => ({
       id: rec.id,
       investigationId: rec.report.reportNumber,
       title: rec.title,
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const recommendation = await db.recommendation.create({
+    const recommendation = await (db.recommendation as any).create({
       data: {
         reportId,
         title,
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           type: "NEW_RECOMMENDATION" as const,
           title: "Rekomendasi Baru",
-          message: `Rekomendasi baru untuk laporan ${recommendation.report.reportNumber} telah diajukan`,
+          message: `Rekomendasi baru untuk laporan ${(recommendation as any).report.reportNumber} telah diajukan`,
           relatedEntityId: recommendation.id,
           relatedEntityType: "recommendation",
         })),

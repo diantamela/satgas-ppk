@@ -4,10 +4,10 @@ import { Prisma } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = params.id;
+    const { id: reportId } = await params;
 
     // Get report basic info
     const report = await db.report.findUnique({
@@ -151,10 +151,10 @@ export async function GET(
 // POST method to create new activity
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reportId = params.id;
+    const { id: reportId } = await params;
     const body = await request.json();
     
     const {

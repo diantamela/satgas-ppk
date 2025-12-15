@@ -24,7 +24,10 @@ interface InProgressReport {
 }
 
 export default function AutoSchedulingPage() {
-  const { data: session, status } = useSession();
+  const sessionHook = useSession();
+  const session = sessionHook?.data;
+  const status = sessionHook?.status || 'loading';
+  
   const [stats, setStats] = useState<SchedulingStats | null>(null);
   const [reports, setReports] = useState<InProgressReport[]>([]);
   const [loading, setLoading] = useState(true);

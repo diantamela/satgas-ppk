@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
 import { db } from "@/db";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 export const runtime = "nodejs";
 
@@ -61,8 +62,10 @@ export async function GET(
         dataVerificationConfirmed: true,
         creatorDigitalSignature: true,
         creatorSignatureDate: true,
+        creatorSignerName: true,
         chairpersonDigitalSignature: true,
         chairpersonSignatureDate: true,
+        chairpersonSignerName: true,
         partiesDetailedAttendance: true,
         recommendedActionsDetails: true,
         documentHash: true,
@@ -80,10 +83,10 @@ export async function GET(
     }
 
     // Generate PDF content
-    const pdfContent = generateInvestigationResultPDF(investigationResult);
+    const pdfBuffer = await generateInvestigationResultPDF(investigationResult);
 
     // Return PDF as response
-    return new Response(pdfContent, {
+    return new Response(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="berita-acara-${investigationResult?.reportNumber || 'unknown'}-${resultId}.pdf"`,
@@ -99,7 +102,18 @@ export async function GET(
   }
 }
 
-function generateInvestigationResultPDF(result: any): string {
+async function generateInvestigationResultPDF(result: any): Promise<ArrayBuffer> {
+  // Create a new PDF document
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
+  const { width, height } = page.getSize();
+  
+  // Load fonts
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  
+  let yPosition = height - 50;
+  
   const formatDate = (date: Date | string | null) => {
     if (!date) return "-";
     const d = new Date(date);
@@ -125,6 +139,15 @@ function generateInvestigationResultPDF(result: any): string {
     return statusMap[status] || status;
   };
 
+  const formatPriority = (priority: string) => {
+    const priorityMap: Record<string, string> = {
+      'HIGH': 'Tinggi',
+      'MEDIUM': 'Sedang',
+      'LOW': 'Rendah'
+    };
+    return priorityMap[priority] || priority || 'N/A';
+  };
+
   const formatRecommendedActions = (actions: any[]) => {
     if (!actions || actions.length === 0) return "-";
     return actions.map((action: any, index: number) => {
@@ -140,7 +163,8 @@ function generateInvestigationResultPDF(result: any): string {
         'WITNESS_REINTERVIEW': 'Wawancara Ulang Saksi',
         'OTHER': 'Lainnya'
       };
-      return `${index + 1}. ${actionMap[action.action] || action.action} (Prioritas: ${action.priority || 'N/A'})`;
+      const notes = action.notes ? ` - Catatan: ${action.notes}` : '';
+      return `${index + 1}. ${actionMap[action.action] || action.action} (Prioritas: ${formatPriority(action.priority)})${notes}`;
     }).join('\n');
   };
 
@@ -171,90 +195,110 @@ function generateInvestigationResultPDF(result: any): string {
     }).join('\n');
   };
 
-  // Generate the PDF content as a formatted text document
-  // In a real implementation, you'd use a PDF generation library like jsPDF or Puppeteer
-  // For now, we'll create a well-formatted text document
-  
-  return `
-BERITA ACARA HASIL INVESTIGASI
-===================================
+  const addText = (text: string, fontSize: number = 10, isBold: boolean = false, color: any = rgb(0, 0, 0)) => {
+    const currentFont = isBold ? fontBold : font;
+    const lines = text.split('\n');
+    
+    for (const line of lines) {
+      if (yPosition < 50) {
+        // Add new page if needed
+        const newPage = pdfDoc.addPage([595.28, 841.89]);
+        yPosition = newPage.getSize().height - 50;
+        // Switch to new page
+        (page as any) = newPage;
+      }
+      
+      page.drawText(line, {
+        x: 50,
+        y: yPosition,
+        size: fontSize,
+        font: currentFont,
+        color: color,
+      });
+      yPosition -= fontSize + 5;
+    }
+    yPosition -= 5; // Extra space after text block
+  };
 
-INFORMASI DASAR KEGIATAN:
--------------------------
-ID Kegiatan Penjadwalan: ${result.schedulingId || '-'}
-Judul Kegiatan: ${result.schedulingTitle || '-'}
-Tanggal & Waktu Pelaksanaan: ${formatDateTime(result.schedulingDateTime)}
-Lokasi Pelaksanaan: ${result.schedulingLocation || '-'}
-Judul Kasus: ${result.caseTitle || '-'}
-Nomor Laporan: ${result.reportNumber || result.report.reportNumber || '-'}
-Tanggal Pembuatan BA: ${formatDateTime(result.createdAt)}
+  // Title
+  addText('BERITA ACARA HASIL INVESTIGASI', 16, true);
+  addText('================================================================================', 8);
+  yPosition -= 10;
 
-INFORMASI LAPORAN:
-------------------
-Nomor Laporan: ${result.reportNumber || '-'}
-Judul Kasus: ${result.caseTitle || '-'}
-Kategori: Informasi tidak tersedia
-Tingkat Keparahan: Informasi tidak tersedia
-Tanggal Insiden: Informasi tidak tersedia
-Lokasi Insiden: Informasi tidak tersedia
-Pelapor: Informasi tidak tersedia
+  // Basic Information
+  addText('INFORMASI DASAR KEGIATAN:', 12, true);
+  addText(`ID Kegiatan Penjadwalan: ${result.schedulingId || '-'}`);
+  addText(`Judul Kegiatan: ${result.schedulingTitle || '-'}`);
+  addText(`Tanggal & Waktu Pelaksanaan: ${formatDateTime(result.schedulingDateTime)}`);
+  addText(`Lokasi Pelaksanaan: ${result.schedulingLocation || '-'}`);
+  addText(`Judul Kasus: ${result.caseTitle || '-'}`);
+  addText(`Nomor Laporan: ${result.reportNumber || '-'}`);
+  addText(`Tanggal Pembuatan BA: ${formatDateTime(result.createdAt)}`);
+  yPosition -= 10;
 
-KEHADIRAN PIHAK TERLIBAT:
--------------------------
-Satgas yang Hadir:
-${formatSatgasMembers(result.satgasMembersPresent)}
+  // Attendance
+  addText('KEHADIRAN PIHAK TERLIBAT:', 12, true);
+  addText('Satgas yang Hadir:');
+  addText(formatSatgasMembers(result.satgasMembersPresent));
+  addText('Status Kehadiran Pihak:');
+  addText(formatPartiesPresent(result.partiesPresent));
+  addText(`Verifikasi Identitas: ${result.identityVerified ? 'Ya' : 'Tidak'}`);
+  addText(`Catatan Kehadiran: ${result.attendanceNotes || '-'}`);
+  yPosition -= 10;
 
-Status Kehadiran Pihak:
-${formatPartiesPresent(result.partiesPresent)}
+  // Investigation Notes
+  addText('CATATAN INTI INVESTIGASI:', 12, true);
+  addText('Ringkasan Keterangan Pihak:');
+  addText(result.partiesStatementSummary || '-');
+  addText('Temuan Bukti Fisik/Digital Baru:');
+  addText(result.newPhysicalEvidence || '-');
+  addText('Bukti yang Diupload:');
+  addText(formatEvidenceFiles(result.evidenceFiles));
+  addText('Konsistensi Keterangan:');
+  addText(result.statementConsistency || '-');
+  yPosition -= 10;
 
-Verifikasi Identitas: ${result.identityVerified ? 'Ya' : 'Tidak'}
-Catatan Kehadiran: ${result.attendanceNotes || '-'}
+  // Conclusions and Recommendations
+  addText('KESIMPULAN SEMENTARA & REKOMENDASI:', 12, true);
+  addText('Kesimpulan Sementara dari Sesi Ini:');
+  addText(result.sessionInterimConclusion || '-');
+  addText('Rekomendasi Tindak Lanjut Segera:');
+  addText(formatRecommendedActions(result.recommendedImmediateActions));
+  addText(`Perubahan Status Kasus: ${formatStatus(result.caseStatusAfterResult)}`);
+  addText(`Alasan Perubahan Status: ${result.statusChangeReason || '-'}`);
+  yPosition -= 10;
 
-CATATAN INTI INVESTIGASI:
--------------------------
-Ringkasan Keterangan Pihak:
-${result.partiesStatementSummary || '-'}
+  // Authentication
+  addText('OTENTIKASI BERITA ACARA:', 12, true);
+  addText(`Verifikasi Data: ${result.dataVerificationConfirmed ? 'Ya' : 'Tidak'}`);
+  addText(`Tanda Tangan Digital Pembuat BA: ${result.creatorDigitalSignature ? 'Ya' : 'Tidak'}`);
+  addText(`Nama Pembuat: ${result.creatorSignerName || '-'}`);
+  addText(`Tanggal TTD Pembuat: ${formatDateTime(result.creatorSignatureDate)}`);
+  addText(`Tanda Tangan Digital Ketua: ${result.chairpersonDigitalSignature ? 'Ya' : 'Tidak'}`);
+  addText(`Nama Ketua: ${result.chairpersonSignerName || '-'}`);
+  addText(`Tanggal TTD Ketua: ${formatDateTime(result.chairpersonSignatureDate)}`);
+  yPosition -= 10;
 
-Temuan Bukti Fisik/Digital Baru:
-${result.newPhysicalEvidence || '-'}
+  // Document Integrity
+  addText('INTEGRITAS DOKUMEN:', 12, true);
+  addText(`Hash Dokumen: ${result.documentHash || '-'}`);
+  addText(`Tanggal Pembuatan: ${formatDateTime(result.createdAt)}`);
+  addText(`Terakhir Diperbarui: ${formatDateTime(result.updatedAt)}`);
+  yPosition -= 10;
 
-Bukti yang Diupload:
-${formatEvidenceFiles(result.evidenceFiles)}
+  // Internal Notes
+  addText('CATATAN INTERNAL:', 12, true);
+  addText(result.internalSatgasNotes || '-');
+  yPosition -= 20;
 
-Konsistensi Keterangan:
-${result.statementConsistency || '-'}
+  // Footer
+  addText('================================================================================', 8);
+  addText('Dokumen ini dibuat secara digital dan memiliki hash untuk memastikan integritas.');
+  addText(`Dibuat pada: ${formatDateTime(new Date())}`);
+  addText('Generated by: Sistem Informasi Penanganan KasusPPTSEKSUAL');
+  addText('================================================================================', 8);
 
-KESIMPULAN SEMENTARA & REKOMENDASI:
------------------------------------
-Kesimpulan Sementara dari Sesi Ini:
-${result.sessionInterimConclusion || '-'}
-
-Rekomendasi Tindak Lanjut Segera:
-${formatRecommendedActions(result.recommendedImmediateActions)}
-
-Perubahan Status Kasus: ${formatStatus(result.caseStatusAfterResult)}
-Alasan Perubahan Status: ${result.statusChangeReason || '-'}
-
-OTENTIKASI BERITA ACARA:
-------------------------
-Verifikasi Data: ${result.dataVerificationConfirmed ? 'Ya' : 'Tidak'}
-Tanda Tangan Digital Pembuat BA: ${result.creatorDigitalSignature || '-'}
-Tanggal TTD Pembuat BA: ${formatDateTime(result.creatorSignatureDate)}
-Tanda Tangan Digital Ketua Forças: ${result.chairpersonDigitalSignature || '-'}
-Tanggal TTD Ketua Forças: ${formatDateTime(result.chairpersonSignatureDate)}
-
-INTEGRITAS DOKUMEN:
--------------------
-Hash Dokumen: ${result.documentHash || '-'}
-Tanggal Pembuatan: ${formatDateTime(result.createdAt)}
-Terakhir Diperbarui: ${formatDateTime(result.updatedAt)}
-
-CATATAN INTERNAL OTAN:
-----------------------
-${result.internalSatgasNotes || '-'}
-
-===================================
-Dokumen ini dibuat secara digital dan memiliki hash untuk memastikan integritas.
-Generated on: ${formatDateTime(new Date())}
-`;
+  // Save the PDF
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes).buffer;
 }

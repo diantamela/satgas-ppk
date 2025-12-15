@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
         },
       });
       
-      notifications.forEach((notification: any) => {
+      for (const notification of notifications) {
         const notificationWithUser = notification;
         
         // Handle contact messages specially - extract name from message content
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
             isRead: notification.isRead,
           }
         });
-      });
+      }
 
       // 2. Get Reports with date filtering
       const reportWhere: any = {};
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
         },
       });
       
-      reports.forEach((report: any) => {
+      reports.forEach((report) => {
         const reportWithRelations = report;
         activities.push({
           id: report.id,

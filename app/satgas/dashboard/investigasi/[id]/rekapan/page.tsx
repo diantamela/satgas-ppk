@@ -44,7 +44,7 @@ const partyLabels: Record<string, string> = {
   VICTIM_SURVIVOR: "Korban/Penyintas",
   REPORTED_PERSON: "Terlapor",
   WITNESS: "Saksi",
-  OTHER_PARTY: "Pihak Lain",
+  OTHER_PARTY: " Pihak Lain",
 };
 
 const roleLabels: Record<string, string> = {
@@ -168,7 +168,7 @@ ${d.planSummary || "Tidak ada ringkasan"}
 TINDAK LANJUT:
 ${followUpText}
 
-LEVEL AKSES:
+LEVEL AKSEN:
 ${
   accessLevelLabels[d.accessLevel] ??
   d.accessLevel ??
@@ -386,54 +386,114 @@ export default function InvestigationRekapanPage() {
   };
 
   const handleDownloadResultPdf = async (resultId: string) => {
-    if (!id) return;
+    if (!id) {
+      alert("ID laporan tidak valid");
+      return;
+    }
     const reportId = Array.isArray(id) ? id[0] : id;
 
     try {
       const response = await fetch(`/api/reports/${reportId}/results/${resultId}/pdf`);
+      
       if (!response.ok) {
-        alert("Gagal mengunduh PDF hasil investigasi");
+        if (response.status === 401) {
+          alert("Anda tidak memiliki akses untuk mengunduh file ini");
+        } else if (response.status === 404) {
+          alert("File PDF tidak ditemukan");
+        } else {
+          alert(`Gagal mengunduh PDF hasil investigasi (Status: ${response.status})`);
+        }
+        return;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        alert("File yang diterima bukan PDF yang valid");
         return;
       }
 
       const blob = await response.blob();
+      
+      // Check if blob is valid
+      if (blob.size === 0) {
+        alert("File PDF kosong");
+        return;
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `berita-acara-${report?.reportNumber || reportId}-${resultId}.pdf`;
+      
+      // Ensure element is in DOM before clicking
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
     } catch (error) {
       console.error("Download error:", error);
-      alert("Terjadi kesalahan saat mengunduh PDF hasil investigasi");
+      alert("Terjadi kesalahan saat mengunduh PDF hasil investigasi. Silakan coba lagi.");
     }
   };
 
   const handleDownloadReport = async () => {
-    if (!id) return;
+    if (!id) {
+      alert("ID laporan tidak valid");
+      return;
+    }
     const reportId = Array.isArray(id) ? id[0] : id;
 
     try {
       const response = await fetch(`/api/reports/${reportId}/download`);
+      
       if (!response.ok) {
-        alert("Gagal mengunduh laporan");
+        if (response.status === 401) {
+          alert("Anda tidak memiliki akses untuk mengunduh file ini");
+        } else if (response.status === 404) {
+          alert("File laporan tidak ditemukan");
+        } else {
+          alert(`Gagal mengunduh laporan (Status: ${response.status})`);
+        }
+        return;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        alert("File yang diterima bukan PDF yang valid");
         return;
       }
 
       const blob = await response.blob();
+      
+      // Check if blob is valid
+      if (blob.size === 0) {
+        alert("File laporan kosong");
+        return;
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `laporan-${report?.reportNumber || reportId}.pdf`;
+      
+      // Ensure element is in DOM before clicking
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      
+      // Cleanup
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 100);
+      
     } catch (error) {
       console.error("Download error:", error);
-      alert("Terjadi kesalahan saat mengunduh laporan");
+      alert("Terjadi kesalahan saat mengunduh laporan. Silakan coba lagi.");
     }
   };
 
@@ -442,70 +502,109 @@ export default function InvestigationRekapanPage() {
     entryIndex: number
   ) => {
     try {
-      // npm install jspdf
-      const { jsPDF } = await import("jspdf");
+      // Check if jsPDF is available
+      let jsPDF;
+      try {
+        const jsPDFModule = await import("jspdf");
+        jsPDF = jsPDFModule.jsPDF;
+      } catch (importError) {
+        console.error("Failed to import jsPDF:", importError);
+        alert("Library PDF tidak tersedia. Silakan coba lagi atau hubungi administrator.");
+        return;
+      }
+
       const doc = new jsPDF();
 
       const reportNumber = report?.reportNumber || String(id || "");
       const content = buildProcessReportText(processEntry, entryIndex, reportNumber);
 
-      // Tulis teks ringkasan
-      const lines = doc.splitTextToSize(content, 180);
-      doc.text(lines, 10, 10);
+      // Write summary text
+      try {
+        const lines = doc.splitTextToSize(content, 180);
+        doc.text(lines, 10, 10);
+      } catch (textError) {
+        console.error("Error adding text to PDF:", textError);
+        alert("Gagal menambahkan teks ke PDF.");
+        return;
+      }
 
       const d = processEntry.data || {};
 
-      // Sisipkan gambar lampiran (kalau ada & bisa diakses)
+      // Add attachments if available
       if (d.uploadedFiles && d.uploadedFiles.length > 0) {
-        const imageFiles = d.uploadedFiles.filter((file: any) => {
-          const type = (file.type || "").toLowerCase();
-          const name = (file.name || "").toLowerCase();
-          return (
-            type.startsWith("image/") ||
-            name.endsWith(".png") ||
-            name.endsWith(".jpg") ||
-            name.endsWith(".jpeg")
-          );
-        });
+        try {
+          const imageFiles = d.uploadedFiles.filter((file: any) => {
+            const type = (file.type || "").toLowerCase();
+            const name = (file.name || "").toLowerCase();
+            return (
+              type.startsWith("image/") ||
+              name.endsWith(".png") ||
+              name.endsWith(".jpg") ||
+              name.endsWith(".jpeg")
+            );
+          });
 
-        if (imageFiles.length > 0) {
-          doc.addPage();
-          let y = 20;
-          const maxWidth = 180;
+          if (imageFiles.length > 0) {
+            doc.addPage();
+            let y = 20;
+            const maxWidth = 180;
 
-          for (const file of imageFiles) {
-            if (!file.url) continue; // butuh URL untuk fetch
-
-            try {
-              const dataUrl = await loadImageAsDataURL(file.url);
-              // Judul kecil di atas gambar
-              doc.setFontSize(10);
-              doc.text(file.name, 10, y - 4);
-
-              // Perkirakan tinggi gambar (kita pakai tinggi tetap 80, cukup aman)
-              const imgFormat = file.type?.toLowerCase().includes("png")
-                ? "PNG"
-                : "JPEG";
-
-              doc.addImage(dataUrl, imgFormat as any, 10, y, maxWidth, 80);
-              y += 90;
-
-              // Kalau mau nambah gambar lagi tapi sudah mepet bawah halaman, pindah halaman
-              if (y > 260) {
-                doc.addPage();
-                y = 20;
+            for (const file of imageFiles) {
+              if (!file.url) {
+                console.warn("No URL available for file:", file.name);
+                continue;
               }
-            } catch (e) {
-              console.warn("Gagal memuat gambar lampiran ke PDF:", e);
+
+              try {
+                // Add filename
+                doc.setFontSize(10);
+                doc.text(file.name, 10, y - 4);
+
+                // Try to load and add image
+                try {
+                  const dataUrl = await loadImageAsDataURL(file.url);
+                  const imgFormat = file.type?.toLowerCase().includes("png")
+                    ? "PNG"
+                    : "JPEG";
+
+                  doc.addImage(dataUrl, imgFormat as any, 10, y, maxWidth, 80);
+                  y += 90;
+                } catch (imageError) {
+                  console.warn("Failed to load image:", file.name, imageError);
+                  // Add error message instead of image
+                  doc.text(`[Gagal memuat gambar: ${file.name}]`, 10, y);
+                  y += 20;
+                }
+
+                // Add new page if needed
+                if (y > 260) {
+                  doc.addPage();
+                  y = 20;
+                }
+              } catch (fileError) {
+                console.warn("Error processing file:", file.name, fileError);
+                // Continue with next file
+                continue;
+              }
             }
           }
+        } catch (attachmentError) {
+          console.warn("Error processing attachments:", attachmentError);
+          // Continue without attachments
         }
       }
 
-      doc.save(`proses-investigasi-${reportNumber}-entry-${entryIndex + 1}.pdf`);
+      // Save the PDF
+      try {
+        doc.save(`proses-investigasi-${reportNumber}-entry-${entryIndex + 1}.pdf`);
+      } catch (saveError) {
+        console.error("Error saving PDF:", saveError);
+        alert("Gagal menyimpan PDF. Silakan coba lagi.");
+        return;
+      }
     } catch (err) {
       console.error("Gagal membuat PDF:", err);
-      alert("Gagal membuat PDF. Pastikan library jsPDF sudah terpasang dan lampiran dapat diakses.");
+      alert("Gagal membuat PDF. Silakan coba lagi atau hubungi administrator jika masalah berlanjut.");
     }
   };
 
@@ -822,13 +921,13 @@ export default function InvestigationRekapanPage() {
                               {result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT' && <span className="w-2 h-2 bg-white rounded-full"></span>}
                               {result.caseStatusAfterResult === 'CLOSED_TERMINATED' && <span className="w-2 h-2 bg-white rounded-full"></span>}
                               {result.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION'
-                                ? 'Siap Rekomendasi'
+                                ? 'Siap untuk Rekomendasi'
                                 : result.caseStatusAfterResult === 'UNDER_INVESTIGATION'
-                                ? 'Sedang Berlangsung'
+                                ? 'Sedang Dalam Investigasi'
                                 : result.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
-                                ? 'Ke Rektorat'
+                                ? 'Dikirim ke Rektorat'
                                 : result.caseStatusAfterResult === 'CLOSED_TERMINATED'
-                                ? 'Ditutup'
+                                ? 'Kasus Ditutup'
                                 : result.caseStatusAfterResult}
                             </div>
                           </Badge>
@@ -927,14 +1026,13 @@ export default function InvestigationRekapanPage() {
                               variant="ghost"
                               size="sm"
                               className="h-8 px-2 text-xs"
-                              onClick={() => {
-                                setSelectedResult(result);
-                                setShowResultDetailModal(true);
-                              }}
+                              asChild
                               title="Lihat detail berita acara"
                             >
-                              <Eye className="w-3 h-3 mr-1" />
-                              Detail
+                              <Link href={`/satgas/dashboard/investigasi/${id}/hasil/${result.id}`}>
+                                <Eye className="w-3 h-3 mr-1" />
+                                Detail
+                              </Link>
                             </Button>
                             <Button
                               variant="outline"
@@ -1304,13 +1402,13 @@ export default function InvestigationRekapanPage() {
                             : 'bg-orange-500 hover:bg-orange-600 text-white'
                         }`}>
                           {selectedResult.caseStatusAfterResult === 'READY_FOR_RECOMMENDATION'
-                            ? 'Siap Rekomendasi'
+                            ? 'Siap untuk Rekomendasi'
                             : selectedResult.caseStatusAfterResult === 'UNDER_INVESTIGATION'
-                            ? 'Sedang Berlangsung'
+                            ? 'Sedang Dalam Investigasi'
                             : selectedResult.caseStatusAfterResult === 'FORWARDED_TO_REKTORAT'
-                            ? 'Ke Rektorat'
+                            ? 'Dikirim ke Rektorat'
                             : selectedResult.caseStatusAfterResult === 'CLOSED_TERMINATED'
-                            ? 'Ditutup'
+                            ? 'Kasus Ditutup'
                             : selectedResult.caseStatusAfterResult || '-'}
                         </Badge>
                       </div>

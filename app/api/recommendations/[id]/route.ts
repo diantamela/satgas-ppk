@@ -28,7 +28,7 @@ export async function PUT(
     }
 
     // Get the current recommendation
-    const currentRecommendation = await db.recommendation.findUnique({
+    const currentRecommendation = await (db.recommendation as any).findUnique({
       where: { id },
       include: {
         createdBy: { select: { name: true } },
@@ -59,7 +59,7 @@ export async function PUT(
       updateData.rejectionReason = rejectionReason;
     }
 
-    const updatedRecommendation = await db.recommendation.update({
+    const updatedRecommendation = await (db.recommendation as any).update({
       where: { id },
       data: updateData,
       include: {
@@ -72,9 +72,9 @@ export async function PUT(
     // Create notification for the investigator
     let notificationMessage = "";
     if (status === RecommendationStatus.APPROVED) {
-      notificationMessage = `Rekomendasi Anda untuk laporan ${updatedRecommendation.report.reportNumber} telah disetujui`;
+      notificationMessage = `Rekomendasi Anda untuk laporan ${(updatedRecommendation as any).report.reportNumber} telah disetujui`;
     } else if (status === RecommendationStatus.REJECTED) {
-      notificationMessage = `Rekomendasi Anda untuk laporan ${updatedRecommendation.report.reportNumber} telah ditolak`;
+      notificationMessage = `Rekomendasi Anda untuk laporan ${(updatedRecommendation as any).report.reportNumber} telah ditolak`;
     }
 
     if (notificationMessage) {
@@ -115,7 +115,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const recommendation = await db.recommendation.findUnique({
+    const recommendation = await (db.recommendation as any).findUnique({
       where: { id },
       include: {
         report: {
