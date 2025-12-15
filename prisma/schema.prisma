@@ -24,6 +24,7 @@ model User {
   reportsAsReporter   Report[]                  @relation("ReportReporter")
   timelineEntries     ReportTimeline[]          @relation("UserTimelineEntries")
   sessions            Session[]                 @relation("UserSessions")
+  galleryItems        Gallery[]
 
   @@index([email])
 }
@@ -267,6 +268,22 @@ model Notification {
 
   @@index([userId])
   @@index([isRead])
+  @@index([createdAt])
+}
+model Gallery {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  date        String
+  location    String
+  category    String
+  image       String
+  uploadedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  uploadedBy  User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([uploadedById])
   @@index([createdAt])
 }
 

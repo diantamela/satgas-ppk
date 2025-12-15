@@ -31,6 +31,15 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
+    // Check if gallery model is available
+    if (!(db as any).gallery) {
+      console.error('Gallery model is not available in Prisma client');
+      return Response.json({ 
+        error: 'Gallery functionality is temporarily unavailable. Please contact administrator.',
+        code: 'MODEL_NOT_AVAILABLE'
+      }, { status: 503 });
+    }
+
     // Parse form data
     const formData = await request.formData();
 
@@ -83,6 +92,15 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
+    // Check if gallery model is available
+    if (!(db as any).gallery) {
+      console.error('Gallery model is not available in Prisma client');
+      return Response.json({ 
+        error: 'Gallery functionality is temporarily unavailable. Please contact administrator.',
+        code: 'MODEL_NOT_AVAILABLE'
+      }, { status: 503 });
+    }
+
     const galleryItems = await (db as any).gallery.findMany({
       orderBy: { createdAt: 'desc' },
       include: { uploadedBy: { select: { name: true } } }
