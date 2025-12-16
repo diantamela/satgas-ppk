@@ -1,4 +1,4 @@
-# 🛡️ Sistem Informasi SATGAS PPKLH  
+# 🛡️ Sistem Informasi SATGAS PPK  
 ### (Satuan Tugas Pencegahan dan Penanganan Kekerasan Seksual)  
 **UIN Imam Bonjol Padang**
 

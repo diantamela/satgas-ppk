@@ -50,13 +50,13 @@ export async function GET(request: NextRequest) {
         params: { dateFrom, dateTo, page, limit },
         totalContactNotifications: contactNotifications.length,
         totalFilteredNotifications: filteredNotifications.length,
-        contactNotifications: contactNotifications.map((n: any) => ({
+        contactNotifications: contactNotifications.map(n => ({
           id: n.id,
           title: n.title,
           createdAt: n.createdAt.toISOString(),
           relatedEntityType: n.relatedEntityType
         })),
-        filteredNotifications: filteredNotifications.map((n: any) => ({
+        filteredNotifications: filteredNotifications.map(n => ({
           id: n.id,
           title: n.title,
           createdAt: n.createdAt.toISOString(),
