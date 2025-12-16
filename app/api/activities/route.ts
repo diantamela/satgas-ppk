@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
         },
       });
       
-      for (const notification of notifications) {
+      for (const notification of notifications as any[]) {
         const notificationWithUser = notification;
         
         // Handle contact messages specially - extract name from message content
