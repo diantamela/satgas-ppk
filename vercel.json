@@ -1,14 +1,95 @@
 {
-  "env": {
-    "NODE_ENV": "production"
-  },
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
   "installCommand": "npm install",
   "framework": "nextjs",
+  "outputDirectory": ".next",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "app/api/reports/[id]/process/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/reports/[id]/download/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/generate-pdf/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/documents/[id]/download/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "regions": ["sin1"],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "86400"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/middleware",
+      "destination": "/api/middleware"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/reports/auto-schedule",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/notifications",
+      "schedule": "0 */6 * * *"
+    }
+  ]
 }
