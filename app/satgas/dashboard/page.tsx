@@ -16,7 +16,7 @@ import {
   ListChecks,
   Activity as ActivityIcon,
   AlertTriangle,
-  Search,
+  Search,   
   Settings,
   BookOpen,
   Eye,
@@ -338,7 +338,7 @@ export default function SatuanTugasPPK() {
           </Link>
 
           {/* Konsultasi */}
-          <Link href="/satgas/dashboard/notifikasi">
+          <Link href="/satgas/dashboard/konsultasi">
             <Card className="hover:shadow-md transition-all duration-200 cursor-pointer border-2 border-transparent hover:border-purple-200 dark:hover:border-purple-800">
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                 <CardDescription className="text-xs font-medium">Konsultasi Baru</CardDescription>

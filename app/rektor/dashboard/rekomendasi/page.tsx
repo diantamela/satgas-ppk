@@ -43,16 +43,34 @@ export default function RektorRecommendationsPage() {
 
   const fetchRecommendations = async () => {
     try {
+      console.log('🚀 Starting to fetch recommendations...');
       const response = await fetch('/api/recommendations');
+      
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Successfully fetched recommendations:', data.length, 'items');
         setRecommendations(data);
       } else {
-        console.error('Failed to fetch recommendations');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Failed to fetch recommendations:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        });
+        
+        // Show more specific error message to user
+        const errorMessage = errorData.details || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+        alert(`Gagal memuat rekomendasi: ${errorMessage}`);
+        
         setRecommendations([]);
       }
     } catch (error) {
-      console.error('Error fetching recommendations:', error);
+      console.error('💥 Critical error fetching recommendations:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Terjadi kesalahan saat memuat rekomendasi: ${errorMessage}`);
       setRecommendations([]);
     } finally {
       setLoading(false);

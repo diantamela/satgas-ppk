@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { reportService } from "@/lib/services/reports/report-service";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
+import { notifyInvestigationProcessCreated } from "@/lib/utils/notifications";
 
 export const runtime = "nodejs";
 
@@ -99,6 +100,15 @@ export async function POST(
       );
     }
 
+    // Get the report data first for notification
+    const report = await reportService.getReportById(reportId);
+    if (!report) {
+      return Response.json(
+        { success: false, message: "Report not found" },
+        { status: 404 }
+      );
+    }
+
     // Create investigation process
     const process = await reportService.createInvestigationProcess({
       reportId,
@@ -120,6 +130,21 @@ export async function POST(
       uploadedFiles: uploadedFiles || [],
       createdById: session.user.id
     });
+
+    // Send notification to the reporter
+    if (report.reporterId) {
+      try {
+        await notifyInvestigationProcessCreated(
+          reportId,
+          report.reporterId,
+          report.reportNumber,
+          session.user.name
+        );
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
 
     return Response.json({
       success: true,

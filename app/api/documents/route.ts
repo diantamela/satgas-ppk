@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { investigationDocumentService } from "@/lib/services/reports/report-service";
 import { prisma } from "@/lib/database/prisma";
 import { checkAuth, checkRole, forbiddenResponse } from "@/lib/auth";
+import { notifyReportUpdated } from "@/lib/utils/notifications";
 import crypto from "crypto";
 
 const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
@@ -120,6 +121,22 @@ export async function POST(request: NextRequest) {
       uploadedById: user.id,
       description
     });
+
+    // Send notification to reporter if satgas (not the reporter) uploaded the document
+    if (isSatgas && report.reporterId) {
+      try {
+        await notifyReportUpdated(
+          reportId,
+          report.reporterId,
+          report.reportNumber,
+          user.name,
+          'file_uploaded'
+        );
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+        // Don't fail the whole request if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

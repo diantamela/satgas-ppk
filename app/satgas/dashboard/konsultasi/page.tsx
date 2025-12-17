@@ -16,7 +16,8 @@ import {
   Search,
   Bell,
   Filter,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  User
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RoleGuard } from "../../../../components/auth/role-guard";
@@ -26,7 +27,7 @@ import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 
-interface Notification {
+interface ConsultationMessage {
   id: string;
   type: string;
   title: string;
@@ -36,88 +37,28 @@ interface Notification {
   relatedEntityType?: string;
   createdAt: string;
   readAt?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
-interface NotificationDetailModalProps {
-  notification: Notification | null;
+interface ConsultationDetailModalProps {
+  message: ConsultationMessage | null;
   isOpen: boolean;
   onClose: () => void;
   onMarkAsRead: (id: string) => void;
 }
 
-// Notification Detail Modal Component
-function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }: NotificationDetailModalProps) {
-  if (!isOpen || !notification) return null;
+// Consultation Detail Modal Component
+function ConsultationDetailModal({ message, isOpen, onClose, onMarkAsRead }: ConsultationDetailModalProps) {
+  if (!isOpen || !message) return null;
 
   const handleMarkAsRead = () => {
-    onMarkAsRead(notification.id);
+    onMarkAsRead(message.id);
     onClose();
   };
-
-  const getNotificationIcon = (type: string, relatedEntityType?: string) => {
-    // Contact messages should show mail icon regardless of type
-    if (relatedEntityType === 'CONTACT_MESSAGE') {
-      return <Mail className="w-4 h-4" />;
-    }
-    
-    switch (type) {
-      case "REPORT_STATUS_CHANGED":
-        return <AlertTriangle className="w-4 h-4" />;
-      case "REPORT_ASSIGNED":
-        return <Mail className="w-4 h-4" />;
-      case "NEW_RECOMMENDATION":
-        return <MessageCircle className="w-4 h-4" />;
-      case "DECISION_MADE":
-        return <CheckCircle className="w-4 h-4" />;
-      case "DOCUMENT_UPLOADED":
-        return <Mail className="w-4 h-4" />;
-      default:
-        return <MessageCircle className="w-4 h-4" />;
-    }
-  };
-
-  const getStatusBadge = (isRead: boolean) => {
-    return isRead 
-      ? <Badge variant="default">Dibaca</Badge>
-      : <Badge variant="destructive">Belum Dibaca</Badge>;
-  };
-
-  const getTypeBadge = (type: string, relatedEntityType?: string) => {
-    // Contact messages should show "Pesan Kontak" badge regardless of type
-    if (relatedEntityType === 'CONTACT_MESSAGE') {
-      return <Badge variant="outline">Pesan Kontak</Badge>;
-    }
-    
-    switch (type) {
-      case "REPORT_STATUS_CHANGED":
-        return <Badge variant="outline">Status Laporan</Badge>;
-      case "REPORT_ASSIGNED":
-        return <Badge variant="outline">Laporan Ditugaskan</Badge>;
-      case "NEW_RECOMMENDATION":
-        return <Badge variant="outline">Rekomendasi Baru</Badge>;
-      case "DECISION_MADE":
-        return <Badge variant="outline">Keputusan</Badge>;
-      case "DOCUMENT_UPLOADED":
-        return <Badge variant="outline">Dokumen</Badge>;
-      default:
-        return <Badge variant="outline">{type}</Badge>;
-    }
-  };
-
-  const getEntityLink = () => {
-    if (!notification.relatedEntityId || !notification.relatedEntityType) return null;
-    
-    switch (notification.relatedEntityType) {
-      case 'REPORT':
-        return `/satgas/dashboard/laporan/${notification.relatedEntityId}`;
-      case 'CONTACT_MESSAGE':
-        return `/satgas/dashboard/kontak`;
-      default:
-        return null;
-    }
-  };
-
-  const entityLink = getEntityLink();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -125,13 +66,15 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {getNotificationIcon(notification.type, notification.relatedEntityType)}
+              <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  {notification.title}
+                  {message.title}
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {new Date(notification.createdAt).toLocaleString('id-ID')}
+                  {new Date(message.createdAt).toLocaleString('id-ID')}
                 </p>
               </div>
             </div>
@@ -144,10 +87,10 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           <div className="space-y-4">
             <div>
-              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Pesan:</h4>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-2">Pesan Konsultasi:</h4>
               <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
                 <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
-                  {notification.message}
+                  {message.message}
                 </p>
               </div>
             </div>
@@ -156,33 +99,34 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
               <div>
                 <span className="font-medium text-gray-900 dark:text-white">Jenis:</span>
                 <div className="mt-1">
-                  {getTypeBadge(notification.type, notification.relatedEntityType)}
+                  <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                    <Mail className="w-3 h-3 mr-1" />
+                    Pesan Konsultasi
+                  </Badge>
                 </div>
               </div>
               <div>
                 <span className="font-medium text-gray-900 dark:text-white">Status:</span>
                 <div className="mt-1">
-                  {getStatusBadge(notification.isRead)}
+                  {message.isRead ? (
+                    <Badge variant="default">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Dibaca
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive">
+                      <Bell className="w-3 h-3 mr-1" />
+                      Belum Dibaca
+                    </Badge>
+                  )}
                 </div>
               </div>
-              {notification.readAt && (
+              {message.readAt && (
                 <div className="col-span-2">
                   <span className="font-medium text-gray-900 dark:text-white">Dibaca pada:</span>
                   <p className="text-gray-600 dark:text-gray-400">
-                    {new Date(notification.readAt).toLocaleString('id-ID')}
+                    {new Date(message.readAt).toLocaleString('id-ID')}
                   </p>
-                </div>
-              )}
-              {entityLink && (
-                <div className="col-span-2">
-                  <span className="font-medium text-gray-900 dark:text-white">Tindakan:</span>
-                  <div className="mt-2">
-                    <Button asChild variant="outline" size="sm">
-                      <a href={entityLink} target="_blank" rel="noopener noreferrer">
-                        Lihat Detail {notification.relatedEntityType === 'REPORT' ? 'Laporan' : 'Pesan'}
-                      </a>
-                    </Button>
-                  </div>
                 </div>
               )}
             </div>
@@ -190,7 +134,7 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
         </div>
         
         <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex gap-3">
-          {!notification.isRead && (
+          {!message.isRead && (
             <Button onClick={handleMarkAsRead} className="flex-1">
               <CheckCircle className="w-4 h-4 mr-2" />
               Tandai Dibaca
@@ -206,26 +150,26 @@ function NotificationDetailModal({ notification, isOpen, onClose, onMarkAsRead }
 }
 
 export default function KonsultasiPage() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [consultations, setConsultations] = useState<ConsultationMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filteredNotifications, setFilteredNotifications] = useState<Notification[]>([]);
+  const [filteredConsultations, setFilteredConsultations] = useState<ConsultationMessage[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDateRange, setSelectedDateRange] = useState<DateRange | undefined>();
   const [error, setError] = useState<string | null>(null);
-  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<ConsultationMessage | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch notifications from API
-  const fetchNotifications = async () => {
+  // Fetch consultation messages from contact API
+  const fetchConsultations = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/notifications');
+      const response = await fetch('/api/contact');
       const result = await response.json();
       
       if (result.success) {
-        setNotifications(result.data.notifications);
+        setConsultations(result.data.messages || []);
       } else {
         setError(result.message || 'Gagal mengambil konsultasi');
       }
@@ -237,16 +181,18 @@ export default function KonsultasiPage() {
     }
   };
 
-  // Mark notification as read
-  const markAsRead = async (notificationId: string) => {
+  // Mark consultation as read
+  const markAsRead = async (messageId: string) => {
     try {
+      // For consultation messages, we can mark them as read using the notifications API
+      // since they are stored as notifications in the database
       const response = await fetch('/api/notifications', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          notificationId,
+          notificationId: messageId,
           isRead: true,
         }),
       });
@@ -255,11 +201,11 @@ export default function KonsultasiPage() {
       
       if (result.success) {
         // Update local state
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif.id === notificationId 
-              ? { ...notif, isRead: true, readAt: new Date().toISOString() }
-              : notif
+        setConsultations(prev => 
+          prev.map(msg => 
+            msg.id === messageId 
+              ? { ...msg, isRead: true, readAt: new Date().toISOString() }
+              : msg
           )
         );
       }
@@ -268,107 +214,56 @@ export default function KonsultasiPage() {
     }
   };
 
-  // Open notification detail modal
-  const openNotificationDetail = (notification: Notification) => {
-    setSelectedNotification(notification);
+  // Open consultation detail modal
+  const openMessageDetail = (message: ConsultationMessage) => {
+    setSelectedMessage(message);
     setIsModalOpen(true);
     
     // Auto-mark as read when opening detail
-    if (!notification.isRead) {
-      markAsRead(notification.id);
+    if (!message.isRead) {
+      markAsRead(message.id);
     }
   };
 
   // Close modal
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedNotification(null);
+    setSelectedMessage(null);
   };
 
-  // Load notifications on component mount
+  // Load consultations on component mount
   useEffect(() => {
-    fetchNotifications();
+    fetchConsultations();
   }, []);
 
   // Apply filters when search term or date filter changes
   useEffect(() => {
-    let result = notifications;
+    let result = consultations;
 
     // Apply search filter
     if (searchTerm) {
-      result = result.filter(notification => 
-        notification.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        notification.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (notification.relatedEntityType && notification.relatedEntityType.toLowerCase().includes(searchTerm.toLowerCase()))
+      result = result.filter(message => 
+        message.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        message.message.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Apply date filter
     if (selectedDateRange?.from && selectedDateRange?.to) {
-      result = result.filter(notification => {
-        const notificationDate = new Date(notification.createdAt);
+      result = result.filter(message => {
+        const messageDate = new Date(message.createdAt);
         const fromDate = new Date(selectedDateRange.from!);
         const toDate = new Date(selectedDateRange.to!);
         
         // Set toDate to end of day
         toDate.setHours(23, 59, 59, 999);
         
-        return notificationDate >= fromDate && notificationDate <= toDate;
+        return messageDate >= fromDate && messageDate <= toDate;
       });
     }
 
-    setFilteredNotifications(result);
-  }, [notifications, searchTerm, selectedDateRange]);
-
-  const getNotificationIcon = (type: string, relatedEntityType?: string) => {
-    // Contact messages should show mail icon regardless of type
-    if (relatedEntityType === 'CONTACT_MESSAGE') {
-      return <Mail className="w-4 h-4" />;
-    }
-    
-    switch (type) {
-      case "REPORT_STATUS_CHANGED":
-        return <AlertTriangle className="w-4 h-4" />;
-      case "REPORT_ASSIGNED":
-        return <Mail className="w-4 h-4" />;
-      case "NEW_RECOMMENDATION":
-        return <MessageCircle className="w-4 h-4" />;
-      case "DECISION_MADE":
-        return <CheckCircle className="w-4 h-4" />;
-      case "DOCUMENT_UPLOADED":
-        return <Mail className="w-4 h-4" />;
-      default:
-        return <MessageCircle className="w-4 h-4" />;
-    }
-  };
-
-  const getStatusBadge = (isRead: boolean) => {
-    return isRead 
-      ? <Badge variant="default">Dibaca</Badge>
-      : <Badge variant="destructive">Belum Dibaca</Badge>;
-  };
-
-  const getTypeBadge = (type: string, relatedEntityType?: string) => {
-    // Contact messages should show "Pesan Kontak" badge regardless of type
-    if (relatedEntityType === 'CONTACT_MESSAGE') {
-      return <Badge variant="outline">Pesan Kontak</Badge>;
-    }
-    
-    switch (type) {
-      case "REPORT_STATUS_CHANGED":
-        return <Badge variant="outline">Status Laporan</Badge>;
-      case "REPORT_ASSIGNED":
-        return <Badge variant="outline">Laporan Ditugaskan</Badge>;
-      case "NEW_RECOMMENDATION":
-        return <Badge variant="outline">Rekomendasi Baru</Badge>;
-      case "DECISION_MADE":
-        return <Badge variant="outline">Keputusan</Badge>;
-      case "DOCUMENT_UPLOADED":
-        return <Badge variant="outline">Dokumen</Badge>;
-      default:
-        return <Badge variant="outline">{type}</Badge>;
-    }
-  };
+    setFilteredConsultations(result);
+  }, [consultations, searchTerm, selectedDateRange]);
 
   return (
     <RoleGuard>
@@ -376,15 +271,15 @@ export default function KonsultasiPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Konsultasi</h1>
-            <p className="text-gray-600 dark:text-gray-400">Kelola konsultasi dan komunikasi dengan tim satgas</p>
+            <p className="text-gray-600 dark:text-gray-400">Kelola pesan konsultasi dari form kontak masyarakat</p>
           </div>
           <Button 
             className="mt-4 md:mt-0" 
             variant="outline"
-            onClick={fetchNotifications}
+            onClick={fetchConsultations}
             disabled={loading}
           >
-            <MessageCircle className="w-4 h-4 mr-2" />
+            <Mail className="w-4 h-4 mr-2" />
             Refresh
           </Button>
         </div>
@@ -470,29 +365,29 @@ export default function KonsultasiPage() {
                 <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Error</h3>
                 <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
-                <Button onClick={fetchNotifications} variant="outline">
+                <Button onClick={fetchConsultations} variant="outline">
                   Coba Lagi
                 </Button>
               </CardContent>
             </Card>
-          ) : filteredNotifications.length === 0 ? (
+          ) : filteredConsultations.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
                 <MessageCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-1">Tidak ada konsultasi</h3>
                 <p className="text-gray-500 dark:text-gray-400">
-                  {notifications.length === 0 
+                  {consultations.length === 0 
                     ? "Belum ada konsultasi yang diterima." 
                     : "Tidak ada konsultasi yang sesuai dengan filter pencarian Anda."}
                 </p>
               </CardContent>
             </Card>
           ) : (
-            filteredNotifications.map((notification) => (
+            filteredConsultations.map((message) => (
               <Card 
-                key={notification.id} 
+                key={message.id} 
                 className={`hover:shadow-md transition-shadow ${
-                  !notification.isRead 
+                  !message.isRead 
                     ? 'bg-gray-50 dark:bg-gray-800 border-l-4 border-l-blue-500' 
                     : 'bg-white dark:bg-gray-900'
                 }`}
@@ -501,36 +396,51 @@ export default function KonsultasiPage() {
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div className="flex items-start gap-3 flex-1">
                       <div className="mt-1">
-                        {getNotificationIcon(notification.type, notification.relatedEntityType)}
+                        <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg">
+                          <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className={`font-medium truncate max-w-xs ${!notification.isRead ? 'font-bold' : ''}`}>
-                            {notification.title}
+                          <h3 className={`font-medium truncate max-w-xs ${!message.isRead ? 'font-bold' : ''}`}>
+                            {message.title}
                           </h3>
-                          {!notification.isRead && (
+                          {!message.isRead && (
                             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                           )}
                         </div>
                         <p className="text-gray-600 dark:text-gray-300 mt-1 text-sm line-clamp-2 whitespace-pre-line">
-                          {notification.message}
+                          {message.message}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          {getTypeBadge(notification.type, notification.relatedEntityType)}
-                          {getStatusBadge(notification.isRead)}
+                          <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                            <Mail className="w-3 h-3 mr-1" />
+                            Pesan Konsultasi
+                          </Badge>
+                          {message.isRead ? (
+                            <Badge variant="default">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Dibaca
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">
+                              <Bell className="w-3 h-3 mr-1" />
+                              Belum Dibaca
+                            </Badge>
+                          )}
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {new Date(notification.createdAt).toLocaleString('id-ID')}
+                            {new Date(message.createdAt).toLocaleString('id-ID')}
                           </span>
                         </div>
                       </div>
                     </div>
                     
                     <div className="flex gap-2">
-                      {!notification.isRead && (
+                      {!message.isRead && (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={() => markAsRead(notification.id)}
+                          onClick={() => markAsRead(message.id)}
                         >
                           <CheckCircle className="w-4 h-4 mr-1" />
                           Tandai Dibaca
@@ -539,7 +449,7 @@ export default function KonsultasiPage() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => openNotificationDetail(notification)}
+                        onClick={() => openMessageDetail(message)}
                       >
                         Detail
                       </Button>
@@ -551,9 +461,9 @@ export default function KonsultasiPage() {
           )}
         </div>
 
-        {/* Notification Detail Modal */}
-        <NotificationDetailModal
-          notification={selectedNotification}
+        {/* Consultation Detail Modal */}
+        <ConsultationDetailModal
+          message={selectedMessage}
           isOpen={isModalOpen}
           onClose={closeModal}
           onMarkAsRead={markAsRead}

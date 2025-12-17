@@ -4,6 +4,7 @@ import { reportService } from "@/lib/services/reports/report-service";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
 import { db } from "@/db";
+import { notifyReportStatusChange } from "@/lib/utils/notifications";
 
 export const runtime = "nodejs";
 
@@ -218,9 +219,29 @@ export async function POST(
       data: investigationResultData
     });
 
+    // Get current report data for notification
+    const currentReport = await db.report.findUnique({
+      where: { id: reportId },
+      select: {
+        id: true,
+        status: true,
+        reportNumber: true,
+        reporterId: true
+      }
+    });
+
+    if (!currentReport) {
+      return Response.json(
+        { success: false, message: "Report not found" },
+        { status: 404 }
+      );
+    }
+
+    const oldStatus = currentReport.status;
+
     // Update report status if needed
+    let newReportStatus = null;
     if (caseStatusAfterResult && caseStatusAfterResult !== 'UNDER_INVESTIGATION') {
-      let newReportStatus = null;
       switch (caseStatusAfterResult) {
         case 'READY_FOR_RECOMMENDATION':
           newReportStatus = 'COMPLETED';
@@ -236,11 +257,28 @@ export async function POST(
       if (newReportStatus) {
         await db.report.update({
           where: { id: reportId },
-          data: { 
+          data: {
             status: newReportStatus as any,
             updatedAt: new Date()
           }
         });
+
+        // Send notification if status changed
+        if (currentReport.reporterId) {
+          try {
+            await notifyReportStatusChange(
+              reportId,
+              currentReport.reporterId,
+              currentReport.reportNumber,
+              oldStatus,
+              newReportStatus,
+              session.user.name
+            );
+          } catch (notificationError) {
+            console.error('Error sending notification:', notificationError);
+            // Don't fail the whole request if notification fails
+          }
+        }
       }
     }
 

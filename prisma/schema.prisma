@@ -25,6 +25,8 @@ model User {
   timelineEntries     ReportTimeline[]          @relation("UserTimelineEntries")
   sessions            Session[]                 @relation("UserSessions")
   galleryItems        Gallery[]
+  createdRecommendations    Recommendation[]     @relation("RecommendationCreatedBy")
+  approvedRecommendations   Recommendation[]     @relation("RecommendationApprovedBy")
 
   @@index([email])
 }
@@ -76,6 +78,7 @@ model Report {
   reporter              User                    @relation("ReportReporter", fields: [reporterId], references: [id])
   timelines             ReportTimeline[]
   activities            ReportActivity[]
+  recommendations       Recommendation[]
 
   @@index([reporterId])
   @@index([assigneeId])
@@ -205,6 +208,10 @@ model Recommendation {
   rejectionReason String?
   createdAt       DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+
+  report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdBy    User     @relation("RecommendationCreatedBy", fields: [createdById], references: [id])
+  approvedBy   User?    @relation("RecommendationApprovedBy", fields: [approvedById], references: [id])
 
   @@index([reportId])
   @@index([status])

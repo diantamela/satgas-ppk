@@ -37,7 +37,7 @@ interface Recommendation {
   priority: 'low' | 'medium' | 'high';
 }
 
-export default function SatgasRecommendationsPage() {
+export default function SatuanTugasRekomendasiPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -57,8 +57,7 @@ export default function SatgasRecommendationsPage() {
 
   const fetchReports = async () => {
     try {
-      // Get reports assigned to current user (SATGAS)
-      // For now, get all reports - in real implementation, filter by assignee
+      // Get all reports - all satgas can create recommendations for any report
       const response = await fetch('/api/reports');
       if (response.ok) {
         const data = await response.json();
