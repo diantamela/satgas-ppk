@@ -242,13 +242,16 @@ export default function InvestigationProsesPage() {
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
           if (response.ok && data.message === 'File uploaded successfully') {
-            setUploadedFiles(prev => [...prev, {
+            const uploadedFile = {
               name: file.name,
               path: data.filePath,
               size: file.size,
               type: file.type,
               uploadedAt: new Date().toISOString()
-            }]);
+            };
+            
+            setUploadedFiles(prev => [...prev, uploadedFile]);
+            setEvidenceFiles(prev => [...prev, uploadedFile]);
             setAlertMessage({ type: 'success', message: `File ${file.name} berhasil diupload` });
             setTimeout(() => setAlertMessage(null), 3000);
           } else {
@@ -284,6 +287,12 @@ export default function InvestigationProsesPage() {
   };
 
   const removeUploadedFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    setEvidenceFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeEvidenceFile = (index: number) => {
+    setEvidenceFiles(evidenceFiles.filter((_, i) => i !== index));
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -323,10 +332,6 @@ export default function InvestigationProsesPage() {
     setPartiesPresent(partiesPresent.filter((_, i) => i !== index));
   };
 
-  const removeEvidenceFile = (index: number) => {
-    setEvidenceFiles(evidenceFiles.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !methods.length || !partiesInvolved.length || !partiesStatementSummary) return;
@@ -346,7 +351,6 @@ export default function InvestigationProsesPage() {
         followUpDate: followUpDate || undefined,
         followUpNotes: followUpNotes || undefined,
         accessLevel,
-        uploadedFiles,
         
         // New results data
         schedulingTitle,
@@ -364,7 +368,7 @@ export default function InvestigationProsesPage() {
         // Key investigation notes
         partiesStatementSummary,
         newPhysicalEvidence,
-        evidenceFiles,
+        evidenceFiles: evidenceFiles, // Ensure evidenceFiles is properly sent
         statementConsistency,
         
         // Interim conclusions and recommendations
@@ -387,6 +391,8 @@ export default function InvestigationProsesPage() {
         recommendedActionsDetails,
         internalSatgasNotes
       };
+
+      console.log('Submitting form data with evidenceFiles:', evidenceFiles);
 
       const response = await fetch(`/api/reports/${id}/results`, {
         method: 'POST',

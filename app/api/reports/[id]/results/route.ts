@@ -39,9 +39,37 @@ export async function GET(
       orderBy: { createdAt: 'desc' }
     });
 
+    // Get evidence documents for each result
+    const resultsWithDocuments = await Promise.all(
+      results.map(async (result) => {
+        const documents = await db.investigationDocument.findMany({
+          where: {
+            reportId: result.reportId,
+            documentType: 'EVIDENCE'
+          },
+          include: {
+            uploadedBy: {
+              select: { name: true }
+            }
+          }
+        });
+
+        return {
+          ...result,
+          report: {
+            documents: documents
+          }
+        };
+      })
+    );
+
+    console.log('API: Found results:', results.length);
+    console.log('API: Evidence files in first result:', resultsWithDocuments[0]?.evidenceFiles);
+    console.log('API: Investigation documents for report:', resultsWithDocuments[0]?.report?.documents?.length);
+
     return Response.json({
       success: true,
-      results,
+      results: resultsWithDocuments,
     });
   } catch (error) {
     console.error("Error fetching investigation results:", error);
@@ -161,6 +189,8 @@ export async function POST(
     const documentHashString = JSON.stringify(documentData);
     const hash = createHash('sha256').update(documentHashString).digest('hex');
 
+    console.log('API: Received evidenceFiles:', evidenceFiles);
+    
     // Create investigation result with conditional fields for backward compatibility
     const investigationResultData: any = {
       processId,
@@ -218,6 +248,8 @@ export async function POST(
     const investigationResult = await db.investigationResult.create({
       data: investigationResultData
     });
+    
+    console.log('API: Created investigation result with evidenceFiles:', investigationResult.evidenceFiles);
 
     // Get current report data for notification
     const currentReport = await db.report.findUnique({

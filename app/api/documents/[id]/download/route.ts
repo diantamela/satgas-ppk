@@ -1,108 +1,96 @@
-import { NextRequest, NextResponse } from "next/server";
-import { investigationDocumentService } from "@/lib/services/reports/report-service";
-import { generateSignedUrl } from "@/lib/utils/file-upload";
-import { prisma } from "@/lib/database/prisma";
-import crypto from "crypto";
+import { NextRequest } from "next/server";
+import { getSessionFromRequest } from "@/lib/auth/server-session";
+import { isRoleAllowed } from "@/lib/auth/auth-utils";
+import { db } from "@/db";
 import fs from 'fs';
 import path from 'path';
 
-const sha256 = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
+export const runtime = "nodejs";
 
-// Helper function to get user from session
-async function getUserFromSession(request: NextRequest) {
+// GET /api/documents/[id]/download - Download investigation document
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const sessionToken = request.cookies.get("session")?.value;
-    if (!sessionToken) return null;
+    // Get current user session
+    const session = await getSessionFromRequest(request);
 
-    const tokenHash = sha256(sessionToken);
-    const session = await prisma.session.findFirst({
-      where: {
-        tokenHash,
-        expiresAt: { gt: new Date() }
-      },
-      include: { user: true }
-    });
-
-    return session?.user || null;
-  } catch (error) {
-    console.error("Error getting user from session:", error);
-    return null;
-  }
-}
-
-// GET /api/documents/[id]/download - Download or get signed URL for a document
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const user = await getUserFromSession(request);
-    if (!user) {
-      return NextResponse.json({
-        success: false,
-        message: "Unauthorized"
-      }, { status: 401 });
+    if (!session || !isRoleAllowed(session, ['SATGAS', 'REKTOR'])) {
+      return Response.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
-    const resolvedParams = await params;
-    const documentId = resolvedParams.id;
-    if (!documentId) {
-      return NextResponse.json({
-        success: false,
-        message: "Document ID is required"
-      }, { status: 400 });
+    const { id } = await params;
+
+    if (!id) {
+      return Response.json(
+        { success: false, message: "Document ID is required" },
+        { status: 400 }
+      );
     }
 
-    const document = await investigationDocumentService.getDocumentById(documentId);
-    if (!document) {
-      return NextResponse.json({
-        success: false,
-        message: "Document not found"
-      }, { status: 404 });
-    }
-
-    // Check if user has permission to access this document
-    // Users can access documents they uploaded or if they're SATGAS/REKTOR
-    const hasPermission = document.uploadedById === user.id ||
-                         ['SATGAS', 'REKTOR'].includes(user.role);
-
-    if (!hasPermission) {
-      return NextResponse.json({
-        success: false,
-        message: "Forbidden"
-      }, { status: 403 });
-    }
-
-    let downloadUrl: string;
-
-    if (document.storagePath.startsWith('/uploads/')) {
-      // Local storage - serve from public directory
-      downloadUrl = `${request.nextUrl.origin}${document.storagePath}`;
-    } else if (document.storagePath.startsWith('evidence/')) {
-      // S3 storage - generate signed URL
-      try {
-        downloadUrl = await generateSignedUrl(document.storagePath);
-      } catch (error) {
-        console.error("Error generating signed URL:", error);
-        return NextResponse.json({
-          success: false,
-          message: "Failed to generate download URL"
-        }, { status: 500 });
+    // Get the document from database
+    const document = await db.investigationDocument.findUnique({
+      where: { id },
+      include: {
+        uploadedBy: {
+          select: { name: true }
+        },
+        report: {
+          select: { 
+            reportNumber: true,
+            title: true 
+          }
+        }
       }
-    } else {
-      return NextResponse.json({
-        success: false,
-        message: "Unsupported storage path format"
-      }, { status: 400 });
+    });
+
+    if (!document) {
+      return Response.json(
+        { success: false, message: "File tidak ditemukan" },
+        { status: 404 }
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      url: downloadUrl,
-      fileName: document.fileName
-    });
+    // Handle different storage types
+    if (document.storagePath.startsWith('http')) {
+      // If it's a URL (S3 or external storage), redirect to it
+      return Response.redirect(document.storagePath, 302);
+    } else {
+      // Handle local file storage
+      const filePath = path.join(process.cwd(), document.storagePath.startsWith('/') 
+        ? document.storagePath.substring(1) // Remove leading slash
+        : document.storagePath);
+
+      if (!fs.existsSync(filePath)) {
+        return Response.json(
+          { success: false, message: "File tidak ditemukan di storage" },
+          { status: 404 }
+        );
+      }
+
+      // Get file content
+      const fileBuffer = fs.readFileSync(filePath);
+
+      // Set appropriate headers
+      const headers = new Headers();
+      headers.set('Content-Type', document.fileType);
+      headers.set('Content-Length', document.fileSize.toString());
+      headers.set('Content-Disposition', `attachment; filename="${document.fileName}"`);
+
+      return new Response(fileBuffer, {
+        status: 200,
+        headers
+      });
+    }
   } catch (error) {
-    console.error("Error getting download URL:", error);
-    return NextResponse.json({
-      success: false,
-      message: "Internal server error"
-    }, { status: 500 });
+    console.error("Error downloading document:", error);
+    return Response.json(
+      { success: false, message: "Terjadi kesalahan saat mengunduh file" },
+      { status: 500 }
+    );
   }
 }

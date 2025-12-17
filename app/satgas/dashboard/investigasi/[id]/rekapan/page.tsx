@@ -68,6 +68,19 @@ const accessLevelLabels: Record<string, string> = {
   LEADERSHIP_ONLY: "Pimpinan Tertentu",
 };
 
+const actionLabels: Record<string, string> = {
+  SCHEDULE_NEXT_SESSION: "Jadwalkan Sesi Berikutnya",
+  CALL_OTHER_PARTY: "Panggil Pihak Lain",
+  REQUIRE_PSYCHOLOGICAL_SUPPORT: "Perlu Pendampingan Psikologis",
+  REQUIRE_LEGAL_SUPPORT: "Perlu Pendampingan Hukum",
+  CASE_TERMINATED: "Kasus Dihentikan",
+  FORWARD_TO_REKTORAT: "Diteruskan ke Rektorat",
+  MEDIATION_SESSION: "Sesi Mediasi",
+  EVIDENCE_ANALYSIS: "Analisis Bukti",
+  WITNESS_REINTERVIEW: "Wawancara Ulang Saksi",
+  OTHER: "Lainnya",
+};
+
 function formatDate(value?: string) {
   if (!value) return "-";
   const d = new Date(value);
@@ -343,7 +356,7 @@ export default function InvestigationRekapanPage() {
         alert(data.message || "Gagal memperbarui progress");
       }
     } catch (error) {
-      console.error("Error updating progress:", error);
+      console.error("Kesalahan saat memperbarui progress:", error);
       alert("Terjadi kesalahan saat memperbarui progress");
     } finally {
       setSavingProgress(false);
@@ -385,6 +398,8 @@ export default function InvestigationRekapanPage() {
     }
   };
 
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+
   const handleDownloadResultPdf = async (resultId: string) => {
     if (!id) {
       alert("ID laporan tidak valid");
@@ -392,23 +407,32 @@ export default function InvestigationRekapanPage() {
     }
     const reportId = Array.isArray(id) ? id[0] : id;
 
+    // Set loading state for this specific result
+    setDownloadingPdf(resultId);
+
     try {
       const response = await fetch(`/api/reports/${reportId}/results/${resultId}/pdf`);
       
       if (!response.ok) {
+        let errorMessage = "Gagal mengunduh PDF berita acara";
+        
         if (response.status === 401) {
-          alert("Anda tidak memiliki akses untuk mengunduh file ini");
+          errorMessage = "Anda tidak memiliki akses untuk mengunduh file ini. Silakan hubungi administrator.";
         } else if (response.status === 404) {
-          alert("File PDF tidak ditemukan");
+          errorMessage = "File PDF berita acara tidak ditemukan. File mungkin telah dihapus atau belum tersedia.";
+        } else if (response.status === 500) {
+          errorMessage = "Terjadi kesalahan server saat membuat PDF. Silakan coba beberapa saat lagi.";
         } else {
-          alert(`Gagal mengunduh PDF hasil investigasi (Status: ${response.status})`);
+          errorMessage = `Gagal mengunduh PDF (Kode: ${response.status}). Silakan coba lagi atau hubungi administrator.`;
         }
+        
+        alert(errorMessage);
         return;
       }
 
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/pdf')) {
-        alert("File yang diterima bukan PDF yang valid");
+        alert("File yang diterima bukan format PDF yang valid. Silakan coba lagi.");
         return;
       }
 
@@ -416,18 +440,36 @@ export default function InvestigationRekapanPage() {
       
       // Check if blob is valid
       if (blob.size === 0) {
-        alert("File PDF kosong");
+        alert("File PDF kosong. Data berita acara mungkin belum lengkap.");
+        return;
+      }
+
+      // Check file size (max 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (blob.size > maxSize) {
+        alert("File PDF terlalu besar (lebih dari 50MB). Silakan hubungi administrator.");
         return;
       }
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `berita-acara-${report?.reportNumber || reportId}-${resultId}.pdf`;
+      
+      // Generate better filename with date and time
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+      const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, ''); // HHMMSS
+      const reportNumber = report?.reportNumber || reportId;
+      const resultNumber = resultId.substring(0, 8); // First 8 chars of result ID
+      
+      a.download = `berita-acara-${reportNumber}-${resultNumber}-${dateStr}-${timeStr}.pdf`;
       
       // Ensure element is in DOM before clicking
       document.body.appendChild(a);
       a.click();
+      
+      // Show success message
+      alert("PDF berita acara berhasil diunduh!");
       
       // Cleanup
       setTimeout(() => {
@@ -436,8 +478,11 @@ export default function InvestigationRekapanPage() {
       }, 100);
       
     } catch (error) {
-      console.error("Download error:", error);
-      alert("Terjadi kesalahan saat mengunduh PDF hasil investigasi. Silakan coba lagi.");
+      console.error("Kesalahan saat mengunduh PDF:", error);
+      alert("Terjadi kesalahan saat mengunduh PDF berita acara. Periksa koneksi internet Anda dan coba lagi.");
+    } finally {
+      // Clear loading state
+      setDownloadingPdf(null);
     }
   };
 
@@ -774,7 +819,7 @@ export default function InvestigationRekapanPage() {
                     size="sm"
                     onClick={() => setEditingProgress(true)}
                   >
-                    Edit Progress
+                    Ubah Progress
                   </Button>
                 )}
               </div>
@@ -928,7 +973,13 @@ export default function InvestigationRekapanPage() {
                                 ? 'Dikirim ke Rektorat'
                                 : result.caseStatusAfterResult === 'CLOSED_TERMINATED'
                                 ? 'Kasus Ditutup'
-                                : result.caseStatusAfterResult}
+                                : result.caseStatusAfterResult === 'EVIDENCE_COLLECTION'
+                                ? 'Pengumpulan Bukti'
+                                : result.caseStatusAfterResult === 'STATEMENT_ANALYSIS'
+                                ? 'Analisis Keterangan'
+                                : result.caseStatusAfterResult === 'PENDING_EXTERNAL_INPUT'
+                                ? 'Menunggu Input Eksternal'
+                                : result.caseStatusAfterResult || 'Status Tidak Diketahui'}
                             </div>
                           </Badge>
                         </td>
@@ -971,7 +1022,7 @@ export default function InvestigationRekapanPage() {
                                 <div className="text-xs text-gray-500 dark:text-gray-400">
                                   {result.recommendedImmediateActions.slice(0, 2).map((action: any, idx: number) => (
                                     <div key={idx} className="truncate">
-                                      • {action.action || 'Tindakan'}
+                                      • {actionLabels[action.action] || action.action || 'Tindakan'}
                                     </div>
                                   ))}
                                   {result.recommendedImmediateActions.length > 2 && (
@@ -1039,10 +1090,20 @@ export default function InvestigationRekapanPage() {
                               size="sm"
                               className="h-8 px-2 text-xs"
                               onClick={() => handleDownloadResultPdf(result.id)}
+                              disabled={downloadingPdf === result.id}
                               title="Unduh PDF berita acara"
                             >
-                              <Download className="w-3 h-3 mr-1" />
-                              PDF
+                              {downloadingPdf === result.id ? (
+                                <>
+                                  <div className="w-3 h-3 mr-1 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                  Mengunduh...
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-3 h-3 mr-1" />
+                                  PDF
+                                </>
+                              )}
                             </Button>
                           </div>
                         </td>
@@ -1409,7 +1470,13 @@ export default function InvestigationRekapanPage() {
                             ? 'Dikirim ke Rektorat'
                             : selectedResult.caseStatusAfterResult === 'CLOSED_TERMINATED'
                             ? 'Kasus Ditutup'
-                            : selectedResult.caseStatusAfterResult || '-'}
+                            : selectedResult.caseStatusAfterResult === 'EVIDENCE_COLLECTION'
+                            ? 'Pengumpulan Bukti'
+                            : selectedResult.caseStatusAfterResult === 'STATEMENT_ANALYSIS'
+                            ? 'Analisis Keterangan'
+                            : selectedResult.caseStatusAfterResult === 'PENDING_EXTERNAL_INPUT'
+                            ? 'Menunggu Input Eksternal'
+                            : selectedResult.caseStatusAfterResult || 'Status Tidak Diketahui'}
                         </Badge>
                       </div>
                       <div>
@@ -1531,7 +1598,7 @@ export default function InvestigationRekapanPage() {
                           <div key={idx} className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
                             <div className="flex items-center justify-between mb-1">
                               <span className="font-medium text-gray-900 dark:text-white">
-                                {action.action || 'Tindakan'}
+                                {actionLabels[action.action] || action.action || 'Tindakan'}
                               </span>
                               <Badge variant={
                                 action.priority === 'HIGH' ? 'destructive' :
@@ -1599,9 +1666,19 @@ export default function InvestigationRekapanPage() {
                 <Button
                   variant="outline"
                   onClick={() => handleDownloadResultPdf(selectedResult.id)}
+                  disabled={downloadingPdf === selectedResult.id}
                 >
-                  <Download className="w-4 h-4 mr-2" />
-                  Unduh PDF
+                  {downloadingPdf === selectedResult.id ? (
+                    <>
+                      <div className="w-4 h-4 mr-2 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                      Mengunduh...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Unduh PDF
+                    </>
+                  )}
                 </Button>
                 <Button
                   onClick={() => {
