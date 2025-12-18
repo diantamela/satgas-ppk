@@ -172,6 +172,7 @@ export const reportService = {
           incidentLocation: true,
           status: true,
           investigationProgress: true,
+          decisionNotes: true,
           createdAt: true,
           updatedAt: true,
           reporter: {

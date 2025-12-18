@@ -1,96 +1,93 @@
 import { NextRequest } from "next/server";
-import { getSessionFromRequest } from "@/lib/auth/server-session";
-import { isRoleAllowed } from "@/lib/auth/auth-utils";
 import { db } from "@/db";
-import fs from 'fs';
-import path from 'path';
+import { DownloadService, type FileInfo } from "@/lib/services/download-service";
 
 export const runtime = "nodejs";
 
-// GET /api/documents/[id]/download - Download investigation document
+// GET /api/documents/[id]/download - Download investigation document using standardized service
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    // Get current user session
-    const session = await getSessionFromRequest(request);
+  const { id } = await params;
 
-    if (!session || !isRoleAllowed(session, ['SATGAS', 'REKTOR'])) {
-      return Response.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
+  if (!id) {
+    return DownloadService.formatErrorResponse({
+      code: 400,
+      message: "Document ID is required"
+    });
+  }
 
-    const { id } = await params;
+  // Create a handler that retrieves document info and downloads it
+  const handler = DownloadService.createDownloadHandler<FileInfo>(
+    async (params: { id: string }) => {
+      console.log(`[DOCUMENT DOWNLOAD] Attempting to download document ID: ${params.id}`);
 
-    if (!id) {
-      return Response.json(
-        { success: false, message: "Document ID is required" },
-        { status: 400 }
-      );
-    }
-
-    // Get the document from database
-    const document = await db.investigationDocument.findUnique({
-      where: { id },
-      include: {
-        uploadedBy: {
-          select: { name: true }
-        },
-        report: {
-          select: { 
-            reportNumber: true,
-            title: true 
+      // Get the document from database
+      const document = await db.investigationDocument.findUnique({
+        where: { id: params.id },
+        include: {
+          uploadedBy: {
+            select: { name: true }
+          },
+          report: {
+            select: {
+              reportNumber: true,
+              title: true
+            }
           }
         }
-      }
-    });
-
-    if (!document) {
-      return Response.json(
-        { success: false, message: "File tidak ditemukan" },
-        { status: 404 }
-      );
-    }
-
-    // Handle different storage types
-    if (document.storagePath.startsWith('http')) {
-      // If it's a URL (S3 or external storage), redirect to it
-      return Response.redirect(document.storagePath, 302);
-    } else {
-      // Handle local file storage
-      const filePath = path.join(process.cwd(), document.storagePath.startsWith('/') 
-        ? document.storagePath.substring(1) // Remove leading slash
-        : document.storagePath);
-
-      if (!fs.existsSync(filePath)) {
-        return Response.json(
-          { success: false, message: "File tidak ditemukan di storage" },
-          { status: 404 }
-        );
-      }
-
-      // Get file content
-      const fileBuffer = fs.readFileSync(filePath);
-
-      // Set appropriate headers
-      const headers = new Headers();
-      headers.set('Content-Type', document.fileType);
-      headers.set('Content-Length', document.fileSize.toString());
-      headers.set('Content-Disposition', `attachment; filename="${document.fileName}"`);
-
-      return new Response(fileBuffer, {
-        status: 200,
-        headers
       });
+
+      if (!document) {
+        console.log(`[DOCUMENT DOWNLOAD] Document not found in database for ID: ${params.id}`);
+        
+        // Try to find if this might be a legacy ID or alternative reference
+        const legacyDocument = await db.investigationDocument.findFirst({
+          where: {
+            OR: [
+              { id: { contains: params.id } },
+              { fileName: { contains: params.id } }
+            ]
+          }
+        });
+
+        if (legacyDocument) {
+          console.log(`[DOCUMENT DOWNLOAD] Found potential match with ID: ${legacyDocument.id}`);
+          return null; // Return null to trigger 404 with helpful message
+        }
+
+        return null;
+      }
+
+      console.log(`[DOCUMENT DOWNLOAD] Found document: ${document.fileName}, storagePath: ${document.storagePath}`);
+
+      // Convert to FileInfo format
+      const fileInfo: FileInfo = {
+        id: document.id,
+        fileName: document.fileName,
+        fileType: document.fileType || 'application/octet-stream',
+        fileSize: document.fileSize,
+        storagePath: document.storagePath || '',
+        uploadedBy: {
+          name: document.uploadedBy?.name || 'Unknown'
+        },
+        metadata: {
+          documentType: document.documentType,
+          uploadedAt: document.createdAt,
+          reportNumber: document.report?.reportNumber,
+          reportTitle: document.report?.title
+        }
+      };
+
+      return fileInfo;
+    },
+    {
+      allowedRoles: ['SATGAS', 'REKTOR'],
+      maxFileSize: 50 * 1024 * 1024, // 50MB
+      requireAuth: true
     }
-  } catch (error) {
-    console.error("Error downloading document:", error);
-    return Response.json(
-      { success: false, message: "Terjadi kesalahan saat mengunduh file" },
-      { status: 500 }
-    );
-  }
+  );
+
+  return handler(request, { id });
 }

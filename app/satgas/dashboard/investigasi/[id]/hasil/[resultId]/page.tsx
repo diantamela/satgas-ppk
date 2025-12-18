@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -126,116 +126,160 @@ export default function InvestigationResultDetailPage() {
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (!id || !resultId) return;
+  // Memoized constants to prevent unnecessary re-renders
+  const investigationMethods = useMemo(() => [
+    { value: "INTERVIEW", label: "Wawancara" },
+    { value: "WRITTEN_CLARIFICATION", label: "Klarifikasi Tertulis" },
+    { value: "LOCATION_OBSERVATION", label: "Observasi Lokasi" },
+    { value: "DIGITAL_EVIDENCE_COLLECTION", label: "Pengumpulan Bukti Digital" },
+    { value: "MEDIATION", label: "Mediasi" },
+    { value: "OTHER", label: "Lainnya" }
+  ], []);
 
-        const reportId = Array.isArray(id) ? id[0] : id;
-        const resultIdStr = Array.isArray(resultId) ? resultId[0] : resultId;
+  const investigationParties = useMemo(() => [
+    { value: "VICTIM_SURVIVOR", label: "Korban/Penyintas" },
+    { value: "REPORTED_PERSON", label: "Terlapor" },
+    { value: "WITNESS", label: "Saksi" },
+    { value: "OTHER_PARTY", label: " Pihak Lain" }
+  ], []);
 
-        // Fetch report data
-        const reportResponse = await fetch(`/api/reports/${reportId}`);
-        const reportData = await reportResponse.json();
-        if (reportData.success) {
-          setReport(reportData.report);
-          setCaseTitle(reportData.report.title);
-          setReportNumber(reportData.report.reportNumber);
-        }
+  const accessLevels = useMemo(() => [
+    { value: "CORE_TEAM_ONLY", label: "Hanya Tim Inti" },
+    { value: "FULL_SATGAS", label: "Satgas Penuh" },
+    { value: "LEADERSHIP_ONLY", label: "Pimpinan Tertentu" }
+  ], []);
 
-        // Fetch investigation result
-        const resultResponse = await fetch(`/api/reports/${reportId}/results`);
-        if (resultResponse.ok) {
-          const resultsData = await resultResponse.json();
-          if (resultsData.success && resultsData.results) {
-            const foundResult = resultsData.results.find((r: any) => r.id === resultIdStr);
-            console.log('Found result:', foundResult);
-            console.log('Evidence files in result:', foundResult?.evidenceFiles);
-            console.log('Investigation documents:', foundResult?.report?.documents);
+  const recommendedActionsOptions = useMemo(() => [
+    { value: 'SCHEDULE_NEXT_SESSION', label: 'Jadwalkan Sesi Berikutnya' },
+    { value: 'CALL_OTHER_PARTY', label: 'Panggil Pihak Lain' },
+    { value: 'REQUIRE_PSYCHOLOGICAL_SUPPORT', label: 'Perlu Pendampingan Psikologis' },
+    { value: 'REQUIRE_LEGAL_SUPPORT', label: 'Perlu Pendampingan Hukum' },
+    { value: 'CASE_TERMINATED', label: 'Kasus Dihentikan' },
+    { value: 'FORWARD_TO_REKTORAT', label: 'Diteruskan ke Rektorat' },
+    { value: 'MEDIATION_SESSION', label: 'Sesi Mediasi' },
+    { value: 'EVIDENCE_ANALYSIS', label: 'Analisis Bukti' },
+    { value: 'WITNESS_REINTERVIEW', label: 'Wawancara Ulang Saksi' },
+    { value: 'OTHER', label: 'Lainnya' }
+  ], []);
+
+  const caseStatusOptions = useMemo(() => [
+    { value: 'UNDER_INVESTIGATION', label: 'Sedang Berlangsung' },
+    { value: 'EVIDENCE_COLLECTION', label: 'Pengumpulan Bukti' },
+    { value: 'STATEMENT_ANALYSIS', label: 'Analisis Keterangan' },
+    { value: 'PENDING_EXTERNAL_INPUT', label: 'Menunggu Input Eksternal' },
+    { value: 'READY_FOR_RECOMMENDATION', label: 'Siap untuk Rekomendasi' },
+    { value: 'CLOSED_TERMINATED', label: 'Ditutup/Dihentikan' },
+    { value: 'FORWARDED_TO_REKTORAT', label: 'Diteruskan ke Rektorat' }
+  ], []);
+
+  // Memoized fetch data function to prevent unnecessary re-renders
+  const fetchData = useCallback(async () => {
+    try {
+      if (!id || !resultId) return;
+
+      const reportId = Array.isArray(id) ? id[0] : id;
+      const resultIdStr = Array.isArray(resultId) ? resultId[0] : resultId;
+
+      // Fetch report data
+      const reportResponse = await fetch(`/api/reports/${reportId}`);
+      const reportData = await reportResponse.json();
+      if (reportData.success) {
+        setReport(reportData.report);
+        setCaseTitle(reportData.report.title);
+        setReportNumber(reportData.report.reportNumber);
+      }
+
+      // Fetch investigation result
+      const resultResponse = await fetch(`/api/reports/${reportId}/results`);
+      if (resultResponse.ok) {
+        const resultsData = await resultResponse.json();
+        if (resultsData.success && resultsData.results) {
+          const foundResult = resultsData.results.find((r: any) => r.id === resultIdStr);
+          console.log('Found result:', foundResult);
+          console.log('Evidence files in result:', foundResult?.evidenceFiles);
+          console.log('Investigation documents:', foundResult?.report?.documents);
+          
+          if (foundResult) {
+            setResult(foundResult);
             
-            if (foundResult) {
-              setResult(foundResult);
-              
-              // Populate form fields with existing data
-              setSchedulingTitle(foundResult.schedulingTitle || 'Sesi Investigasi');
-              setStartDateTime(formatDateTimeForInput(foundResult.startDateTime) || '');
-              setEndDateTime(formatDateTimeForInput(foundResult.endDateTime) || '');
-              setSchedulingLocation(foundResult.schedulingLocation || foundResult.location || '');
-              
-              setLocation(foundResult.location || '');
-              setMethods(foundResult.methods || []);
-              setPartiesInvolved(foundResult.partiesInvolved || []);
-              setOtherPartiesDetails(foundResult.otherPartiesDetails || '');
-              setRiskNotes(foundResult.riskNotes || '');
-              setPlanSummary(foundResult.planSummary || '');
-              setAccessLevel(foundResult.accessLevel || 'CORE_TEAM_ONLY');
-              
-              setSatgasMembersPresent(foundResult.satgasMembersPresent || []);
-              setPartiesPresent(foundResult.partiesPresent || []);
-              setIdentityVerified(foundResult.identityVerified || false);
-              setAttendanceNotes(foundResult.attendanceNotes || '');
-              
-              setPartiesStatementSummary(foundResult.partiesStatementSummary || '');
-              setNewPhysicalEvidence(foundResult.newPhysicalEvidence || '');
-              setEvidenceFiles(foundResult.evidenceFiles || []);
-              setStatementConsistency(foundResult.statementConsistency || '');
-              
-              setSessionInterimConclusion(foundResult.sessionInterimConclusion || '');
-              setRecommendedImmediateActions(foundResult.recommendedImmediateActions || []);
-              setCaseStatusAfterResult(foundResult.caseStatusAfterResult || 'UNDER_INVESTIGATION');
-              setStatusChangeReason(foundResult.statusChangeReason || '');
-              
-              setDataVerificationConfirmed(foundResult.dataVerificationConfirmed || false);
-              setCreatorDigitalSignature(foundResult.creatorDigitalSignature || '');
-              setCreatorSignerName(foundResult.creatorSignerName || '');
-              setChairpersonDigitalSignature(foundResult.chairpersonDigitalSignature || '');
-              setChairpersonSignerName(foundResult.chairpersonSignerName || '');
-              
-              setInternalSatgasNotes(foundResult.internalSatgasNotes || '');
-              
-              // Merge both new format documents and legacy evidence files
-              const allEvidenceFiles = [];
-              
-              // Add new format documents from investigationDocument table
-              if (foundResult.report?.documents) {
-                allEvidenceFiles.push(...foundResult.report.documents);
-              }
-              
-              // Add legacy format files from evidenceFiles JSON field
-              if (foundResult.evidenceFiles && Array.isArray(foundResult.evidenceFiles)) {
-                // Convert legacy format to match new format structure
-                const legacyFiles = foundResult.evidenceFiles.map((file: any, index: number) => ({
-                  id: `legacy-${index}`, // Temporary ID for legacy files
-                  fileName: file.name,
-                  fileType: file.type,
-                  fileSize: file.size,
-                  storagePath: file.path,
-                  uploadedAt: file.uploadedAt,
-                  isLegacy: true // Flag to identify legacy files
-                }));
-                allEvidenceFiles.push(...legacyFiles);
-              }
-              
-              setEvidenceDocuments(allEvidenceFiles);
-            } else {
-              setError("Hasil investigasi tidak ditemukan");
+            // Populate form fields with existing data
+            setSchedulingTitle(foundResult.schedulingTitle || 'Sesi Investigasi');
+            setStartDateTime(formatDateTimeForInput(foundResult.startDateTime) || '');
+            setEndDateTime(formatDateTimeForInput(foundResult.endDateTime) || '');
+            setSchedulingLocation(foundResult.schedulingLocation || foundResult.location || '');
+            
+            setLocation(foundResult.location || '');
+            setMethods(foundResult.methods || []);
+            setPartiesInvolved(foundResult.partiesInvolved || []);
+            setOtherPartiesDetails(foundResult.otherPartiesDetails || '');
+            setRiskNotes(foundResult.riskNotes || '');
+            setPlanSummary(foundResult.planSummary || '');
+            setAccessLevel(foundResult.accessLevel || 'CORE_TEAM_ONLY');
+            
+            setSatgasMembersPresent(foundResult.satgasMembersPresent || []);
+            setPartiesPresent(foundResult.partiesPresent || []);
+            setIdentityVerified(foundResult.identityVerified || false);
+            setAttendanceNotes(foundResult.attendanceNotes || '');
+            
+            setPartiesStatementSummary(foundResult.partiesStatementSummary || '');
+            setNewPhysicalEvidence(foundResult.newPhysicalEvidence || '');
+            setEvidenceFiles(foundResult.evidenceFiles || []);
+            setStatementConsistency(foundResult.statementConsistency || '');
+            
+            setSessionInterimConclusion(foundResult.sessionInterimConclusion || '');
+            setRecommendedImmediateActions(foundResult.recommendedImmediateActions || []);
+            setCaseStatusAfterResult(foundResult.caseStatusAfterResult || 'UNDER_INVESTIGATION');
+            setStatusChangeReason(foundResult.statusChangeReason || '');
+            
+            setDataVerificationConfirmed(foundResult.dataVerificationConfirmed || false);
+            setCreatorDigitalSignature(foundResult.creatorDigitalSignature || '');
+            setCreatorSignerName(foundResult.creatorSignerName || '');
+            setChairpersonDigitalSignature(foundResult.chairpersonDigitalSignature || '');
+            setChairpersonSignerName(foundResult.chairpersonSignerName || '');
+            
+            setInternalSatgasNotes(foundResult.internalSatgasNotes || '');
+            
+            // Only show evidence files from the results/hasil phase
+            const allEvidenceFiles = [];
+            
+            // Add legacy format files from evidenceFiles JSON field (from hasil phase only)
+            if (foundResult.evidenceFiles && Array.isArray(foundResult.evidenceFiles)) {
+              // Convert legacy format to match new format structure
+              const legacyFiles = foundResult.evidenceFiles.map((file: any, index: number) => ({
+                id: `legacy-${index}`, // Temporary ID for legacy files
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                storagePath: file.path,
+                uploadedAt: file.uploadedAt,
+                isLegacy: true, // Flag to identify legacy files
+                // Store original file data for download
+                originalFile: file
+              }));
+              allEvidenceFiles.push(...legacyFiles);
             }
+            
+            setEvidenceDocuments(allEvidenceFiles);
           } else {
-            setError("Gagal memuat data hasil investigasi");
+            setError("Hasil investigasi tidak ditemukan");
           }
         } else {
           setError("Gagal memuat data hasil investigasi");
         }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError("Terjadi kesalahan saat memuat data");
-      } finally {
-        setIsLoading(false);
+      } else {
+        setError("Gagal memuat data hasil investigasi");
       }
-    };
-
-    fetchData();
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError("Terjadi kesalahan saat memuat data");
+    } finally {
+      setIsLoading(false);
+    }
   }, [id, resultId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const formatDate = (value?: string) => {
     if (!value) return "-";
@@ -250,51 +294,6 @@ export default function InvestigationResultDetailPage() {
     if (isNaN(d.getTime())) return "-";
     return d.toLocaleString("id-ID");
   };
-
-  const investigationMethods = [
-    { value: "INTERVIEW", label: "Wawancara" },
-    { value: "WRITTEN_CLARIFICATION", label: "Klarifikasi Tertulis" },
-    { value: "LOCATION_OBSERVATION", label: "Observasi Lokasi" },
-    { value: "DIGITAL_EVIDENCE_COLLECTION", label: "Pengumpulan Bukti Digital" },
-    { value: "MEDIATION", label: "Mediasi" },
-    { value: "OTHER", label: "Lainnya" }
-  ];
-
-  const investigationParties = [
-    { value: "VICTIM_SURVIVOR", label: "Korban/Penyintas" },
-    { value: "REPORTED_PERSON", label: "Terlapor" },
-    { value: "WITNESS", label: "Saksi" },
-    { value: "OTHER_PARTY", label: " Pihak Lain" }
-  ];
-
-  const accessLevels = [
-    { value: "CORE_TEAM_ONLY", label: "Hanya Tim Inti" },
-    { value: "FULL_SATGAS", label: "Satgas Penuh" },
-    { value: "LEADERSHIP_ONLY", label: "Pimpinan Tertentu" }
-  ];
-
-  const recommendedActionsOptions = [
-    { value: 'SCHEDULE_NEXT_SESSION', label: 'Jadwalkan Sesi Berikutnya' },
-    { value: 'CALL_OTHER_PARTY', label: 'Panggil Pihak Lain' },
-    { value: 'REQUIRE_PSYCHOLOGICAL_SUPPORT', label: 'Perlu Pendampingan Psikologis' },
-    { value: 'REQUIRE_LEGAL_SUPPORT', label: 'Perlu Pendampingan Hukum' },
-    { value: 'CASE_TERMINATED', label: 'Kasus Dihentikan' },
-    { value: 'FORWARD_TO_REKTORAT', label: 'Diteruskan ke Rektorat' },
-    { value: 'MEDIATION_SESSION', label: 'Sesi Mediasi' },
-    { value: 'EVIDENCE_ANALYSIS', label: 'Analisis Bukti' },
-    { value: 'WITNESS_REINTERVIEW', label: 'Wawancara Ulang Saksi' },
-    { value: 'OTHER', label: 'Lainnya' }
-  ];
-
-  const caseStatusOptions = [
-    { value: 'UNDER_INVESTIGATION', label: 'Sedang Berlangsung' },
-    { value: 'EVIDENCE_COLLECTION', label: 'Pengumpulan Bukti' },
-    { value: 'STATEMENT_ANALYSIS', label: 'Analisis Keterangan' },
-    { value: 'PENDING_EXTERNAL_INPUT', label: 'Menunggu Input Eksternal' },
-    { value: 'READY_FOR_RECOMMENDATION', label: 'Siap untuk Rekomendasi' },
-    { value: 'CLOSED_TERMINATED', label: 'Ditutup/Dihentikan' },
-    { value: 'FORWARDED_TO_REKTORAT', label: 'Diteruskan ke Rektorat' }
-  ];
 
   const handleMethodChange = (method: string, checked: boolean) => {
     if (checked) {
@@ -484,7 +483,10 @@ export default function InvestigationResultDetailPage() {
 
       console.log('Updating investigation result with data:', formData);
 
-      const response = await fetch(`/api/reports/${id}/results/${resultId}`, {
+      const reportId = Array.isArray(id) ? id[0] : id;
+      const resultIdStr = Array.isArray(resultId) ? resultId[0] : resultId;
+
+      const response = await fetch(`/api/reports/${reportId}/results/${resultIdStr}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -499,12 +501,14 @@ export default function InvestigationResultDetailPage() {
             setAlertMessage(null);
             setIsEditMode(false);
             // Refresh data
-            window.location.reload();
+            fetchData();
           }, 1000);
         } else {
           setAlertMessage({ type: 'error', message: data.message || 'Gagal memperbarui hasil investigasi' });
         }
       } else {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
         setAlertMessage({ type: 'error', message: 'Gagal memperbarui hasil investigasi - respons server tidak valid' });
       }
     } catch (error) {
@@ -542,62 +546,64 @@ export default function InvestigationResultDetailPage() {
     }
   };
 
+  // Enhanced document download handler with better error handling
   const handleDownloadEvidenceFile = async (document: any) => {
     try {
       // Handle legacy files differently
       if (document.isLegacy || (document.id && document.id.startsWith('legacy-'))) {
-        // For legacy files, the file data is stored in the evidenceFiles JSON field
-        // We need to get the actual file data from the parent result
-        const legacyIndex = parseInt(document.id.replace('legacy-', ''));
-        const legacyFile = result?.evidenceFiles?.[legacyIndex];
+        // For legacy files, get the original file data
+        const legacyFile = document.originalFile || document;
         
         if (!legacyFile) {
           alert("File legacy tidak ditemukan dalam data hasil investigasi");
           return;
         }
         
-        // For legacy files, try to create a blob from the stored data
+        // For legacy files, try different approaches
         if (legacyFile.path && legacyFile.path.startsWith('http')) {
           // External URL - open directly
           window.open(legacyFile.path, '_blank');
         } else if (legacyFile.path) {
-          // Local path - try to fetch the file
+          // Try multiple download approaches for legacy files
           try {
-            const response = await fetch(`/api/documents/${encodeURIComponent(legacyFile.path)}/download`);
+            const baseUrl = window.location.origin;
+            const pathParts = legacyFile.path.split('/');
+            const fileName = pathParts[pathParts.length - 1];
+            
+            // Approach 1: Try direct file access in uploads directory
+            const directUrl = `${baseUrl}/uploads/${legacyFile.path.replace(/^\/+/, '')}`;
+            let response = await fetch(directUrl);
+            
             if (!response.ok) {
-              // If direct path doesn't work, try alternative approaches
-              const baseUrl = window.location.origin;
-              const altUrl = `${baseUrl}/uploads/${legacyFile.path}`;
-              const altResponse = await fetch(altUrl);
+              // Approach 2: Try with just the filename
+              const filenameUrl = `${baseUrl}/uploads/evidence/${fileName}`;
+              response = await fetch(filenameUrl);
               
-              if (!altResponse.ok) {
-                alert("File tidak ditemukan. Silakan hubungi administrator.");
-                return;
+              if (!response.ok) {
+                // Approach 3: Try legacy upload API endpoint
+                const uploadApiUrl = `/api/upload/${encodeURIComponent(fileName)}`;
+                response = await fetch(uploadApiUrl);
+                
+                if (!response.ok) {
+                  console.warn('All download attempts failed for legacy file:', legacyFile.path);
+                  alert(`File "${legacyFile.name || fileName}" tidak ditemukan di server. File mungkin telah dihapus atau dipindahkan.`);
+                  return;
+                }
               }
-              
-              const blob = await altResponse.blob();
-              const url = window.URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = legacyFile.name || 'evidence-file';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
-            } else {
-              const blob = await response.blob();
-              const url = window.URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = legacyFile.name || 'evidence-file';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(url);
             }
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = legacyFile.name || fileName || 'evidence-file';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
           } catch (fetchError) {
             console.error('Legacy file fetch failed:', fetchError);
-            alert("Gagal mengunduh file legacy. File mungkin telah dihapus atau dipindahkan.");
+            alert(`Gagal mengunduh file legacy: ${legacyFile.name || 'Unknown file'}. Silakan hubungi administrator.`);
           }
         } else {
           alert("Path file legacy tidak valid");
@@ -615,9 +621,9 @@ export default function InvestigationResultDetailPage() {
           
           if (!response.ok) {
             if (response.status === 404) {
-              alert("File tidak ditemukan. Silakan hubungi administrator.");
+              alert(`File "${fileName}" tidak ditemukan di database. File mungkin telah dihapus.`);
             } else {
-              alert("Gagal mengunduh file. Status: " + response.status);
+              alert(`Gagal mengunduh file "${fileName}". Status: ${response.status}. Silakan hubungi administrator.`);
             }
             return;
           }
@@ -633,10 +639,10 @@ export default function InvestigationResultDetailPage() {
           window.URL.revokeObjectURL(url);
         } catch (fetchError) {
           console.error('Document download failed:', fetchError);
-          alert("Gagal mengunduh file. Silakan coba lagi atau hubungi administrator.");
+          alert(`Gagal mengunduh file "${fileName}". Silakan coba lagi atau hubungi administrator.`);
         }
       } else {
-        alert("Format file tidak valid");
+        alert("Format file tidak valid untuk diunduh");
       }
     } catch (error) {
       console.error("Download error:", error);
@@ -657,21 +663,33 @@ export default function InvestigationResultDetailPage() {
   };
 
   const getFileUrl = (document: any) => {
-    // Check if this is a legacy evidence file or a new investigation document
-    if (document.id && document.fileName) {
-      // New format: investigation document with ID
-      if (document.storagePath && document.storagePath.startsWith('http')) {
-        return document.storagePath;
-      } else {
-        return `/api/documents/${document.id}/download`;
+    try {
+      // Check if this is a legacy evidence file or a new investigation document
+      if (document.id && document.fileName) {
+        // New format: investigation document with ID
+        if (document.storagePath && document.storagePath.startsWith('http')) {
+          return document.storagePath;
+        } else {
+          return `/api/documents/${document.id}/download`;
+        }
+      } else if (document.path) {
+        // Legacy format: evidence file with path
+        if (document.path.startsWith('http')) {
+          return document.path;
+        } else {
+          // For legacy files, try to construct a direct URL
+          const baseUrl = window.location.origin;
+          const cleanPath = document.path.replace(/^\/+/, '');
+          return `${baseUrl}/uploads/${cleanPath}`;
+        }
       }
-    } else if (document.path) {
-      // Legacy format: evidence file with path
-      return document.path.startsWith('http') ? document.path : document.path;
+      
+      // Fallback - return a data URL or placeholder for broken images
+      return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIxIDEyQzIxIDE1LjMxIDE4LjMxIDE4IDE1IDE4SDE1LjVDMTMuMTkgMTggMTEgMTUuMzEgMTEgMTJDMTEgOC42OSAxMy4xOSA2IDE1IDZIMTVDMTYuODEgNiAxOSA4LjY5IDE5IDEySDE5VjEzSDE5LjVDMjAuMzkgMTMgMjIgMTEuMzkgMjIgOUwyMC41IDdMMjEgOUMyMSAxMS4zOSAyMC4zOSAxMyAxOS41IDEzSDE5VjEyWiIgZmlsbD0iIzk5OTk5OSIvPgo8L3N2Zz4K';
+    } catch (error) {
+      console.error('Error getting file URL:', error);
+      return '#';
     }
-    
-    // Fallback
-    return '#';
   };
 
   const toggleAudioPlayback = (fileId: string) => {
@@ -1084,7 +1102,7 @@ export default function InvestigationResultDetailPage() {
                   Catatan Inti Investigasi
                 </CardTitle>
                 <CardDescription>
-                  Detail hasil wawancara dan temuan during investigasi
+                  Detail hasil wawancara dan temuan selama investigasi
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1361,7 +1379,7 @@ export default function InvestigationResultDetailPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <DigitalSignature
-                    label="Tanda Tangan Digital Anggota Sabtu (Pembuat BA)"
+                    label="Tanda Tangan Digital Anggota Satuan Tugas (Pembuat BA)"
                     value={creatorDigitalSignature}
                     onChange={(signatureData, signerName) => {
                       setCreatorDigitalSignature(signatureData);
@@ -1370,11 +1388,11 @@ export default function InvestigationResultDetailPage() {
                     signerName={creatorSignerName}
                     onSignerNameChange={setCreatorSignerName}
                     required
-                    signerNameLabel="Nama Anggota Sabtu (Pembuat BA)"
+                    signerNameLabel="Nama Anggota Satuan Tugas (Pembuat BA)"
                     placeholder="Tanda tangan di sini..."
                   />
                   <DigitalSignature
-                    label="Tanda Tangan Digital Ketua Fuerzas (Persetujuan Akhir)"
+                    label="Tanda Tangan Digital Ketua Satuan Tugas (Persetujuan Akhir)"
                     value={chairpersonDigitalSignature}
                     onChange={(signatureData, signerName) => {
                       setChairpersonDigitalSignature(signatureData);
@@ -1382,13 +1400,13 @@ export default function InvestigationResultDetailPage() {
                     }}
                     signerName={chairpersonSignerName}
                     onSignerNameChange={setChairpersonSignerName}
-                    signerNameLabel="Nama Ketua Fuerzas"
+                    signerNameLabel="Nama Ketua Satuan Tugas"
                     placeholder="Tanda tangan di sini..."
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="internal-notes">Catatan Internal OTAN</Label>
+                  <Label htmlFor="internal-notes">Catatan Internal Satuan Tugas</Label>
                   <Textarea
                     id="internal-notes"
                     value={internalSatgasNotes}
@@ -1601,7 +1619,7 @@ export default function InvestigationResultDetailPage() {
                   {result.satgasMembersPresent && Array.isArray(result.satgasMembersPresent) && result.satgasMembersPresent.length > 0 && (
                     <div>
                       <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-3">
-                        Anggota Sabtu yang Hadir ({result.satgasMembersPresent.length} orang)
+                        Anggota Satuan Tugas yang Hadir ({result.satgasMembersPresent.length} orang)
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {result.satgasMembersPresent.map((member: any, idx: number) => (
@@ -1777,18 +1795,21 @@ export default function InvestigationResultDetailPage() {
             </Card>
 
             {/* Bukti yang Diupload - NEW IMPLEMENTATION */}
-            {evidenceDocuments.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Image className="w-5 h-5" />
-                    Bukti yang Diupload
-                  </CardTitle>
-                  <CardDescription>
-                    {evidenceDocuments.length} file bukti yang dilampirkan
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Image className="w-5 h-5" />
+                  Bukti yang Diupload
+                </CardTitle>
+                <CardDescription>
+                  {evidenceDocuments.length > 0
+                    ? `${evidenceDocuments.length} file bukti yang dilampirkan`
+                    : 'Bukti yang diupload pada fase hasil investigasi'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {evidenceDocuments.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {evidenceDocuments.map((document: any) => (
                       <div key={document.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
@@ -1818,7 +1839,7 @@ export default function InvestigationResultDetailPage() {
                             {isImageFile(document.fileName, document.fileType) ? (
                               // Image preview
                               <div className="relative">
-                                <img 
+                                <img
                                   src={getFileUrl(document)}
                                   alt={document.fileName}
                                   className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
@@ -1828,7 +1849,15 @@ export default function InvestigationResultDetailPage() {
                                     target.style.display = 'none';
                                     const parent = target.parentElement;
                                     if (parent) {
-                                      parent.innerHTML = '<div class="flex items-center justify-center h-48 bg-gray-100 dark:bg-gray-700 text-gray-500"><div class="text-center"><svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path></svg><p>Gagal memuat gambar</p></div></div>';
+                                      parent.innerHTML = `<div class="flex items-center justify-center h-48 bg-gray-100 dark:bg-gray-700 text-gray-500">
+                                        <div class="text-center">
+                                          <svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
+                                          </svg>
+                                          <p class="text-sm">Gagal memuat gambar</p>
+                                          <p class="text-xs mt-1">${document.fileName || 'File tidak ditemukan'}</p>
+                                        </div>
+                                      </div>`;
                                     }
                                   }}
                                 />
@@ -1869,8 +1898,8 @@ export default function InvestigationResultDetailPage() {
                                   </span>
                                 </div>
                                 {playingAudio === document.id && (
-                                  <audio 
-                                    controls 
+                                  <audio
+                                    controls
                                     className="w-full"
                                     autoPlay
                                     onEnded={() => setPlayingAudio(null)}
@@ -1926,9 +1955,19 @@ export default function InvestigationResultDetailPage() {
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                ) : (
+                  <div className="text-center py-8">
+                    <Image className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-500 dark:text-gray-400">
+                      Belum ada bukti yang diupload pada fase hasil investigasi
+                    </p>
+                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                      Bukti dapat diupload melalui form hasil investigasi
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Tanda Tangan Digital */}
             <Card>
@@ -2009,7 +2048,7 @@ export default function InvestigationResultDetailPage() {
             {result.internalSatgasNotes && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Catatan Internal OTAN</CardTitle>
+                  <CardTitle>Catatan Internal Satuan Tugas</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 p-4 rounded-lg border border-gray-300 dark:border-gray-600 whitespace-pre-wrap">

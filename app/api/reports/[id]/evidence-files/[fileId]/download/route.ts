@@ -1,100 +1,82 @@
 import { NextRequest } from "next/server";
-import { getSessionFromRequest } from "@/lib/auth/server-session";
-import { isRoleAllowed } from "@/lib/auth/auth-utils";
 import { db } from "@/db";
-import fs from 'fs';
-import path from 'path';
+import { DownloadService, type FileInfo } from "@/lib/services/download-service";
 
 export const runtime = "nodejs";
 
-// GET /api/reports/[id]/evidence-files/[fileId]/download - Download evidence file for a report
+// GET /api/reports/[id]/evidence-files/[fileId]/download - Download evidence file for a report using standardized service
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; fileId: string }> }
 ) {
-  try {
-    // Get current user session
-    const session = await getSessionFromRequest(request);
+  const { id: reportId, fileId } = await params;
 
-    if (!session || !isRoleAllowed(session, ['SATGAS', 'REKTOR'])) {
-      return Response.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const { id, fileId } = await params;
-
-    if (!id || !fileId) {
-      return Response.json(
-        { success: false, message: "Report ID and File ID are required" },
-        { status: 400 }
-      );
-    }
-
-    // Get the report and evidence file
-    const report = await db.report.findUnique({
-      where: { id },
-      include: {
-        documents: {
-          where: { id: fileId }
-        }
-      }
+  if (!reportId || !fileId) {
+    return DownloadService.formatErrorResponse({
+      code: 400,
+      message: "Report ID and File ID are required"
     });
+  }
 
-    if (!report) {
-      return Response.json(
-        { success: false, message: "Report tidak ditemukan" },
-        { status: 404 }
-      );
-    }
+  // Create a handler that retrieves evidence file info and downloads it
+  const handler = DownloadService.createDownloadHandler<FileInfo>(
+    async (params: { id: string; fileId: string }) => {
+      console.log(`[EVIDENCE DOWNLOAD] Attempting to download evidence file ID: ${params.fileId} for report: ${params.id}`);
 
-    // Find the evidence file
-    const evidenceFile = report.documents.find((doc: any) => doc.id === fileId);
+      // Get the report and evidence file
+      const report = await db.report.findUnique({
+        where: { id: params.id },
+        include: {
+          reporter: {
+            select: { name: true }
+          },
+          documents: {
+            where: { id: params.fileId }
+          }
+        }
+      });
 
-    if (!evidenceFile) {
-      return Response.json(
-        { success: false, message: "File bukti tidak ditemukan" },
-        { status: 404 }
-      );
-    }
-
-    // Handle different storage types
-    if (evidenceFile.storagePath.startsWith('http')) {
-      // If it's a URL (S3 or external storage), redirect to it
-      return Response.redirect(evidenceFile.storagePath, 302);
-    } else {
-      // Handle local file storage
-      const filePath = path.join(process.cwd(), evidenceFile.storagePath.startsWith('/') 
-        ? evidenceFile.storagePath.substring(1) // Remove leading slash
-        : evidenceFile.storagePath);
-
-      if (!fs.existsSync(filePath)) {
-        return Response.json(
-          { success: false, message: "File tidak ditemukan di storage" },
-          { status: 404 }
-        );
+      if (!report) {
+        console.log(`[EVIDENCE DOWNLOAD] Report not found for ID: ${params.id}`);
+        return null;
       }
 
-      // Get file content
-      const fileBuffer = fs.readFileSync(filePath);
+      // Find the evidence file
+      const evidenceFile = report.documents.find((doc: any) => doc.id === params.fileId);
 
-      // Set appropriate headers
-      const headers = new Headers();
-      headers.set('Content-Type', evidenceFile.fileType);
-      headers.set('Content-Length', evidenceFile.fileSize.toString());
-      headers.set('Content-Disposition', `attachment; filename="${evidenceFile.fileName}"`);
+      if (!evidenceFile) {
+        console.log(`[EVIDENCE DOWNLOAD] Evidence file not found for ID: ${params.fileId}`);
+        return null;
+      }
 
-      return new Response(fileBuffer, {
-        status: 200,
-        headers
-      });
+      console.log(`[EVIDENCE DOWNLOAD] Found evidence file: ${evidenceFile.fileName}, storagePath: ${evidenceFile.storagePath}`);
+
+      // Convert to FileInfo format
+      const fileInfo: FileInfo = {
+        id: evidenceFile.id,
+        fileName: evidenceFile.fileName,
+        fileType: evidenceFile.fileType || 'application/octet-stream',
+        fileSize: evidenceFile.fileSize,
+        storagePath: evidenceFile.storagePath || '',
+        uploadedBy: {
+          name: report.reporter?.name || 'Unknown'
+        },
+        metadata: {
+          documentType: evidenceFile.documentType,
+          uploadedAt: evidenceFile.createdAt,
+          reportNumber: report.reportNumber,
+          reportTitle: report.title
+        }
+      };
+
+      return fileInfo;
+    },
+    {
+      allowedRoles: ['SATGAS', 'REKTOR'],
+      maxFileSize: 50 * 1024 * 1024, // 50MB
+      requireAuth: true
     }
-  } catch (error) {
-    console.error("Error downloading evidence file:", error);
-    return Response.json(
-      { success: false, message: "Terjadi kesalahan saat mengunduh file bukti" },
-      { status: 500 }
-    );
-  }
+  );
+
+  return handler(request, { id: reportId, fileId });
 }

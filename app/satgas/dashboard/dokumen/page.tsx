@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   FileText,
   Search,
@@ -694,6 +694,9 @@ export default function DocumentManagementPage() {
           <DialogContent className="max-w-4xl max-h-[80vh]">
             <DialogHeader>
               <DialogTitle>{currentViewDocument?.fileName}</DialogTitle>
+              <DialogDescription>
+                Preview dokumen investigasi. File akan ditampilkan dalam format aslinya.
+              </DialogDescription>
             </DialogHeader>
             {currentViewDocument && (
               <div className="w-full h-[60vh]">

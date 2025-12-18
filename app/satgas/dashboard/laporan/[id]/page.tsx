@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { RejectionInfo } from "@/components/rejection-info";
 
 export default function ReportDetailPage() {
   const { id } = useParams();
@@ -198,14 +199,56 @@ export default function ReportDetailPage() {
 
   const handleViewEvidence = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}/download`);
-      const data = await response.json();
-
-      if (data.success) {
-        // Open the file in a new tab
-        window.open(data.url, '_blank');
+      console.log('Attempting to view document with ID:', documentId);
+      
+      // Use the correct evidence files endpoint that includes report context
+      const response = await fetch(`/api/reports/${id}/evidence-files/${documentId}/download`);
+      console.log('View document response status:', response.status);
+      
+      if (response.ok) {
+        // Get the blob from response
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Get filename from content-disposition header or use default
+        const contentDisposition = response.headers.get('content-disposition');
+        let filename = `evidence-${documentId}`;
+        if (contentDisposition) {
+          const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition);
+          if (matches != null && matches[1]) {
+            filename = matches[1].replace(/['"]/g, '');
+          }
+        }
+        
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        window.URL.revokeObjectURL(url);
+        
+        setAlertMessage({ type: 'success', message: 'File berhasil dibuka' });
+        setTimeout(() => setAlertMessage(null), 3000);
       } else {
-        setAlertMessage({ type: 'error', message: data.message || 'Gagal membuka file' });
+        try {
+          const errorData = await response.json();
+          console.error('View evidence failed:', errorData);
+          setAlertMessage({
+            type: 'error',
+            message: errorData.message || errorData.error?.message || `Gagal membuka file (HTTP ${response.status})`
+          });
+        } catch (parseError) {
+          // If JSON parsing fails, handle as plain text or unknown error
+          console.error('View evidence failed (non-JSON response):', response.status, response.statusText);
+          setAlertMessage({
+            type: 'error',
+            message: `Gagal membuka file (HTTP ${response.status})`
+          });
+        }
         setTimeout(() => setAlertMessage(null), 3000);
       }
     } catch (error) {
@@ -272,6 +315,16 @@ export default function ReportDetailPage() {
             </Button>
           </div>
         </div>
+
+        {/* Rejection Alert for Rejected Reports */}
+        {report.status === "REJECTED" && report.decisionNotes && (
+          <RejectionInfo
+            rejectionReason={report.decisionNotes}
+            className="mb-6"
+            showIcon={true}
+            compact={false}
+          />
+        )}
 
         <div className="flex flex-col md:flex-row gap-6">
           {/* Main Content */}
@@ -368,41 +421,50 @@ export default function ReportDetailPage() {
               </CardContent>
             </Card>
 
-            {report.documents && report.documents.filter((doc: any) => doc.documentType === 'EVIDENCE').length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="w-5 h-5" />
-                    Bukti Dokumentasi
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {report.documents.filter((doc: any) => doc.documentType === 'EVIDENCE').map((file: any, index: number) => (
-                      <div key={file.id || index} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
-                            <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            {(() => {
+              const evidenceFiles = report.documents ? report.documents.filter((doc: any) => doc.documentType === 'EVIDENCE') : [];
+              console.log('Evidence files found:', evidenceFiles);
+              console.log('Evidence files count:', evidenceFiles.length);
+              
+              return evidenceFiles.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Upload className="w-5 h-5" />
+                      Bukti Dokumentasi
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {evidenceFiles.map((file: any, index: number) => {
+                        console.log(`Rendering evidence file ${index + 1}:`, { id: file.id, fileName: file.fileName, fileType: file.fileType });
+                        return (
+                          <div key={file.id || index} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-blue-100 dark:bg-blue-900/20 p-2 rounded">
+                                <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{file.fileName}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{file.fileType} • {(file.fileSize / 1024).toFixed(1)} KB</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewEvidence(file.id)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Lihat
+                            </Button>
                           </div>
-                          <div>
-                            <p className="font-medium">{file.fileName}</p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">{file.fileType} • {(file.fileSize / 1024).toFixed(1)} KB</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleViewEvidence(file.id)}
-                        >
-                          <Eye className="w-4 h-4 mr-1" />
-                          Lihat
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
           </div>
 
           {/* Sidebar */}
@@ -454,7 +516,14 @@ export default function ReportDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {report.decisionNotes && (
+                  {report.status === "REJECTED" && report.decisionNotes && (
+                    <RejectionInfo
+                      rejectionReason={report.decisionNotes}
+                      compact={true}
+                      className="mb-4"
+                    />
+                  )}
+                  {report.status !== "REJECTED" && report.decisionNotes && (
                     <div>
                       <h3 className="font-medium text-gray-700 dark:text-gray-300 mb-1">Catatan Keputusan</h3>
                       <p className="text-gray-600 dark:text-gray-300">{report.decisionNotes}</p>
@@ -557,28 +626,60 @@ export default function ReportDetailPage() {
 
       {/* Reject Report Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Tolak Laporan</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Tolak Laporan
+            </DialogTitle>
             <DialogDescription>
-              Berikan alasan penolakan laporan ini.
+              Berikan alasan yang jelas dan lengkap untuk penolakan laporan ini.
+              Alasan akan ditampilkan kepada pelapor.
             </DialogDescription>
           </DialogHeader>
-          <div>
-            <label className="text-sm font-medium">Alasan Penolakan</label>
-            <Textarea
-              placeholder="Masukkan alasan penolakan..."
-              value={notesText}
-              onChange={(e) => setNotesText(e.target.value)}
-              rows={4}
-              className="mt-1"
-            />
+          <div className="space-y-4">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+              <h4 className="font-medium text-yellow-800 dark:text-yellow-200 mb-1">Panduan Penolakan:</h4>
+              <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1">
+                <li>• Jelaskan secara spesifik alasan penolakan</li>
+                <li>• Berikan saran perbaikan jika diperlukan</li>
+                <li>• Pastikan alasan mudah dipahami</li>
+                <li>• Hindari bahasa yang bersifat pribadi</li>
+              </ul>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Alasan Penolakan <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                placeholder="Contoh: Laporan ini ditolak karena tidak memenuhi kriteria minimum yang diperlukan. Mohon lengkapi informasi terlapor dan berikan bukti yang lebih jelas untuk memperkuat laporan Anda."
+                value={notesText}
+                onChange={(e) => setNotesText(e.target.value)}
+                rows={5}
+                className="mt-1 border-gray-300 dark:border-gray-600 focus:border-red-500 focus:ring-red-500"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Minimal 10 karakter. Alasan akan dikirimkan kepada pelapor.
+              </p>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowRejectDialog(false);
+                setNotesText("");
+              }}
+              disabled={isSubmitting}
+            >
               Batal
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={isSubmitting || !notesText.trim()}>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={isSubmitting || !notesText.trim() || notesText.length < 10}
+              className="min-w-[100px]"
+            >
               {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Tolak Laporan
             </Button>

@@ -144,7 +144,17 @@ export async function PUT(
       );
     }
 
-    const body = await request.json();
+    // Parse request body with error handling
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError);
+      return Response.json(
+        { success: false, message: "Format data tidak valid" },
+        { status: 400 }
+      );
+    }
 
     const {
       // Process data
@@ -219,95 +229,113 @@ export async function PUT(
       );
     }
 
-    // Generate document hash for integrity
-    const documentData = {
-      processId,
-      reportId,
-      partiesStatementSummary,
-      newPhysicalEvidence,
-      sessionInterimConclusion,
-      recommendedImmediateActions,
-      caseStatusAfterResult,
-      updatedAt: new Date().toISOString()
-    };
-    
-    const documentHashString = JSON.stringify(documentData);
-    const hash = createHash('sha256').update(documentHashString).digest('hex');
+    // Generate document hash for integrity with error handling
+    let hash;
+    try {
+      const documentData = {
+        processId,
+        reportId,
+        partiesStatementSummary,
+        newPhysicalEvidence,
+        sessionInterimConclusion,
+        recommendedImmediateActions,
+        caseStatusAfterResult,
+        updatedAt: new Date().toISOString()
+      };
+      
+      const documentHashString = JSON.stringify(documentData);
+      hash = createHash('sha256').update(documentHashString).digest('hex');
+    } catch (hashError) {
+      console.error('Hash generation error:', hashError);
+      return Response.json(
+        { success: false, message: "Error generating document hash" },
+        { status: 500 }
+      );
+    }
 
     console.log('API: Updating investigation result with evidenceFiles:', evidenceFiles);
     
-    // Update investigation result
-    const investigationResultData: any = {
-      // Process data (if provided)
-      ...(processId && { processId }),
-      ...(location && { location }),
-      ...(methods && { methods }),
-      ...(partiesInvolved && { partiesInvolved }),
-      ...(otherPartiesDetails && { otherPartiesDetails }),
-      ...(riskNotes && { riskNotes }),
-      ...(planSummary && { planSummary }),
-      ...(accessLevel && { accessLevel }),
-      
-      // Results metadata
-      ...(schedulingTitle && { schedulingTitle }),
-      ...(schedulingLocation && { schedulingLocation }),
-      ...(caseTitle && { caseTitle }),
-      ...(reportNumber && { reportNumber }),
-      
-      // Attendance tracking
-      ...(satgasMembersPresent !== undefined && { satgasMembersPresent }),
-      ...(partiesPresent !== undefined && { partiesPresent }),
-      ...(identityVerified !== undefined && { identityVerified }),
-      ...(attendanceNotes && { attendanceNotes }),
-      
-      // Key investigation notes
-      ...(partiesStatementSummary && { partiesStatementSummary }),
-      ...(newPhysicalEvidence && { newPhysicalEvidence }),
-      ...(evidenceFiles !== undefined && { evidenceFiles }),
-      ...(statementConsistency && { statementConsistency }),
-      
-      // Interim conclusions and recommendations
-      ...(sessionInterimConclusion && { sessionInterimConclusion }),
-      ...(recommendedImmediateActions !== undefined && { recommendedImmediateActions }),
-      ...(caseStatusAfterResult && { caseStatusAfterResult }),
-      ...(statusChangeReason && { statusChangeReason }),
-      
-      // Digital authentication
-      ...(dataVerificationConfirmed !== undefined && { dataVerificationConfirmed }),
-      ...(creatorDigitalSignature && { creatorDigitalSignature }),
-      ...(creatorSignerName && { creatorSignerName }),
-      ...(creatorSignatureDate && { creatorSignatureDate: new Date(creatorSignatureDate) }),
-      ...(chairpersonDigitalSignature && { chairpersonDigitalSignature }),
-      ...(chairpersonSignerName && { chairpersonSignerName }),
-      ...(chairpersonSignatureDate && { chairpersonSignatureDate: new Date(chairpersonSignatureDate) }),
-      
-      // Additional fields
-      ...(partiesDetailedAttendance !== undefined && { partiesDetailedAttendance }),
-      ...(recommendedActionsDetails !== undefined && { recommendedActionsDetails }),
-      ...(internalSatgasNotes !== undefined && { internalSatgasNotes }),
-      
-      documentHash: hash,
-      updatedAt: new Date()
-    };
+    // Prepare update data with proper validation
+    const investigationResultData: any = {};
+    
+    // Only add non-null/undefined values
+    if (processId !== undefined) investigationResultData.processId = processId;
+    if (location !== undefined) investigationResultData.location = location;
+    if (methods !== undefined) investigationResultData.methods = methods;
+    if (partiesInvolved !== undefined) investigationResultData.partiesInvolved = partiesInvolved;
+    if (otherPartiesDetails !== undefined) investigationResultData.otherPartiesDetails = otherPartiesDetails;
+    if (riskNotes !== undefined) investigationResultData.riskNotes = riskNotes;
+    if (planSummary !== undefined) investigationResultData.planSummary = planSummary;
+    if (accessLevel !== undefined) investigationResultData.accessLevel = accessLevel;
+    
+    if (schedulingTitle !== undefined) investigationResultData.schedulingTitle = schedulingTitle;
+    if (schedulingLocation !== undefined) investigationResultData.schedulingLocation = schedulingLocation;
+    if (caseTitle !== undefined) investigationResultData.caseTitle = caseTitle;
+    if (reportNumber !== undefined) investigationResultData.reportNumber = reportNumber;
+    
+    if (satgasMembersPresent !== undefined) investigationResultData.satgasMembersPresent = satgasMembersPresent;
+    if (partiesPresent !== undefined) investigationResultData.partiesPresent = partiesPresent;
+    if (identityVerified !== undefined) investigationResultData.identityVerified = identityVerified;
+    if (attendanceNotes !== undefined) investigationResultData.attendanceNotes = attendanceNotes;
+    
+    if (partiesStatementSummary !== undefined) investigationResultData.partiesStatementSummary = partiesStatementSummary;
+    if (newPhysicalEvidence !== undefined) investigationResultData.newPhysicalEvidence = newPhysicalEvidence;
+    if (evidenceFiles !== undefined) investigationResultData.evidenceFiles = evidenceFiles;
+    if (statementConsistency !== undefined) investigationResultData.statementConsistency = statementConsistency;
+    
+    if (sessionInterimConclusion !== undefined) investigationResultData.sessionInterimConclusion = sessionInterimConclusion;
+    if (recommendedImmediateActions !== undefined) investigationResultData.recommendedImmediateActions = recommendedImmediateActions;
+    if (caseStatusAfterResult !== undefined) investigationResultData.caseStatusAfterResult = caseStatusAfterResult;
+    if (statusChangeReason !== undefined) investigationResultData.statusChangeReason = statusChangeReason;
+    
+    if (dataVerificationConfirmed !== undefined) investigationResultData.dataVerificationConfirmed = dataVerificationConfirmed;
+    if (creatorDigitalSignature !== undefined) investigationResultData.creatorDigitalSignature = creatorDigitalSignature;
+    if (creatorSignerName !== undefined) investigationResultData.creatorSignerName = creatorSignerName;
+    if (creatorSignatureDate !== undefined) investigationResultData.creatorSignatureDate = new Date(creatorSignatureDate);
+    if (chairpersonDigitalSignature !== undefined) investigationResultData.chairpersonDigitalSignature = chairpersonDigitalSignature;
+    if (chairpersonSignerName !== undefined) investigationResultData.chairpersonSignerName = chairpersonSignerName;
+    if (chairpersonSignatureDate !== undefined) investigationResultData.chairpersonSignatureDate = new Date(chairpersonSignatureDate);
+    
+    if (partiesDetailedAttendance !== undefined) investigationResultData.partiesDetailedAttendance = partiesDetailedAttendance;
+    if (recommendedActionsDetails !== undefined) investigationResultData.recommendedActionsDetails = recommendedActionsDetails;
+    if (internalSatgasNotes !== undefined) investigationResultData.internalSatgasNotes = internalSatgasNotes;
+    
+    investigationResultData.documentHash = hash;
+    investigationResultData.updatedAt = new Date();
 
-    // Update the investigation result
-    const updatedResult = await db.investigationResult.update({
-      where: { id: resultId },
-      data: investigationResultData
-    });
+    // Update the investigation result with error handling
+    let updatedResult;
+    try {
+      updatedResult = await db.investigationResult.update({
+        where: { id: resultId },
+        data: investigationResultData
+      });
+    } catch (dbError) {
+      console.error('Database update error:', dbError);
+      return Response.json(
+        { success: false, message: "Gagal memperbarui data ke database" },
+        { status: 500 }
+      );
+    }
     
     console.log('API: Updated investigation result with evidenceFiles:', updatedResult.evidenceFiles);
 
     // Get current report data for notification
-    const currentReport = await db.report.findUnique({
-      where: { id: reportId },
-      select: {
-        id: true,
-        status: true,
-        reportNumber: true,
-        reporterId: true
-      }
-    });
+    let currentReport;
+    try {
+      currentReport = await db.report.findUnique({
+        where: { id: reportId },
+        select: {
+          id: true,
+          status: true,
+          reportNumber: true,
+          reporterId: true
+        }
+      });
+    } catch (reportError) {
+      console.error('Error fetching report for notification:', reportError);
+      // Don't fail the whole request if we can't get report data
+    }
 
     if (currentReport && caseStatusAfterResult && caseStatusAfterResult !== 'UNDER_INVESTIGATION') {
       const oldStatus = currentReport.status;
@@ -327,29 +355,34 @@ export async function PUT(
       }
 
       if (newReportStatus) {
-        await db.report.update({
-          where: { id: reportId },
-          data: {
-            status: newReportStatus as any,
-            updatedAt: new Date()
-          }
-        });
+        try {
+          await db.report.update({
+            where: { id: reportId },
+            data: {
+              status: newReportStatus as any,
+              updatedAt: new Date()
+            }
+          });
 
-        // Send notification if status changed
-        if (currentReport.reporterId) {
-          try {
-            await notifyReportStatusChange(
-              reportId,
-              currentReport.reporterId,
-              currentReport.reportNumber,
-              oldStatus,
-              newReportStatus,
-              session.user.name
-            );
-          } catch (notificationError) {
-            console.error('Error sending notification:', notificationError);
-            // Don't fail the whole request if notification fails
+          // Send notification if status changed
+          if (currentReport.reporterId) {
+            try {
+              await notifyReportStatusChange(
+                reportId,
+                currentReport.reporterId,
+                currentReport.reportNumber,
+                oldStatus,
+                newReportStatus,
+                session.user.name
+              );
+            } catch (notificationError) {
+              console.error('Error sending notification:', notificationError);
+              // Don't fail the whole request if notification fails
+            }
           }
+        } catch (statusUpdateError) {
+          console.error('Error updating report status:', statusUpdateError);
+          // Don't fail the whole request if status update fails
         }
       }
     }

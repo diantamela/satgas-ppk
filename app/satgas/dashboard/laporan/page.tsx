@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
+import { RejectionInfo } from "@/components/rejection-info";
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<any[]>([]);
@@ -281,6 +282,14 @@ export default function ReportsPage() {
                             <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mb-2">
                               {report.category} - {report.reporter?.name || 'Unknown User'}
                             </p>
+                            {report.status === 'REJECTED' && report.decisionNotes && (
+                              <RejectionInfo
+                                rejectionReason={report.decisionNotes}
+                                compact={true}
+                                showIcon={true}
+                                className="mb-2"
+                              />
+                            )}
                             <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                               <span>{report.reportNumber}</span>
                               <span>•</span>
