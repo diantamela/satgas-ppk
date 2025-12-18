@@ -833,37 +833,6 @@ export default function InvestigationResultDetailPage() {
                   />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="startDateTime">Tanggal & Waktu Mulai</Label>
-                    <Input
-                      id="startDateTime"
-                      type="datetime-local"
-                      value={startDateTime}
-                      onChange={(e) => setStartDateTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endDateTime">Tanggal & Waktu Selesai</Label>
-                    <Input
-                      id="endDateTime"
-                      type="datetime-local"
-                      value={endDateTime}
-                      onChange={(e) => setEndDateTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="schedulingLocation">Lokasi Pelaksanaan</Label>
-                  <Input
-                    id="schedulingLocation"
-                    value={schedulingLocation}
-                    onChange={(e) => setSchedulingLocation(e.target.value)}
-                    placeholder="Contoh: Ruang Konseling"
-                  />
-                </div>
-                
                 <div className="space-y-3">
                   <Label>Metode Investigasi *</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -1496,25 +1465,6 @@ export default function InvestigationResultDetailPage() {
                       </p>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Tanggal & Waktu Mulai
-                      </h4>
-                      <p className="text-gray-900 dark:text-white">
-                        {result.startDateTime ? formatDateTime(result.startDateTime) : '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Lokasi Pelaksanaan
-                      </h4>
-                      <p className="text-gray-900 dark:text-white">
-                        {result.schedulingLocation || result.location || '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Ruang Rapat
-                      </h4>
                       <p className="text-gray-900 dark:text-white">
                         {result.schedulingLocation || result.location || '-'}
                       </p>
@@ -1601,6 +1551,40 @@ export default function InvestigationResultDetailPage() {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {/* Additional Form Fields */}
+                {result.otherPartiesDetails && (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Detail Pihak Lain
+                    </h4>
+                    <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 whitespace-pre-wrap">
+                      {result.otherPartiesDetails}
+                    </p>
+                  </div>
+                )}
+
+                {result.riskNotes && (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Catatan Risiko
+                    </h4>
+                    <p className="text-gray-900 dark:text-white bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800 whitespace-pre-wrap">
+                      {result.riskNotes}
+                    </p>
+                  </div>
+                )}
+
+                {result.planSummary && (
+                  <div>
+                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Ringkasan Rencana Investigasi
+                    </h4>
+                    <p className="text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800 whitespace-pre-wrap">
+                      {result.planSummary}
+                    </p>
                   </div>
                 )}
               </CardContent>

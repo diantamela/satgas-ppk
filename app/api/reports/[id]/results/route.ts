@@ -109,10 +109,24 @@ export async function POST(
 
     const {
       processId,
+      // Original process data (for scheduling reference preservation)
+      location,
+      methods,
+      partiesInvolved,
+      otherPartiesDetails,
+      riskNotes,
+      planSummary,
+      followUpAction,
+      followUpDate,
+      followUpNotes,
+      accessLevel,
+      
       // Auto-populated metadata
       schedulingId,
       schedulingTitle,
       schedulingDateTime,
+      startDateTime,  // Handle form field name mismatch
+      endDateTime,    // Handle form field name mismatch
       schedulingLocation,
       caseTitle,
       reportNumber,
@@ -190,7 +204,17 @@ export async function POST(
     const hash = createHash('sha256').update(documentHashString).digest('hex');
 
     console.log('API: Received evidenceFiles:', evidenceFiles);
+    console.log('API: Scheduling data - title:', schedulingTitle, 'location:', schedulingLocation, 'startDateTime:', startDateTime, 'schedulingDateTime:', schedulingDateTime);
     
+    // Handle scheduling dateTime - support both direct schedulingDateTime and startDateTime/endDateTime from form
+    let finalSchedulingDateTime = null;
+    if (schedulingDateTime) {
+      finalSchedulingDateTime = new Date(schedulingDateTime);
+    } else if (startDateTime) {
+      // Use startDateTime as the primary scheduling date when no schedulingDateTime is provided
+      finalSchedulingDateTime = new Date(startDateTime);
+    }
+
     // Create investigation result with conditional fields for backward compatibility
     const investigationResultData: any = {
       processId,
@@ -199,8 +223,8 @@ export async function POST(
       // Auto-populated metadata
       schedulingId,
       schedulingTitle,
-      schedulingDateTime: schedulingDateTime ? new Date(schedulingDateTime) : null,
-      schedulingLocation,
+      schedulingDateTime: finalSchedulingDateTime,
+      schedulingLocation: schedulingLocation || location,
       caseTitle,
       reportNumber,
       
