@@ -128,10 +128,6 @@ export default function UnduhMateriPage() {
         {/* back button */}
         <div className="flex items-center justify-between mb-6">
           <Button variant="ghost" asChild className="px-0">
-            <a href="/" className="flex items-center gap-2 text-sm">
-              <ArrowLeft className="w-4 h-4" />
-              Kembali ke Beranda
-            </a>
           </Button>
           <span className="hidden sm:inline-flex items-center gap-2 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-200 px-4 py-1 text-xs font-semibold tracking-wide">
             Materi resmi • Boleh didistribusikan untuk edukasi

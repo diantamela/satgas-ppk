@@ -40,6 +40,8 @@ export default function RektorFinalReportsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   useEffect(() => {
     fetchReports();
@@ -47,7 +49,7 @@ export default function RektorFinalReportsPage() {
 
   useEffect(() => {
     filterReports();
-  }, [reports, searchTerm, statusFilter]);
+  }, [reports, searchTerm, statusFilter, startDate, endDate]);
 
   const fetchReports = async () => {
     // Mock data - replace with actual API call
@@ -106,6 +108,24 @@ export default function RektorFinalReportsPage() {
       filtered = filtered.filter(report => report.status === statusFilter);
     }
 
+    // Filter by date range
+    if (startDate) {
+      filtered = filtered.filter(report => {
+        const reportDate = new Date(report.submittedDate);
+        const start = new Date(startDate);
+        return reportDate >= start;
+      });
+    }
+
+    if (endDate) {
+      filtered = filtered.filter(report => {
+        const reportDate = new Date(report.submittedDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999); // Include the entire end date
+        return reportDate <= end;
+      });
+    }
+
     setFilteredReports(filtered);
   };
 
@@ -148,6 +168,11 @@ export default function RektorFinalReportsPage() {
   const handleDownload = (fileUrl: string) => {
     // Mock download - replace with actual download logic
     window.open(fileUrl, '_blank');
+  };
+
+  const clearDateFilters = () => {
+    setStartDate("");
+    setEndDate("");
   };
 
   if (loading) {
@@ -258,40 +283,76 @@ export default function RektorFinalReportsPage() {
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    placeholder="Cari laporan..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
+            <div className="space-y-4">
+              {/* Search and Date Filters Row */}
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      placeholder="Cari laporan..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("all")}
-                >
-                  Semua
-                </Button>
-                <Button
-                  variant={statusFilter === "submitted" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("submitted")}
-                >
-                  Diajukan
-                </Button>
-                <Button
-                  variant={statusFilter === "approved" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setStatusFilter("approved")}
-                >
-                  Disetujui
-                </Button>
+                <div className="flex gap-2 items-end">
+                  {/* Date Filter Inputs */}
+                  <div className="flex gap-2">
+                    <div className="relative">
+                      <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3" />
+                      <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="pl-8 h-9 text-sm w-32"
+                        placeholder="Mulai"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Calendar className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3" />
+                      <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="pl-8 h-9 text-sm w-32"
+                        placeholder="Selesai"
+                      />
+                    </div>
+                  </div>
+                  {/* Status Filter Buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant={statusFilter === "all" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter("all")}
+                    >
+                      Semua
+                    </Button>
+                    <Button
+                      variant={statusFilter === "submitted" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter("submitted")}
+                    >
+                      Diajukan
+                    </Button>
+                    <Button
+                      variant={statusFilter === "approved" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setStatusFilter("approved")}
+                    >
+                      Disetujui
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearDateFilters}
+                    >
+                      <Filter className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -355,9 +416,6 @@ export default function RektorFinalReportsPage() {
                         Publikasikan
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost">
-                      Lihat Detail Investigasi
-                    </Button>
                   </div>
                 </div>
               </CardContent>

@@ -354,6 +354,7 @@ export default function InvestigationProsesPage() {
         
         // New results data
         schedulingTitle,
+        schedulingLocation,  // Add the missing scheduling location field
         startDateTime: parseDateTimeFromInput(startDateTime),
         endDateTime: parseDateTimeFromInput(endDateTime),
         caseTitle: report?.title,
@@ -393,6 +394,12 @@ export default function InvestigationProsesPage() {
       };
 
       console.log('Submitting form data with evidenceFiles:', evidenceFiles);
+      console.log('DEBUG: Scheduling reference data being submitted:');
+      console.log('  - schedulingTitle:', schedulingTitle);
+      console.log('  - schedulingLocation:', schedulingLocation);
+      console.log('  - startDateTime:', startDateTime);
+      console.log('  - endDateTime:', endDateTime);
+      console.log('  - location (fallback):', location);
 
       const response = await fetch(`/api/reports/${id}/results`, {
         method: 'POST',

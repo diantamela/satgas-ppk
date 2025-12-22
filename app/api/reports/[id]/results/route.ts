@@ -205,6 +205,21 @@ export async function POST(
 
     console.log('API: Received evidenceFiles:', evidenceFiles);
     console.log('API: Scheduling data - title:', schedulingTitle, 'location:', schedulingLocation, 'startDateTime:', startDateTime, 'schedulingDateTime:', schedulingDateTime);
+    console.log('DEBUG: Complete form data received:', {
+      schedulingTitle,
+      schedulingLocation,
+      startDateTime,
+      endDateTime,
+      location,
+      schedulingDateTime
+    });
+    
+    // Log successful receipt of schedulingLocation
+    if (schedulingLocation) {
+      console.log('SUCCESS: schedulingLocation received:', schedulingLocation);
+    } else {
+      console.log('WARNING: schedulingLocation is missing from form data');
+    }
     
     // Handle scheduling dateTime - support both direct schedulingDateTime and startDateTime/endDateTime from form
     let finalSchedulingDateTime = null;
