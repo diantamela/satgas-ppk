@@ -11,7 +11,10 @@ import {
   User,
   Calendar,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Edit,
+  Trash2,
+  X
 } from "lucide-react";
 import { RoleGuard } from "../../../../components/auth/role-guard";
 
@@ -30,6 +33,8 @@ export default function GalleryUploadPage() {
   const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [editingItem, setEditingItem] = useState<GalleryItem | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -97,6 +102,115 @@ export default function GalleryUploadPage() {
     }
   };
 
+  const handleEdit = (item: GalleryItem) => {
+    setEditingItem(item);
+    setFormData({
+      title: item.title,
+      description: item.description,
+      date: item.date,
+      location: item.location,
+      category: item.category
+    });
+    setShowEditForm(true);
+    setShowUploadForm(false);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+
+    try {
+      let response;
+      
+      if (selectedFile) {
+        // If there's a file, send FormData
+        const uploadFormData = new FormData();
+        uploadFormData.append('id', editingItem.id);
+        uploadFormData.append('title', formData.title);
+        uploadFormData.append('description', formData.description);
+        uploadFormData.append('date', formData.date);
+        uploadFormData.append('location', formData.location);
+        uploadFormData.append('category', formData.category);
+        uploadFormData.append('file', selectedFile);
+        
+        response = await fetch('/api/gallery', {
+          method: 'PUT',
+          body: uploadFormData
+        });
+      } else {
+        // If no file, send JSON
+        response = await fetch('/api/gallery', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: editingItem.id,
+            title: formData.title,
+            description: formData.description,
+            date: formData.date,
+            location: formData.location,
+            category: formData.category
+          })
+        });
+      }
+
+      if (response.ok) {
+        setShowEditForm(false);
+        setEditingItem(null);
+        setSelectedFile(null);
+        setFormData({
+          title: "",
+          description: "",
+          date: "",
+          location: "",
+          category: "Edukasi"
+        });
+        fetchGalleryItems();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Update failed');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      alert('Update failed');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus item ini?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/gallery?id=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        fetchGalleryItems();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Delete failed');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Delete failed');
+    }
+  };
+
+  const cancelEdit = () => {
+    setShowEditForm(false);
+    setEditingItem(null);
+    setFormData({
+      title: "",
+      description: "",
+      date: "",
+      location: "",
+      category: "Edukasi"
+    });
+  };
+
   const formatDate = (dateStr: string) => {
     if (dateStr.includes('-')) {
       const date = new Date(dateStr);
@@ -110,25 +224,35 @@ export default function GalleryUploadPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Galeri</h1>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Berita Kegiatan</h1>
             <p className="text-gray-600 dark:text-gray-400">Kelola galeri kegiatan Satgas PPK</p>
           </div>
-          <Button onClick={() => setShowUploadForm(!showUploadForm)}>
-            <Upload className="w-4 h-4 mr-2" />
-            {showUploadForm ? 'Batal Upload' : 'Upload Foto'}
-          </Button>
+          <div className="flex gap-2">
+            {!showEditForm && (
+              <Button onClick={() => setShowUploadForm(!showUploadForm)}>
+                <Upload className="w-4 h-4 mr-2" />
+                {showUploadForm ? 'Batal Upload' : 'Upload Foto'}
+              </Button>
+            )}
+            {showEditForm && (
+              <Button onClick={cancelEdit} variant="outline">
+                <X className="w-4 h-4 mr-2" />
+                Batal Edit
+              </Button>
+            )}
+          </div>
         </div>
 
-        {showUploadForm && (
+        {(showUploadForm || showEditForm) && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Upload Foto Galeri</CardTitle>
+              <CardTitle>Upload Foto Berita Kegiatan</CardTitle>
               <CardDescription>
                 Tambahkan foto kegiatan Satgas PPK ke galeri
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleUpload} className="space-y-4">
+              <form onSubmit={showEditForm ? handleUpdate : handleUpload} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Judul
@@ -190,20 +314,34 @@ export default function GalleryUploadPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Foto
-                  </label>
-                  <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                    required
-                  />
-                </div>
+                {!showEditForm && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Foto
+                    </label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                      required
+                    />
+                  </div>
+                )}
+                {showEditForm && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Foto (kosongkan jika tidak ingin mengubah)
+                    </label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                    />
+                  </div>
+                )}
                 <Button type="submit" disabled={uploading}>
                   <Upload className="w-4 h-4 mr-2" />
-                  {uploading ? 'Mengupload...' : 'Upload'}
+                  {uploading ? (showEditForm ? 'Mengupdate...' : 'Mengupload...') : (showEditForm ? 'Update' : 'Upload')}
                 </Button>
               </form>
             </CardContent>
@@ -213,14 +351,32 @@ export default function GalleryUploadPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {galleryItems.map((item) => (
             <Card key={item.id} className="overflow-hidden hover:shadow-md transition-shadow">
-              <div className="aspect-video bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+              <div className="aspect-video bg-gray-200 dark:bg-gray-700 relative overflow-hidden group">
                 <img
                   src={item.image}
                   alt={item.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-2 right-2">
+                <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
                   <Badge variant="secondary">{item.category}</Badge>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleEdit(item)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(item.id)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
               <CardContent className="p-4">
@@ -252,7 +408,7 @@ export default function GalleryUploadPage() {
           <Card className="mt-8">
             <CardContent className="pt-6 text-center">
               <ImageIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Belum ada foto di galeri</p>
+              <p className="text-gray-600 dark:text-gray-400">Belum ada foto di berita kegiatan</p>
             </CardContent>
           </Card>
         )}

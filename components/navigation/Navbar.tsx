@@ -148,7 +148,7 @@ export const Navbar = () => {
             href="/galeri"
             className="text-sm"
           >
-            Galeri
+            Berita Kegiatan
           </CustomButton>
           <CustomButton
             variant="ghost"
@@ -184,7 +184,7 @@ export const Navbar = () => {
               className="text-sm w-full justify-start"
               onClick={closeMenu}
             >
-              Galeri
+              Berita Kegiatan
             </CustomButton>
             <CustomButton
               variant="ghost"
