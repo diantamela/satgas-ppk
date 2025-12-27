@@ -17,6 +17,9 @@ import {
   User,
   Shield,
   Filter,
+  BarChart3,
+  TrendingUp,
+  FileSearch,
 } from "lucide-react";
 import { RoleGuard } from "@/components/auth/role-guard";
 
@@ -25,13 +28,14 @@ interface FinalReport {
   investigationId: string;
   title: string;
   description: string;
-  status: 'draft' | 'submitted' | 'approved' | 'published';
-  submittedDate: string;
+  status: 'completed' | 'archived';
+  completedDate: string;
   investigator: string;
   fileUrl?: string;
   fileSize?: string;
-  approvedDate?: string;
-  approvedBy?: string;
+  caseSummary: string;
+  actionTaken: string[];
+  recommendations: string[];
 }
 
 export default function RektorFinalReportsPage() {
@@ -45,98 +49,66 @@ export default function RektorFinalReportsPage() {
 
   useEffect(() => {
     fetchReports();
-  }, []);
+  }, [statusFilter, startDate, endDate, searchTerm]);
 
   useEffect(() => {
     filterReports();
   }, [reports, searchTerm, statusFilter, startDate, endDate]);
 
   const fetchReports = async () => {
-    // Mock data - replace with actual API call
-    const mockReports: FinalReport[] = [
-      {
-        id: "1",
-        investigationId: "SPPK-20241018-1005",
-        title: "Laporan Akhir Investigasi Bullying Online",
-        description: "Laporan lengkap investigasi kasus bullying online di lingkungan kampus",
-        status: "submitted",
-        submittedDate: "2024-10-22",
-        investigator: "Dr. Ahmad Santoso",
-        fileUrl: "/reports/SPPK-20241018-1005-final.pdf",
-        fileSize: "2.4 MB"
-      },
-      {
-        id: "2",
-        investigationId: "SPPK-20241018-1005",
-        title: "Laporan Akhir Investigasi Bullying Online",
-        description: "Laporan lengkap investigasi kasus bullying online di lingkungan kampus",
-        status: "submitted",
-        submittedDate: "2024-10-22",
-        investigator: "Dr. Ahmad Santoso",
-        fileUrl: "/reports/SPPK-20241018-1005-final.pdf",
-        fileSize: "2.4 MB"
-      },
-      {
-        id: "3",
-        investigationId: "SPPK-20241018-1005",
-        title: "Laporan Akhir Investigasi Bullying Online",
-        description: "Laporan lengkap investigasi kasus bullying online di lingkungan kampus",
-        status: "submitted",
-        submittedDate: "2024-10-22",
-        investigator: "Dr. Ahmad Santoso",
-        fileUrl: "/reports/SPPK-20241018-1005-final.pdf",
-        fileSize: "2.4 MB"
-      },
-    ];
+    try {
+      setLoading(true);
+      
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") {
+        params.append("status", statusFilter);
+      }
+      if (startDate) {
+        params.append("startDate", startDate);
+      }
+      if (endDate) {
+        params.append("endDate", endDate);
+      }
+      if (searchTerm) {
+        params.append("search", searchTerm);
+      }
 
-    setReports(mockReports);
-    setLoading(false);
+      const response = await fetch(`/api/final-reports?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setReports(data.finalReports || []);
+      } else {
+        console.error("Failed to fetch reports:", data.message);
+        setReports([]);
+      }
+    } catch (error) {
+      console.error("Error fetching final reports:", error);
+      setReports([]);
+      // You might want to show a user-friendly error message here
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Remove local filtering since API handles filtering
   const filterReports = () => {
-    let filtered = reports;
-
-    if (searchTerm) {
-      filtered = filtered.filter(report =>
-        report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.investigationId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.investigator.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (statusFilter !== "all") {
-      filtered = filtered.filter(report => report.status === statusFilter);
-    }
-
-    // Filter by date range
-    if (startDate) {
-      filtered = filtered.filter(report => {
-        const reportDate = new Date(report.submittedDate);
-        const start = new Date(startDate);
-        return reportDate >= start;
-      });
-    }
-
-    if (endDate) {
-      filtered = filtered.filter(report => {
-        const reportDate = new Date(report.submittedDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // Include the entire end date
-        return reportDate <= end;
-      });
-    }
-
-    setFilteredReports(filtered);
+    // Data is already filtered by the API
+    setFilteredReports(reports);
   };
 
   const getStatusBadge = (status: FinalReport['status']) => {
     switch (status) {
-      case 'draft':
-        return <Badge variant="secondary">Draft</Badge>;
-      case 'submitted':
-        return <Badge variant="default">Diajukan</Badge>;
-      case 'approved':
-        return <Badge variant="success">Disetujui</Badge>;
+      case 'completed':
+        return <Badge variant="default" className="bg-green-600">Selesai</Badge>;
+      case 'archived':
+        return <Badge variant="secondary">Diarsipkan</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -151,23 +123,14 @@ export default function RektorFinalReportsPage() {
     });
   };
 
-  const handleApprove = async (reportId: string) => {
-    // Mock approval - replace with actual API call
-    setReports(prev => prev.map(report =>
-      report.id === reportId
-        ? {
-            ...report,
-            status: 'approved' as const,
-            approvedDate: new Date().toISOString().split('T')[0],
-            approvedBy: 'Dr. Rektor Universitas'
-          }
-        : report
-    ));
-  };
-
   const handleDownload = (fileUrl: string) => {
     // Mock download - replace with actual download logic
     window.open(fileUrl, '_blank');
+  };
+
+  const handlePreview = (reportId: string) => {
+    // Mock preview - replace with actual preview logic
+    window.open(`/reports/preview/${reportId}`, '_blank');
   };
 
   const clearDateFilters = () => {
@@ -213,10 +176,10 @@ export default function RektorFinalReportsPage() {
               </div>
               <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                  Laporan Akhir
+                  Laporan Akhir Investigasi
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Laporan akhir dari investigasi yang telah selesai
+                  Monitoring laporan akhir dari investigasi yang telah selesai
                 </p>
               </div>
             </div>
@@ -239,28 +202,14 @@ export default function RektorFinalReportsPage() {
 
           <Card>
             <CardContent className="flex items-center p-6">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg mr-4">
-                <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {reports.filter(r => r.status === 'submitted').length}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Menunggu Persetujuan</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="flex items-center p-6">
               <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-4">
                 <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
-                  {reports.filter(r => r.status === 'approved' || r.status === 'published').length}
+                  {reports.filter(r => r.status === 'completed').length}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Disetujui</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Investigasi Selesai</p>
               </div>
             </CardContent>
           </Card>
@@ -268,13 +217,32 @@ export default function RektorFinalReportsPage() {
           <Card>
             <CardContent className="flex items-center p-6">
               <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg mr-4">
-                <Download className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                <BarChart3 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <p className="text-2xl font-bold">
                   {reports.filter(r => r.fileUrl).length}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Berkas Tersedia</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg mr-4">
+                <TrendingUp className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">
+                  {reports.filter(r => {
+                    const completedDate = new Date(r.completedDate);
+                    const thirtyDaysAgo = new Date();
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                    return completedDate >= thirtyDaysAgo;
+                  }).length}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">30 Hari Terakhir</p>
               </div>
             </CardContent>
           </Card>
@@ -290,7 +258,7 @@ export default function RektorFinalReportsPage() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
-                      placeholder="Cari laporan..."
+                      placeholder="Cari laporan berdasarkan judul, ID investigasi, investigator, atau ringkasan kasus..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="pl-10"
@@ -331,18 +299,18 @@ export default function RektorFinalReportsPage() {
                       Semua
                     </Button>
                     <Button
-                      variant={statusFilter === "submitted" ? "default" : "outline"}
+                      variant={statusFilter === "completed" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setStatusFilter("submitted")}
+                      onClick={() => setStatusFilter("completed")}
                     >
-                      Diajukan
+                      Selesai
                     </Button>
                     <Button
-                      variant={statusFilter === "approved" ? "default" : "outline"}
+                      variant={statusFilter === "archived" ? "default" : "outline"}
                       size="sm"
-                      onClick={() => setStatusFilter("approved")}
+                      onClick={() => setStatusFilter("archived")}
                     >
-                      Disetujui
+                      Diarsipkan
                     </Button>
                     <Button
                       variant="outline"
@@ -363,58 +331,107 @@ export default function RektorFinalReportsPage() {
           {filteredReports.map((report) => (
             <Card key={report.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                      {report.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        {report.title}
+                      </h3>
+                      {getStatusBadge(report.status)}
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                       {report.description}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {getStatusBadge(report.status)}
-                  </div>
-
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {report.investigationId}
-                  </div>
-
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    Diajukan: {formatDate(report.submittedDate)}
-                  </div>
-
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {report.investigator}
-                  </div>
-
-                  {report.fileSize && (
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {report.fileSize}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Ringkasan Kasus
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {report.caseSummary}
+                      </p>
                     </div>
-                  )}
+                    
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Informasi Investigasi
+                      </h4>
+                      <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2">
+                          <FileSearch className="w-3 h-3" />
+                          <span>{report.investigationId}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <User className="w-3 h-3" />
+                          <span>{report.investigator}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-3 h-3" />
+                          <span>Selesai: {formatDate(report.completedDate)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Tindakan yang Diambil
+                      </h4>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        {report.actionTaken.slice(0, 3).map((action, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <CheckCircle className="w-3 h-3 mt-0.5 text-green-500" />
+                            <span>{action}</span>
+                          </li>
+                        ))}
+                        {report.actionTaken.length > 3 && (
+                          <li className="text-xs text-gray-500">
+                            +{report.actionTaken.length - 3} tindakan lainnya
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                    
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Rekomendasi
+                      </h4>
+                      <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        {report.recommendations.slice(0, 3).map((rec, index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <TrendingUp className="w-3 h-3 mt-0.5 text-blue-500" />
+                            <span>{rec}</span>
+                          </li>
+                        ))}
+                        {report.recommendations.length > 3 && (
+                          <li className="text-xs text-gray-500">
+                            +{report.recommendations.length - 3} rekomendasi lainnya
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2 border-t">
                     {report.fileUrl && (
                       <>
                         <Button size="sm" variant="outline" onClick={() => handleDownload(report.fileUrl!)}>
-                          Unduh
+                          <Download className="w-4 h-4 mr-1" />
+                          Unduh Laporan
                         </Button>
-                        <Button size="sm" variant="outline">
-                          Lihat
+                        <Button size="sm" variant="outline" onClick={() => handlePreview(report.id)}>
+                          <Eye className="w-4 h-4 mr-1" />
+                          Preview
                         </Button>
                       </>
                     )}
-                    {report.status === 'submitted' && (
-                      <Button size="sm" onClick={() => handleApprove(report.id)}>
-                        Setujui Laporan
-                      </Button>
-                    )}
-                    {report.status === 'approved' && (
-                      <Button size="sm" variant="default">
-                        Publikasikan
-                      </Button>
+                    {report.fileSize && (
+                      <span className="text-xs text-gray-500 self-center">
+                        Ukuran file: {report.fileSize}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -428,7 +445,7 @@ export default function RektorFinalReportsPage() {
             <CardContent className="pt-6 text-center">
               <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 dark:text-gray-400">
-                {reports.length === 0 ? "Belum ada laporan akhir" : "Tidak ada laporan yang sesuai dengan filter"}
+                {reports.length === 0 ? "Belum ada laporan akhir investigasi" : "Tidak ada laporan yang sesuai dengan filter"}
               </p>
             </CardContent>
           </Card>

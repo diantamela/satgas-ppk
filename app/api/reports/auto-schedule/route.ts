@@ -2,8 +2,42 @@ import { NextRequest } from "next/server";
 import { reportService } from "@/lib/services/reports/report-service";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
+import { db } from "@/db";
 
 export const runtime = "nodejs";
+
+// Helper function to send notifications
+async function sendNotification(userId: string, type: string, title: string, message: string, relatedEntityId?: string, relatedEntityType?: string) {
+  try {
+    console.log('[AUTO-SCHEDULE NOTIFICATION] Sending notification:', { userId, type, title, message, relatedEntityId, relatedEntityType });
+    
+    let notificationType: any = 'REPORT_STATUS_CHANGED';
+    switch (type) {
+      case 'INVESTIGATION_SCHEDULED':
+        notificationType = 'REPORT_STATUS_CHANGED';
+        break;
+      default:
+        notificationType = 'REPORT_STATUS_CHANGED';
+    }
+
+    const notificationData = {
+      userId,
+      type: notificationType,
+      title,
+      message,
+      relatedEntityId: relatedEntityId || null,
+      relatedEntityType: relatedEntityType || null,
+    };
+    
+    const notification = await db.notification.create({
+      data: notificationData
+    });
+    
+    console.log('[AUTO-SCHEDULE NOTIFICATION] Notification created successfully:', notification);
+  } catch (error) {
+    console.error('[AUTO-SCHEDULE NOTIFICATION] Error sending notification:', error);
+  }
+}
 
 // POST /api/reports/auto-schedule - Automatically schedule IN_PROGRESS reports
 export async function POST(request: NextRequest) {
@@ -47,9 +81,25 @@ export async function POST(request: NextRequest) {
     // Get updated statistics
     const statsAfter = await reportService.getSchedulingStats();
 
+    // Send notifications to reporters for each scheduled report
+    if (result.scheduledReports && result.scheduledReports.length > 0) {
+      for (const report of result.scheduledReports) {
+        if (report.reporterId) {
+          await sendNotification(
+            report.reporterId,
+            'INVESTIGATION_SCHEDULED',
+            'Investigasi Dijadwalkan Otomatis',
+            `Jadwal investigasi untuk laporan ${report.reportNumber} telah dibuat secara otomatis. ${scheduleConfig?.defaultLocation ? `Lokasi: ${scheduleConfig.defaultLocation}.` : ''} Silakan hubungi satgas untuk informasi lebih lanjut.`,
+            report.id,
+            'REPORT'
+          );
+        }
+      }
+    }
+
     return Response.json({
       success: true,
-      message: `Penjadwalan otomatis berhasil! ${result.scheduledCount} laporan telah dijadwalkan.`,
+      message: `Penjadwalan otomatis berhasil! ${result.scheduledCount} laporan telah dijadwalkan dan notifikasi telah dikirim ke pelapor.`,
       data: {
         scheduledReports: result.scheduledReports,
         scheduledCount: result.scheduledCount,

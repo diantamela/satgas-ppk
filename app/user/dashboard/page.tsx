@@ -28,6 +28,7 @@ export default function UserDashboardPage() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notificationsDialogOpen, setNotificationsDialogOpen] = useState(false);
+  const [lastNotificationFetch, setLastNotificationFetch] = useState<Date | null>(null);
   const { data: session } = useSession();
 
   const handleSignOut = async () => {
@@ -74,6 +75,9 @@ export default function UserDashboardPage() {
           email: session.user.email || 'N/A',
           role: session.user.role || 'USER',
         });
+
+        // Fetch notifications after user data is loaded
+        fetchNotifications();
       } catch (error) {
         console.error("Error fetching user data:", error);
       } finally {
@@ -83,6 +87,17 @@ export default function UserDashboardPage() {
 
     fetchUserData();
   }, [session]);
+
+  // Auto refresh notifications every 30 seconds when dialog is open
+  useEffect(() => {
+    if (!notificationsDialogOpen) return;
+
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [notificationsDialogOpen]);
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -95,6 +110,7 @@ export default function UserDashboardPage() {
         setNotifications(data.data.notifications || []);
         const unreadCount = data.data.notifications?.filter((n: any) => !n.isRead).length || 0;
         setUnreadNotifications(unreadCount);
+        setLastNotificationFetch(new Date());
         
         // Update user stats with unread notifications
         setUserStats(prev => ({
@@ -107,6 +123,11 @@ export default function UserDashboardPage() {
     } finally {
       setNotificationsLoading(false);
     }
+  };
+
+  // Refresh notifications
+  const refreshNotifications = () => {
+    fetchNotifications();
   };
 
   // Mark notification as read
@@ -140,6 +161,19 @@ export default function UserDashboardPage() {
       }
     } catch (error) {
       console.error("Error marking notification as read:", error);
+    }
+  };
+
+  // Mark all notifications as read
+  const markAllNotificationsAsRead = async () => {
+    try {
+      const unreadNotificationsList = notifications.filter(n => !n.isRead);
+      
+      for (const notification of unreadNotificationsList) {
+        await markNotificationAsRead(notification.id);
+      }
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
     }
   };
 
@@ -178,6 +212,20 @@ export default function UserDashboardPage() {
         return <Bell className="w-4 h-4 text-blue-500" />;
       case 'SUCCESS':
         return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'REPORT_STATUS_CHANGED':
+        return <Clock className="w-4 h-4 text-blue-500" />;
+      case 'REPORT_ASSIGNED':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'NEW_RECOMMENDATION':
+        return <MessageSquare className="w-4 h-4 text-purple-500" />;
+      case 'DECISION_MADE':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'DOCUMENT_UPLOADED':
+        return <FileText className="w-4 h-4 text-orange-500" />;
+      case 'INVESTIGATION_SCHEDULED':
+        return <Clock className="w-4 h-4 text-blue-500" />;
+      case 'INVESTIGATION_ASSIGNMENT':
+        return <User className="w-4 h-4 text-green-500" />;
       default:
         return <Bell className="w-4 h-4 text-gray-500" />;
     }
@@ -243,17 +291,46 @@ export default function UserDashboardPage() {
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
                   <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Bell className="w-5 h-5" />
-                      Notifikasi
-                      {unreadNotifications > 0 && (
-                        <Badge className="bg-red-500 text-white">
-                          {unreadNotifications} baru
-                        </Badge>
-                      )}
-                    </DialogTitle>
+                    <div className="flex items-center justify-between">
+                      <DialogTitle className="flex items-center gap-2">
+                        <Bell className="w-5 h-5" />
+                        Notifikasi
+                        {unreadNotifications > 0 && (
+                          <Badge className="bg-red-500 text-white">
+                            {unreadNotifications} baru
+                          </Badge>
+                        )}
+                      </DialogTitle>
+                      <div className="flex gap-2">
+                        {unreadNotifications > 0 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={markAllNotificationsAsRead}
+                            className="h-8 text-xs"
+                          >
+                            <Check className="w-3 h-3 mr-1" />
+                            Tandai semua dibaca
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={refreshNotifications}
+                          disabled={notificationsLoading}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Loader2 className={`w-4 h-4 ${notificationsLoading ? 'animate-spin' : ''}`} />
+                        </Button>
+                      </div>
+                    </div>
                     <DialogDescription>
                       Daftar notifikasi terkait laporan dan jadwal investigasi Anda.
+                      {lastNotificationFetch && (
+                        <span className="block text-xs text-gray-500 mt-1">
+                          Terakhir diperbarui: {lastNotificationFetch.toLocaleTimeString('id-ID')}
+                        </span>
+                      )}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="mt-4 max-h-[60vh] overflow-y-auto">

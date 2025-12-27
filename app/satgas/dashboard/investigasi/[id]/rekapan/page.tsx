@@ -11,6 +11,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   FileText,
   AlertTriangle,
@@ -108,12 +111,32 @@ export default function InvestigationRekapanPage() {
   const [editingProgress, setEditingProgress] = useState(false);
   const [tempProgress, setTempProgress] = useState<number>(0);
   const [savingProgress, setSavingProgress] = useState(false);
+  const [existingFinalReport, setExistingFinalReport] = useState<any>(null);
 
   const [selectedProcess, setSelectedProcess] =
     useState<InvestigationProcess | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedResult, setSelectedResult] = useState<any>(null);
   const [showResultDetailModal, setShowResultDetailModal] = useState(false);
+  const [showFinalReportForm, setShowFinalReportForm] = useState(false);
+  const [finalReport, setFinalReport] = useState({
+    title: '',
+    description: '',
+    caseSummary: '',
+    actionTaken: [] as string[],
+    recommendations: [] as string[]
+  });
+  const [savingFinalReport, setSavingFinalReport] = useState(false);
+  const [newAction, setNewAction] = useState('');
+  const [newRecommendation, setNewRecommendation] = useState('');
+
+  // Auto-generate title when modal opens
+  useEffect(() => {
+    if (showFinalReportForm && report && !finalReport.title) {
+      const autoTitle = `Laporan Akhir Investigasi - ${report.title || report.reportNumber}`;
+      setFinalReport(prev => ({ ...prev, title: autoTitle }));
+    }
+  }, [showFinalReportForm, report, finalReport.title]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -195,6 +218,23 @@ export default function InvestigationRekapanPage() {
           // Fallback: show empty state instead of breaking the page
           setInvestigationResults([]);
         }
+
+        // Check for existing final report
+        try {
+          const finalReportResponse = await fetch(`/api/reports/${reportId}/final-report`);
+          if (finalReportResponse.ok) {
+            const finalReportData = await finalReportResponse.json();
+            if (finalReportData.success && finalReportData.finalReport) {
+              setExistingFinalReport(finalReportData.finalReport);
+            }
+          } else if (finalReportResponse.status !== 404) {
+            // Only log if it's not a 404 (which means no final report exists)
+            console.warn("Failed to fetch existing final report:", finalReportResponse.status, finalReportResponse.statusText);
+          }
+        } catch (error) {
+          console.warn("Failed to fetch existing final report:", error);
+          // Don't set error state for this - it's not critical
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
         setProcessError("Terjadi kesalahan saat mengambil data");
@@ -252,6 +292,82 @@ export default function InvestigationRekapanPage() {
   const cancelProgressEdit = () => {
     setTempProgress(report?.investigationProgress || 0);
     setEditingProgress(false);
+  };
+
+  const addAction = () => {
+    if (newAction.trim()) {
+      setFinalReport(prev => ({
+        ...prev,
+        actionTaken: [...prev.actionTaken, newAction.trim()]
+      }));
+      setNewAction('');
+    }
+  };
+
+  const removeAction = (index: number) => {
+    setFinalReport(prev => ({
+      ...prev,
+      actionTaken: prev.actionTaken.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addRecommendation = () => {
+    if (newRecommendation.trim()) {
+      setFinalReport(prev => ({
+        ...prev,
+        recommendations: [...prev.recommendations, newRecommendation.trim()]
+      }));
+      setNewRecommendation('');
+    }
+  };
+
+  const removeRecommendation = (index: number) => {
+    setFinalReport(prev => ({
+      ...prev,
+      recommendations: prev.recommendations.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleFinalReportSubmit = async () => {
+    if (!finalReport.title.trim() || !finalReport.caseSummary.trim()) {
+      alert('Judul dan ringkasan kasus harus diisi');
+      return;
+    }
+
+    setSavingFinalReport(true);
+    try {
+      const reportId = Array.isArray(id) ? id[0] : id;
+      const response = await fetch(`/api/reports/${reportId}/final-report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(finalReport),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Laporan akhir berhasil dibuat');
+        setShowFinalReportForm(false);
+        setFinalReport({
+          title: '',
+          description: '',
+          caseSummary: '',
+          actionTaken: [],
+          recommendations: []
+        });
+        // Refresh the page to show updated status
+        window.location.reload();
+      } else {
+        alert(data.message || 'Gagal membuat laporan akhir');
+      }
+    } catch (error) {
+      console.error('Error creating final report:', error);
+      alert('Terjadi kesalahan saat membuat laporan akhir');
+    } finally {
+      setSavingFinalReport(false);
+    }
   };
 
   const latestProcess =
@@ -350,6 +466,27 @@ export default function InvestigationRekapanPage() {
                 Proses Investigasi
               </Link>
             </Button>
+            {report.investigationProgress === 100 && (
+              existingFinalReport ? (
+                <Button 
+                  variant="outline"
+                  disabled
+                  className="bg-green-50 text-green-700 border-green-200"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Laporan Akhir Selesai
+                </Button>
+              ) : (
+                <Button 
+                  variant="default"
+                  onClick={() => setShowFinalReportForm(true)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Buat Laporan Akhir
+                </Button>
+              )
+            )}
           </div>
         </div>
 
@@ -791,6 +928,39 @@ export default function InvestigationRekapanPage() {
           </Card>
         )}
 
+        {/* Final Report Status */}
+        {existingFinalReport && (
+          <Card className="border-green-200 bg-green-50 dark:bg-green-900/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-800 dark:text-green-300">
+                <FileText className="w-5 h-5" />
+                Laporan Akhir Telah Dibuat
+              </CardTitle>
+              <CardDescription className="text-green-700 dark:text-green-400">
+                Laporan akhir investigasi telah berhasil dibuat dan tersedia untuk review
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div>
+                  <span className="font-medium text-green-800 dark:text-green-300">Judul:</span>
+                  <span className="ml-2 text-green-700 dark:text-green-400">{existingFinalReport.title}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-green-800 dark:text-green-300">Investigator:</span>
+                  <span className="ml-2 text-green-700 dark:text-green-400">{existingFinalReport.investigator}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-green-800 dark:text-green-300">Tanggal Selesai:</span>
+                  <span className="ml-2 text-green-700 dark:text-green-400">
+                    {new Date(existingFinalReport.completedDate).toLocaleDateString('id-ID')}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* MODAL DETAIL PROSES */}
         {selectedProcess && showDetailModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -1139,14 +1309,14 @@ export default function InvestigationRekapanPage() {
                       )}
                     </div>
                     
-                    {selectedResult.attendanceNotes && (
+                    {selectedResult.attendanceNotes ? (
                       <div>
                         <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Catatan Kehadiran</h4>
                         <p className="text-sm text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-3 rounded border border-blue-200 dark:border-blue-800">
                           {selectedResult.attendanceNotes}
                         </p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
 
@@ -1275,6 +1445,185 @@ export default function InvestigationRekapanPage() {
                   }}
                 >
                   Tutup
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FINAL REPORT FORM MODAL */}
+        {showFinalReportForm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    Buat Laporan Akhir Investigasi
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Lengkapi form berikut untuk membuat laporan akhir investigasi
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowFinalReportForm(false);
+                    setFinalReport({
+                      title: '',
+                      description: '',
+                      caseSummary: '',
+                      actionTaken: [],
+                      recommendations: []
+                    });
+                  }}
+                >
+                  ✕
+                </Button>
+              </div>
+
+              <Separator className="mb-6" />
+
+              <div className="space-y-6">
+                {/* Basic Information */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Informasi Dasar</h3>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label htmlFor="title">Judul Laporan Akhir * <span className="text-xs text-gray-500">(otomatis terisi)</span></Label>
+                      <Input
+                        id="title"
+                        value={finalReport.title}
+                        onChange={(e) => setFinalReport(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder={`Laporan Akhir Investigasi - ${report?.title || 'Kasus'}`}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Judul dapat diubah sesuai kebutuhan
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="description">Deskripsi</Label>
+                      <Textarea
+                        id="description"
+                        value={finalReport.description}
+                        onChange={(e) => setFinalReport(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Deskripsi singkat tentang laporan akhir ini..."
+                        rows={3}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="caseSummary">Ringkasan Kasus *</Label>
+                      <Textarea
+                        id="caseSummary"
+                        value={finalReport.caseSummary}
+                        onChange={(e) => setFinalReport(prev => ({ ...prev, caseSummary: e.target.value }))}
+                        placeholder="Ringkasan lengkap tentang kasus yang telah diselidiki..."
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions Taken */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Tindakan yang Diambil</h3>
+                  
+                  <div className="flex gap-2">
+                    <Input
+                      value={newAction}
+                      onChange={(e) => setNewAction(e.target.value)}
+                      placeholder="Tambahkan tindakan yang telah diambil..."
+                      onKeyPress={(e) => e.key === 'Enter' && addAction()}
+                    />
+                    <Button type="button" onClick={addAction} variant="outline">
+                      Tambah
+                    </Button>
+                  </div>
+                  
+                  {finalReport.actionTaken.length > 0 && (
+                    <div className="space-y-2">
+                      {finalReport.actionTaken.map((action, index) => (
+                        <div key={index} className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                          <span className="flex-1 text-sm">{action}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAction(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recommendations */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Rekomendasi</h3>
+                  
+                  <div className="flex gap-2">
+                    <Input
+                      value={newRecommendation}
+                      onChange={(e) => setNewRecommendation(e.target.value)}
+                      placeholder="Tambahkan rekomendasi..."
+                      onKeyPress={(e) => e.key === 'Enter' && addRecommendation()}
+                    />
+                    <Button type="button" onClick={addRecommendation} variant="outline">
+                      Tambah
+                    </Button>
+                  </div>
+                  
+                  {finalReport.recommendations.length > 0 && (
+                    <div className="space-y-2">
+                      {finalReport.recommendations.map((recommendation, index) => (
+                        <div key={index} className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                          <span className="flex-1 text-sm">{recommendation}</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeRecommendation(index)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            ✕
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Separator className="my-6" />
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowFinalReportForm(false);
+                    setFinalReport({
+                      title: '',
+                      description: '',
+                      caseSummary: '',
+                      actionTaken: [],
+                      recommendations: []
+                    });
+                  }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  onClick={handleFinalReportSubmit}
+                  disabled={savingFinalReport || !finalReport.title.trim() || !finalReport.caseSummary.trim()}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {savingFinalReport ? 'Menyimpan...' : 'Buat Laporan Akhir'}
                 </Button>
               </div>
             </div>

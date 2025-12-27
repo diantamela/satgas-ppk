@@ -7,26 +7,23 @@ datasource db {
 }
 
 model User {
-  id                  String                    @id @default(cuid())
-  email               String                    @unique
-  password            String
-  name                String
-  role                Role                      @default(USER)
-  affiliation         Affiliation               @default(STUDENT)
-  isActive            Boolean                   @default(true)
-  createdAt           DateTime                  @default(now())
-  updatedAt           DateTime                  @updatedAt
-  uploadedDocuments   InvestigationDocument[]   @relation("UserDocuments")
-  createdProcesses    InvestigationProcess[]    @relation("UserCreatedProcesses")
-  teamMemberships     InvestigationTeamMember[]
-  notifications       Notification[]
-  reportsAsAssignee   Report[]                  @relation("ReportAssignee")
-  reportsAsReporter   Report[]                  @relation("ReportReporter")
-  timelineEntries     ReportTimeline[]          @relation("UserTimelineEntries")
-  sessions            Session[]                 @relation("UserSessions")
-  galleryItems        Gallery[]
-  createdRecommendations    Recommendation[]     @relation("RecommendationCreatedBy")
-  approvedRecommendations   Recommendation[]     @relation("RecommendationApprovedBy")
+  id                String                    @id @default(cuid())
+  email             String                    @unique
+  password          String
+  name              String
+  role              Role                      @default(USER)
+  affiliation       Affiliation               @default(STUDENT)
+  isActive          Boolean                   @default(true)
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+  galleryItems      Gallery[]
+  uploadedDocuments InvestigationDocument[]   @relation("UserDocuments")
+  createdProcesses  InvestigationProcess[]    @relation("UserCreatedProcesses")
+  teamMemberships   InvestigationTeamMember[]
+  notifications     Notification[]
+  reportsAsAssignee Report[]                  @relation("ReportAssignee")
+  reportsAsReporter Report[]                  @relation("ReportReporter")
+  sessions          Session[]                 @relation("UserSessions")
 
   @@index([email])
 }
@@ -46,39 +43,38 @@ model Session {
   @@index([expiresAt])
 }
 
-
-
 model Report {
-  id                    String                  @id @default(cuid())
-  reportNumber          String                  @unique
-  title                 String
-  description           String
-  category              String?
-  severity              String?
-  incidentDate          DateTime?
-  incidentLocation      String?
-  status                ReportStatus            @default(PENDING)
-  investigationProgress Int?                    @default(0)
-  recommendationStatus  RecommendationStatus?   @default(PENDING)
-  finalDecision         DecisionType?
-  decisionNotes         String?
-  reporterId            String
-  reporterEmail         String?
-  assigneeId            String?
-  recommendation        String?
-  evidenceCount         Int?                    @default(0)
-  scheduledDate         DateTime?
-  scheduledBy           String?
-  scheduledNotes        String?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
-  documents             InvestigationDocument[]
-  processes             InvestigationProcess[]
-  assignee              User?                   @relation("ReportAssignee", fields: [assigneeId], references: [id])
-  reporter              User                    @relation("ReportReporter", fields: [reporterId], references: [id])
-  timelines             ReportTimeline[]
-  activities            ReportActivity[]
-  recommendations       Recommendation[]
+  id                       String                  @id @default(cuid())
+  reportNumber             String                  @unique
+  title                    String
+  description              String
+  category                 String?
+  severity                 String?
+  incidentDate             DateTime?
+  incidentLocation         String?
+  status                   ReportStatus            @default(PENDING)
+  investigationProgress    Int?                    @default(0)
+  recommendationStatus     RecommendationStatus?   @default(PENDING)
+  finalDecision            DecisionType?
+  decisionNotes            String?
+  reporterId               String
+  reporterEmail            String?
+  assigneeId               String?
+  recommendation           String?
+  evidenceCount            Int?                    @default(0)
+  scheduledDate            DateTime?
+  scheduledBy              String?
+  scheduledNotes           String?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  investigationCompletedAt DateTime?
+  investigationStartedAt   DateTime?
+  finalReports             FinalReport?
+  documents                InvestigationDocument[]
+  processes                InvestigationProcess[]
+  recommendations          Recommendation[]
+  assignee                 User?                   @relation("ReportAssignee", fields: [assigneeId], references: [id])
+  reporter                 User                    @relation("ReportReporter", fields: [reporterId], references: [id])
 
   @@index([reporterId])
   @@index([assigneeId])
@@ -88,8 +84,33 @@ model Report {
   @@index([recommendationStatus])
 }
 
+model FinalReport {
+  id              String            @id @default(cuid())
+  investigationId String            @unique
+  title           String
+  description     String
+  status          FinalReportStatus @default(COMPLETED)
+  completedDate   DateTime          @default(now())
+  investigator    String
+  fileUrl         String?
+  fileSize        String?
+  caseSummary     String?
+  actionTaken     Json?
+  recommendations Json?
+  createdBy       String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  metadata        Json?
+  report          Report            @relation(fields: [investigationId], references: [id], onDelete: Cascade)
+
+  @@index([investigationId])
+  @@index([status])
+  @@index([completedDate])
+  @@index([createdAt])
+}
+
 model InvestigationProcess {
-  id                   String                @id @default(cuid())
+  id                   String                    @id @default(cuid())
   reportId             String
   startDateTime        DateTime
   endDateTime          DateTime
@@ -97,20 +118,20 @@ model InvestigationProcess {
   methods              InvestigationMethod[]
   partiesInvolved      InvestigationParty[]
   otherPartiesDetails  String?
-  consentObtained      Boolean               @default(false)
+  consentObtained      Boolean                   @default(false)
   consentDocumentation String?
   riskNotes            String?
   planSummary          String?
   followUpAction       String?
   followUpDate         DateTime?
   followUpNotes        String?
-  status               ScheduleStatus        @default(SCHEDULED)
-  accessLevel          AccessLevel           @default(CORE_TEAM_ONLY)
+  status               ScheduleStatus            @default(SCHEDULED)
+  accessLevel          AccessLevel               @default(CORE_TEAM_ONLY)
   createdById          String?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  createdBy            User?                 @relation("UserCreatedProcesses", fields: [createdById], references: [id])
-  report               Report                @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  createdBy            User?                     @relation("UserCreatedProcesses", fields: [createdById], references: [id])
+  report               Report                    @relation(fields: [reportId], references: [id], onDelete: Cascade)
   teamMembers          InvestigationTeamMember[]
 
   @@index([createdAt])
@@ -119,19 +140,17 @@ model InvestigationProcess {
 }
 
 model InvestigationTeamMember {
-  id         String   @id @default(cuid())
+  id         String               @id @default(cuid())
   processId  String
   userId     String
   role       TeamRole
   customRole String?
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   process    InvestigationProcess @relation(fields: [processId], references: [id], onDelete: Cascade)
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([processId])
 }
-
-
 
 model InvestigationDocument {
   id           String       @id @default(cuid())
@@ -176,10 +195,8 @@ model InvestigationResult {
   statusChangeReason          String?
   dataVerificationConfirmed   Boolean?               @default(false)
   creatorDigitalSignature     String?
-  creatorSignerName           String?
   creatorSignatureDate        DateTime?              @db.Timestamptz(6)
   chairpersonDigitalSignature String?
-  chairpersonSignerName       String?
   chairpersonSignatureDate    DateTime?              @db.Timestamptz(6)
   partiesDetailedAttendance   Json?
   recommendedActionsDetails   Json?
@@ -187,6 +204,8 @@ model InvestigationResult {
   internalSatgasNotes         String?
   createdAt                   DateTime?              @default(now()) @db.Timestamptz(6)
   updatedAt                   DateTime?              @default(now()) @updatedAt @db.Timestamptz(6)
+  chairpersonSignerName       String?
+  creatorSignerName           String?
 
   @@index([reportId])
   @@index([processId])
@@ -208,10 +227,7 @@ model Recommendation {
   rejectionReason String?
   createdAt       DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
-
-  report       Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  createdBy    User     @relation("RecommendationCreatedBy", fields: [createdById], references: [id])
-  approvedBy   User?    @relation("RecommendationApprovedBy", fields: [approvedById], references: [id])
+  report          Report               @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([status])
@@ -226,8 +242,6 @@ model ReportTimeline {
   notes     String?
   userId    String?
   timestamp DateTime     @default(now())
-  report    Report       @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  user      User?        @relation("UserTimelineEntries", fields: [userId], references: [id])
 
   @@index([reportId])
   @@index([userId])
@@ -235,22 +249,21 @@ model ReportTimeline {
 }
 
 model ReportActivity {
-  id                     String              @id @default(cuid())
-  reportId               String
-  activityType           ActivityType
-  title                  String
-  description            String
-  status                 ActivityStatus      @default(IN_PROGRESS)
-  assignedTo             String?
-  priority               Priority            @default(MEDIUM)
-  startedAt              DateTime            @default(now())
-  estimatedCompletion    DateTime?
-  completedAt            DateTime?
-  isCurrent              Boolean             @default(true)
-  notes                  String?
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
-  report                 Report              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  id                  String         @id @default(cuid())
+  reportId            String
+  activityType        ActivityType
+  title               String
+  description         String
+  status              ActivityStatus @default(IN_PROGRESS)
+  assignedTo          String?
+  priority            Priority       @default(MEDIUM)
+  startedAt           DateTime       @default(now())
+  estimatedCompletion DateTime?
+  completedAt         DateTime?
+  isCurrent           Boolean        @default(true)
+  notes               String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 
   @@index([reportId])
   @@index([isCurrent])
@@ -277,28 +290,23 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
 }
+
 model Gallery {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  date        String
-  location    String
-  category    String
-  image       String
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  date         String
+  location     String
+  category     String
+  image        String
   uploadedById String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  uploadedBy  User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
 
   @@index([uploadedById])
   @@index([createdAt])
 }
-
-
-
-
-
-
 
 model InvestigationActivity {
   id              String       @id
@@ -327,8 +335,6 @@ model InvestigationActivity {
   @@index([reportId])
   @@index([scheduleId])
 }
-
-
 
 enum Role {
   USER
@@ -360,6 +366,7 @@ enum NotificationType {
   WARNING
   SUCCESS
   ERROR
+  FINAL_REPORT_CREATED
 }
 
 enum DocumentType {
@@ -369,8 +376,6 @@ enum DocumentType {
   PROCEEDINGS
   RECOMMENDATION
 }
-
-
 
 enum DecisionType {
   APPROVED
@@ -523,4 +528,10 @@ enum ActivityStatus {
   PAUSED
   COMPLETED
   CANCELLED
+}
+
+enum FinalReportStatus {
+  DRAFT
+  COMPLETED
+  ARCHIVED
 }

@@ -3,6 +3,7 @@ import { reportService } from "@/lib/services/reports/report-service";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
 import { db } from "@/db";
+import { notifyReportStatusChange, notifyInvestigationProcessCreated } from "@/lib/utils/notifications";
 
 export const runtime = "nodejs";
 
@@ -381,6 +382,28 @@ export async function POST(request: NextRequest) {
         session.user.id,
         notes
       );
+
+      // Get report details for notifications
+      const report = await db.report.findUnique({
+        where: { id: reportId },
+        include: {
+          reporter: {
+            select: { id: true, name: true, email: true }
+          }
+        }
+      });
+
+      // Send notification to reporter
+      if (report?.reporter) {
+        await sendNotification(
+          report.reporter.id,
+          'INVESTIGATION_SCHEDULED',
+          'Investigasi Dijadwalkan',
+          `Jadwal investigasi untuk laporan ${report.reportNumber} telah dibuat. ${notes || 'Silakan hubungi satgas untuk informasi lebih lanjut.'}`,
+          reportId,
+          'REPORT'
+        );
+      }
 
       return Response.json({
         success: true,

@@ -93,8 +93,14 @@ export const reportService = {
           status: true,
           investigationProgress: true,
           decisionNotes: true,
+          recommendation: true,
+          recommendationStatus: true,
+          finalDecision: true,
           createdAt: true,
           updatedAt: true,
+          assignee: {
+            select: { name: true, email: true }
+          },
           documents: {
             where: { documentType: 'EVIDENCE' },
             include: {
@@ -107,7 +113,35 @@ export const reportService = {
         }
       });
 
-      return report;
+      if (!report) {
+        return null;
+      }
+
+      // Get the latest investigation result for conclusions and recommendations
+      const latestResult = await db.investigationResult.findFirst({
+        where: {
+          reportId: report.id
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          id: true,
+          sessionInterimConclusion: true,
+          recommendedImmediateActions: true,
+          recommendedActionsDetails: true,
+          caseStatusAfterResult: true,
+          statusChangeReason: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      // Combine report data with latest investigation result
+      return {
+        ...report,
+        latestResult: latestResult
+      };
     } catch (error) {
       console.error("Error in reportService.getReportByNumber:", error);
       throw error;
