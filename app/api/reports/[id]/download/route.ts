@@ -1,79 +1,72 @@
 import { NextRequest } from "next/server";
 import { reportService } from "@/lib/services/reports/report-service";
-import jsPDF from "jspdf";
-import fs from "fs";
-import path from "path";
-import { generateSignedUrl } from "@/lib/utils/file-upload";
+import { pdfService } from "@/lib/services/pdf/unified-pdf-service";
+import { PDFErrorHandler, PDFErrorContext } from "@/lib/utils/pdf-error-handler";
 
 export const runtime = "nodejs";
 
-// Helper function to load image data for PDF inclusion
-async function loadImageForPDF(storagePath: string, fileType: string): Promise<{ data: string; format: string } | null> {
-  try {
-    let imageBuffer: Buffer;
+// Add memory tracking for PDF conflicts
+const memoryUsage = new Map<string, { timestamp: number; heapUsed: number }>();
 
-    if (storagePath.startsWith('/uploads/')) {
-      // Local storage - read from public directory
-      const filePath = path.join(process.cwd(), 'public', storagePath);
-      if (!fs.existsSync(filePath)) {
-        console.warn(`Image file not found: ${filePath}`);
-        return null;
-      }
-      imageBuffer = fs.readFileSync(filePath);
-    } else if (storagePath.startsWith('evidence/')) {
-      // S3 storage - fetch via signed URL
-      const signedUrl = await generateSignedUrl(storagePath);
-      const response = await fetch(signedUrl);
-      if (!response.ok) {
-        console.warn(`Failed to fetch image from S3: ${storagePath}`);
-        return null;
-      }
-      imageBuffer = Buffer.from(await response.arrayBuffer());
-    } else {
-      console.warn(`Unsupported storage path format: ${storagePath}`);
-      return null;
-    }
-
-    // Convert to base64 for jsPDF
-    const base64Data = imageBuffer.toString('base64');
-
-    // Determine format based on fileType
-    let format = 'JPEG'; // default
-    if (fileType.includes('png')) {
-      format = 'PNG';
-    } else if (fileType.includes('webp')) {
-      format = 'WEBP';
-    }
-    return { data: base64Data, format };
-  } catch (error) {
-    console.error(`Error loading image ${storagePath}:`, error);
-    return null;
+function logMemoryUsage(context: string) {
+  const mem = process.memoryUsage();
+  const key = `${context}-${Date.now()}`;
+  memoryUsage.set(key, { timestamp: Date.now(), heapUsed: mem.heapUsed });
+  console.log(`[Memory Debug] ${context}: Heap Used = ${Math.round(mem.heapUsed / 1024 / 1024)}MB, External = ${Math.round(mem.external / 1024 / 1024)}MB`);
+  
+  // Clean up old entries
+  if (memoryUsage.size > 50) {
+    const entries = Array.from(memoryUsage.entries());
+    entries.slice(0, 25).forEach(([k]) => memoryUsage.delete(k));
   }
+  
+  return mem;
 }
+
+
 
 // GET /api/reports/[id]/download - Download report as PDF file
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startTime = Date.now();
+  let reportId: string | undefined;
+  const requestId = `report-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
   try {
+    console.log(`[Report Download] Starting report download for ID: ${params}, RequestID: ${requestId}`);
+    const memBefore = logMemoryUsage(`[${requestId}] Before report fetch`);
+    
     const resolvedParams = await params;
-    const reportId = resolvedParams.id;
+    reportId = resolvedParams.id;
 
     if (!reportId || typeof reportId !== 'string') {
+      console.error(`[Report Download] Invalid report ID: ${reportId}`);
       return Response.json(
-        { success: false, message: "ID laporan tidak valid" },
+        { success: false, message: "ID laporan tidak valid. Silakan gunakan ID yang benar." },
+        { status: 400 }
+      );
+    }
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reportId)) {
+      console.error(`[Report Download] Invalid UUID format: ${reportId}`);
+      return Response.json(
+        { success: false, message: "Format ID laporan tidak valid." },
         { status: 400 }
       );
     }
 
-    console.log("Downloading report with ID:", reportId);
+    console.log(`[Report Download] Fetching report with ID: ${reportId}`);
     const report = await reportService.getReportById(reportId);
-    console.log("Report found:", !!report);
+    console.log(`[Report Download] Report found: ${!!report}`);
 
     if (!report) {
+      console.warn(`[Report Download] Report not found: ${reportId}`);
       return Response.json(
-        { success: false, message: "Laporan tidak ditemukan" },
+        { success: false, message: "File laporan tidak ditemukan. Laporan mungkin telah dihapus atau belum tersedia." },
         { status: 404 }
       );
     }
@@ -89,179 +82,70 @@ export async function GET(
     });
 
     try {
-      console.log("Starting PDF generation with jsPDF...");
-      // Create PDF document
-      const doc = new jsPDF();
-      console.log("jsPDF document created");
-
-      let y = 20; // Start position from top
-
-      // Title
-      doc.setFontSize(20);
-      doc.text('LAPORAN KEKERASAN', 105, y, { align: 'center' });
-      y += 20;
-
-      // Basic info
-      doc.setFontSize(12);
-      doc.text(`Nomor Laporan: ${report.reportNumber}`, 20, y);
-      y += 10;
-
-      doc.text(`Tanggal Dibuat: ${new Date(report.createdAt).toLocaleDateString('id-ID')}`, 20, y);
-      y += 15;
-
-      // Sections
-      doc.setFontSize(14);
-      doc.text('INFORMASI LAPORAN', 20, y);
-      y += 10;
-
-      doc.setFontSize(12);
-      doc.text(`Judul: ${report.title}`, 20, y);
-      y += 8;
-
-      doc.text(`Status: ${report.status}`, 20, y);
-      y += 15;
-
-      // Description
-      doc.setFontSize(14);
-      doc.text('DESKRIPSI KEJADIAN', 20, y);
-      y += 10;
-
-      doc.setFontSize(12);
-      // Split description into lines
-      const descLines = doc.splitTextToSize(report.description, 170);
-      doc.text(descLines, 20, y);
-      y += descLines.length * 5 + 10;
-
-      // Incident details
-      doc.setFontSize(14);
-      doc.text('DETAIL KEJADIAN', 20, y);
-      y += 10;
-
-      doc.setFontSize(12);
-      if (report.incidentDate) {
-        doc.text(`Tanggal Kejadian: ${new Date(report.incidentDate).toLocaleDateString('id-ID')}`, 20, y);
-        y += 8;
+      console.log(`[Report Download] Starting unified PDF generation with RequestID: ${requestId}`);
+      const memDuring = logMemoryUsage(`[${requestId}] Before PDF generation`);
+      
+      // Use unified PDF service instead of direct jsPDF
+      const pdfBuffer = await pdfService.generatePDF('report', report, {
+        title: "LAPORAN KEKERASAN",
+        subtitle: "SISTEM INFORMASI PENANGANAN KASUS PENGANIAYAAN SEKSUAL",
+        author: "Sistem Informasi Penanganan Kasus Penganiayaan Seksual",
+        subject: "Laporan Kasus Penganiayaan Seksual",
+        margins: { top: 60, bottom: 60, left: 50, right: 50 }
+      });
+      
+      if (!pdfBuffer || pdfBuffer.byteLength === 0) {
+        throw new Error("Generated PDF buffer is empty");
       }
-      if (report.incidentLocation) {
-        doc.text(`Lokasi Kejadian: ${report.incidentLocation}`, 20, y);
-        y += 10;
+      
+      // Validate PDF size
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      if (pdfBuffer.byteLength > maxSize) {
+        throw new Error(`Generated PDF too large: ${pdfBuffer.byteLength} bytes`);
       }
+      
+      const processingTime = Date.now() - startTime;
+      console.log(`[Report Download] PDF generated successfully in ${processingTime}ms, buffer length: ${pdfBuffer.byteLength}`);
+      const memAfter = logMemoryUsage(`[${requestId}] After PDF generation`);
 
-      // Reporter info
-      doc.setFontSize(14);
-      doc.text('INFORMASI PELAPOR', 20, y);
-      y += 10;
+      // Enhanced filename generation
+      const reportNumber = (report.reportNumber || reportId).replace(/[^a-zA-Z0-9]/g, '-');
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+      const fileName = `laporan-${reportNumber}-${dateStr}-${timeStr}.pdf`;
 
-      doc.setFontSize(12);
-      doc.text(`Nama: ${report.reporter?.name || 'N/A'}`, 20, y);
-      y += 8;
-      doc.text(`Email: ${report.reporter?.email || report.reporterEmail || 'N/A'}`, 20, y);
-      y += 10;
+      // Return as downloadable PDF file
+      return new Response(new Uint8Array(pdfBuffer), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Length': pdfBuffer.byteLength.toString(),
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
 
-      // Decision notes
-      if (report.decisionNotes) {
-        doc.setFontSize(14);
-        doc.text('CATATAN KEPUTUSAN', 20, y);
-        y += 10;
-
-        doc.setFontSize(12);
-        const decisionLines = doc.splitTextToSize(report.decisionNotes, 170);
-        doc.text(decisionLines, 20, y);
-        y += decisionLines.length * 5 + 10;
-      }
-
-      // Recommendation
-      if (report.recommendation) {
-        doc.setFontSize(14);
-        doc.text('REKOMENDASI', 20, y);
-        y += 10;
-
-        doc.setFontSize(12);
-        const recLines = doc.splitTextToSize(report.recommendation, 170);
-        doc.text(recLines, 20, y);
-        y += recLines.length * 5 + 10;
-      }
-
-      // Evidence Images
-      if (report.documents && report.documents.length > 0) {
-        const imageDocuments = report.documents.filter(doc =>
-          doc.documentType === 'EVIDENCE' && doc.fileType.startsWith('image/')
-        );
-
-        if (imageDocuments.length > 0) {
-          doc.setFontSize(14);
-          doc.text('BUKTI GAMBAR', 20, y);
-          y += 10;
-
-          doc.setFontSize(12);
-          doc.text(`Ditemukan ${imageDocuments.length} gambar bukti:`, 20, y);
-          y += 10;
-
-          for (const imageDoc of imageDocuments) {
-            try {
-              const imageData = await loadImageForPDF(imageDoc.storagePath, imageDoc.fileType);
-              if (imageData) {
-                // Check if we need a new page
-                if (y > 200) {
-                  doc.addPage();
-                  y = 20;
-                }
-
-                // Add image filename
-                doc.setFontSize(10);
-                doc.text(`File: ${imageDoc.fileName}`, 20, y);
-                y += 8;
-
-                // Add image (resize to fit page width)
-                const imgWidth = 170; // Max width
-                const imgHeight = 100; // Max height
-                doc.addImage(`data:image/${imageData.format.toLowerCase()};base64,${imageData.data}`, imageData.format, 20, y, imgWidth, imgHeight);
-                y += imgHeight + 15;
-
-                // Add description if available
-                if (imageDoc.description) {
-                  doc.setFontSize(10);
-                  const descLines = doc.splitTextToSize(`Deskripsi: ${imageDoc.description}`, 170);
-                  doc.text(descLines, 20, y);
-                  y += descLines.length * 4 + 10;
-                }
-              } else {
-                // Image failed to load
-                doc.setFontSize(10);
-                doc.text(`[Gambar tidak dapat dimuat: ${imageDoc.fileName}]`, 20, y);
-                y += 8;
-              }
-            } catch (imageError) {
-              console.error(`Error adding image ${imageDoc.fileName} to PDF:`, imageError);
-              doc.setFontSize(10);
-              doc.text(`[Error memuat gambar: ${imageDoc.fileName}]`, 20, y);
-              y += 8;
-            }
-          }
+    } catch (pdfError) {
+      const processingTime = Date.now() - startTime;
+      console.error(`[Report Download] Error generating PDF after ${processingTime}ms (${requestId}):`, pdfError);
+      console.error(`[Report Download] Error stack (${requestId}):`, pdfError instanceof Error ? pdfError.stack : 'No stack trace');
+      
+      // Enhanced error handling
+      let errorMessage = "Gagal membuat file PDF laporan.";
+      
+      if (pdfError instanceof Error) {
+        if (pdfError.message.includes('jsPDF') || pdfError.message.includes('pdf')) {
+          errorMessage = "Terjadi kesalahan saat memproses PDF. Format data mungkin tidak valid.";
+        } else if (pdfError.message.includes('memory') || pdfError.message.includes('out of memory')) {
+          errorMessage = "File terlalu besar untuk diproses sebagai PDF. Silakan hubungi administrator.";
+        } else if (pdfError.message.includes('timeout')) {
+          errorMessage = "Waktu proses habis. File mungkin terlalu besar. Coba lagi nanti.";
         }
       }
-
-      // Footer
-      doc.setFontSize(10);
-      doc.text(`Laporan ini dihasilkan pada: ${new Date().toLocaleString('id-ID')}`, 105, 280, { align: 'center' });
-
-      console.log("PDF content added successfully");
-
-      // Get PDF as buffer
-      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-      console.log("PDF generated, buffer length:", pdfBuffer.length);
-
-    // Return as downloadable PDF file
-    return new Response(pdfBuffer, {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="laporan-${report.reportNumber}.pdf"`,
-      },
-    });
-    } catch (pdfError) {
-      console.error("Error generating PDF:", pdfError);
-      console.error("Error stack:", pdfError instanceof Error ? pdfError.stack : 'No stack trace');
-      // Fallback to text response
+      
+      // Fallback to text response only for smaller reports
       const reportContent = `
 LAPORAN KEKERASAN
 
@@ -301,18 +185,72 @@ ${report.recommendation || 'Belum ada rekomendasi'}
 Laporan ini dihasilkan pada: ${new Date().toLocaleString('id-ID')}
     `.trim();
 
+      const reportNumber = (report.reportNumber || reportId || 'unknown').replace(/[^a-zA-Z0-9]/g, '-');
+      const fileName = `laporan-${reportNumber}-${Date.now()}.txt`;
+      
       return new Response(reportContent, {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'Content-Disposition': `attachment; filename="laporan-${report.reportNumber}.txt"`,
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
         },
       });
     }
   } catch (error) {
-    console.error("Error downloading report:", error);
+    const processingTime = Date.now() - startTime;
+    console.error(`[Report Download] Error after ${processingTime}ms:`, error);
+    
+    // Enhanced error handling
+    let errorMessage = "Terjadi kesalahan saat mengunduh laporan.";
+    let errorDetails = "";
+    
+    if (error instanceof Error) {
+      errorDetails = error.message;
+      
+      // Handle specific error types
+      if (error.message.includes('database') || error.message.includes('db')) {
+        errorMessage = "Terjadi kesalahan saat mengakses data laporan. Silakan coba lagi.";
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = "Terjadi masalah jaringan. Periksa koneksi internet Anda dan coba lagi.";
+      } else if (error.message.includes('timeout')) {
+        errorMessage = "Waktu proses habis. File mungkin terlalu besar. Coba lagi nanti.";
+      }
+    }
+    
+    // Log detailed error for debugging
+    console.error(`[Report Download] Detailed error info (${requestId}):`, {
+      message: errorMessage,
+      details: errorDetails,
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      reportId,
+      processingTime
+    });
+    
     return Response.json(
-      { success: false, message: "Terjadi kesalahan saat mengunduh laporan" },
+      { 
+        success: false, 
+        message: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && {
+          details: errorDetails,
+          processingTime
+        })
+      },
       { status: 500 }
     );
+  } finally {
+    // Log final memory state
+    const memFinal = logMemoryUsage(`[${requestId}] Final cleanup`);
+    
+    // Check for memory leaks
+    const memIncrease = memFinal.heapUsed - (process as any).initialHeapUsed;
+    if (memIncrease > 50 * 1024 * 1024) { // 50MB threshold
+      console.warn(`[Memory Debug] Potential memory leak detected in ${requestId}: +${Math.round(memIncrease / 1024 / 1024)}MB`);
+    }
   }
+}
+
+// Add global memory tracking
+if (!(process as any).initialHeapUsed) {
+  (process as any).initialHeapUsed = process.memoryUsage().heapUsed;
+  console.log('[Memory Debug] Initial heap size recorded:', Math.round((process as any).initialHeapUsed / 1024 / 1024), 'MB');
 }

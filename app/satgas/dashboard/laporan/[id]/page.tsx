@@ -89,6 +89,27 @@ export default function ReportDetailPage() {
   const handleDownloadReport = async () => {
     if (!id) return;
 
+    // Track concurrent downloads
+    const reportId = Array.isArray(id) ? id[0] : id;
+    const downloadKey = `report-${reportId}`;
+    const existingDownload = (window as any).activePDFDownloads?.[downloadKey];
+    if (existingDownload) {
+      setAlertMessage({ type: 'error', message: 'Download sudah berjalan, mohon tunggu...' });
+      setTimeout(() => setAlertMessage(null), 3000);
+      return;
+    }
+
+    // Initialize download tracking
+    if (!(window as any).activePDFDownloads) {
+      (window as any).activePDFDownloads = {};
+    }
+    (window as any).activePDFDownloads[downloadKey] = {
+      startTime: Date.now(),
+      type: 'report-pdf'
+    };
+    
+    console.log(`[Client Debug] Starting laporan PDF download: ${reportId}, Active downloads:`, Object.keys((window as any).activePDFDownloads));
+
     try {
       const response = await fetch(`/api/reports/${id}/download`);
       if (response.ok) {
@@ -107,6 +128,12 @@ export default function ReportDetailPage() {
     } catch (error) {
       console.error('Download error:', error);
       setAlertMessage({ type: 'error', message: 'Terjadi kesalahan saat mengunduh laporan' });
+    } finally {
+      // Cleanup download tracking
+      if ((window as any).activePDFDownloads) {
+        delete (window as any).activePDFDownloads[downloadKey];
+        console.log(`[Client Debug] Completed laporan PDF download: ${reportId}, Remaining downloads:`, Object.keys((window as any).activePDFDownloads));
+      }
     }
   };
 

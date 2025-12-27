@@ -399,16 +399,39 @@ export default function InvestigationRekapanPage() {
   };
 
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const [downloadStatus, setDownloadStatus] = useState<{ [key: string]: string }>({});
 
   const handleDownloadResultPdf = async (resultId: string) => {
     if (!id) {
-      alert("ID laporan tidak valid");
+      setDownloadStatus(prev => ({ ...prev, [resultId]: "ID laporan tidak valid" }));
+      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 3000);
       return;
     }
     const reportId = Array.isArray(id) ? id[0] : id;
 
+    // Track concurrent downloads
+    const downloadKey = `result-${resultId}`;
+    const existingDownload = (window as any).activePDFDownloads?.[downloadKey];
+    if (existingDownload) {
+      setDownloadStatus(prev => ({ ...prev, [resultId]: "Download sudah berjalan, mohon tunggu..." }));
+      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 3000);
+      return;
+    }
+
+    // Initialize download tracking
+    if (!(window as any).activePDFDownloads) {
+      (window as any).activePDFDownloads = {};
+    }
+    (window as any).activePDFDownloads[downloadKey] = {
+      startTime: Date.now(),
+      type: 'result-pdf'
+    };
+    
+    console.log(`[Client Debug] Starting result PDF download: ${resultId}, Active downloads:`, Object.keys((window as any).activePDFDownloads));
+
     // Set loading state for this specific result
     setDownloadingPdf(resultId);
+    setDownloadStatus(prev => ({ ...prev, [resultId]: "Mengunduh PDF..." }));
 
     try {
       const response = await fetch(`/api/reports/${reportId}/results/${resultId}/pdf`);
@@ -416,38 +439,73 @@ export default function InvestigationRekapanPage() {
       if (!response.ok) {
         let errorMessage = "Gagal mengunduh PDF berita acara";
         
-        if (response.status === 401) {
-          errorMessage = "Anda tidak memiliki akses untuk mengunduh file ini. Silakan hubungi administrator.";
-        } else if (response.status === 404) {
-          errorMessage = "File PDF berita acara tidak ditemukan. File mungkin telah dihapus atau belum tersedia.";
-        } else if (response.status === 500) {
-          errorMessage = "Terjadi kesalahan server saat membuat PDF. Silakan coba beberapa saat lagi.";
-        } else {
-          errorMessage = `Gagal mengunduh PDF (Kode: ${response.status}). Silakan coba lagi atau hubungi administrator.`;
+        try {
+          if (response.headers.get('content-type')?.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error?.message || errorMessage;
+          }
+        } catch (parseError) {
+          // If JSON parsing fails, use status-based messages
+          console.warn("Could not parse error response as JSON:", parseError);
         }
         
-        alert(errorMessage);
+        // Enhanced status-based error messages
+        if (response.status === 401) {
+          errorMessage = "Anda tidak memiliki akses untuk mengunduh file ini. Silakan hubungi administrator.";
+        } else if (response.status === 403) {
+          errorMessage = "Akses ditolak. Anda tidak memiliki izin untuk mengunduh file ini.";
+        } else if (response.status === 404) {
+          errorMessage = "File PDF berita acara tidak ditemukan. File mungkin telah dihapus atau belum tersedia.";
+        } else if (response.status === 429) {
+          errorMessage = "Terlalu banyak permintaan. Silakan tunggu beberapa saat sebelum mencoba lagi.";
+        } else if (response.status === 500) {
+          errorMessage = "Terjadi kesalahan server saat membuat PDF. Silakan coba beberapa saat lagi.";
+        } else if (response.status === 503) {
+          errorMessage = "Layanan tidak tersedia sementara. Silakan coba lagi nanti.";
+        } else if (response.status >= 400 && response.status < 500) {
+          errorMessage = `Gagal mengunduh PDF (Kode: ${response.status}). Silakan coba lagi atau hubungi administrator.`;
+        } else if (response.status >= 500) {
+          errorMessage = "Terjadi kesalahan server. Tim teknis telah diberitahukan. Silakan coba lagi nanti.";
+        }
+        
+        setDownloadStatus(prev => ({ ...prev, [resultId]: errorMessage }));
+        setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 5000);
         return;
       }
 
+      // Enhanced content type validation
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/pdf')) {
-        alert("File yang diterima bukan format PDF yang valid. Silakan coba lagi.");
+        const errorMessage = "File yang diterima bukan format PDF yang valid. Silakan coba lagi atau hubungi administrator.";
+        setDownloadStatus(prev => ({ ...prev, [resultId]: errorMessage }));
+        setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 5000);
         return;
       }
 
       const blob = await response.blob();
       
-      // Check if blob is valid
+      // Enhanced blob validation
       if (blob.size === 0) {
-        alert("File PDF kosong. Data berita acara mungkin belum lengkap.");
+        const errorMessage = "File PDF kosong. Data berita acara mungkin belum lengkap atau terjadi kesalahan saat membuat file.";
+        setDownloadStatus(prev => ({ ...prev, [resultId]: errorMessage }));
+        setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 5000);
         return;
       }
 
-      // Check file size (max 50MB)
+      // Enhanced file size validation
       const maxSize = 50 * 1024 * 1024; // 50MB
+      const minSize = 1024; // 1KB minimum
       if (blob.size > maxSize) {
-        alert("File PDF terlalu besar (lebih dari 50MB). Silakan hubungi administrator.");
+        const errorMessage = `File PDF terlalu besar (${(blob.size / 1024 / 1024).toFixed(1)}MB). Maksimal yang diizinkan adalah 50MB. Silakan hubungi administrator jika file seharusnya lebih kecil.`;
+        setDownloadStatus(prev => ({ ...prev, [resultId]: errorMessage }));
+        setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 5000);
+        return;
+      }
+      
+      if (blob.size < minSize) {
+        const errorMessage = `File PDF terlalu kecil (${blob.size} bytes). File mungkin rusak atau tidak valid.`;
+        setDownloadStatus(prev => ({ ...prev, [resultId]: errorMessage }));
+        setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 5000);
         return;
       }
 
@@ -455,12 +513,12 @@ export default function InvestigationRekapanPage() {
       const a = document.createElement("a");
       a.href = url;
       
-      // Generate better filename with date and time
+      // Enhanced filename generation
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
       const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, ''); // HHMMSS
-      const reportNumber = report?.reportNumber || reportId;
-      const resultNumber = resultId.substring(0, 8); // First 8 chars of result ID
+      const reportNumber = (report?.reportNumber || reportId).replace(/[^a-zA-Z0-9]/g, '-');
+      const resultNumber = resultId.substring(0, 8);
       
       a.download = `berita-acara-${reportNumber}-${resultNumber}-${dateStr}-${timeStr}.pdf`;
       
@@ -469,76 +527,214 @@ export default function InvestigationRekapanPage() {
       a.click();
       
       // Show success message
-      alert("PDF berita acara berhasil diunduh!");
+      setDownloadStatus(prev => ({ ...prev, [resultId]: "PDF berhasil diunduh!" }));
+      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 3000);
       
-      // Cleanup
+      // Enhanced cleanup with better timeout
       setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
+        try {
+          window.URL.revokeObjectURL(url);
+          if (document.body.contains(a)) {
+            document.body.removeChild(a);
+          }
+        } catch (cleanupError) {
+          console.warn("Error during cleanup:", cleanupError);
+        }
+      }, 200);
       
     } catch (error) {
       console.error("Kesalahan saat mengunduh PDF:", error);
-      alert("Terjadi kesalahan saat mengunduh PDF berita acara. Periksa koneksi internet Anda dan coba lagi.");
+      
+      let errorMessage = "Terjadi kesalahan saat mengunduh PDF berita acara.";
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = "Gagal terhubung ke server. Periksa koneksi internet Anda dan coba lagi.";
+      } else if (error instanceof Error) {
+        if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+          errorMessage = "Terjadi masalah jaringan. Periksa koneksi internet Anda dan coba lagi.";
+        } else if (error.message.includes('timeout')) {
+          errorMessage = "Permintaan waktu habis. File mungkin terlalu besar atau koneksi lambat. Coba lagi.";
+        }
+      }
+      
+      setDownloadStatus(prev => ({ ...prev, [resultId]: errorMessage }));
+      setTimeout(() => setDownloadStatus(prev => ({ ...prev, [resultId]: "" })), 5000);
     } finally {
       // Clear loading state
       setDownloadingPdf(null);
+      
+      // Cleanup download tracking
+      if ((window as any).activePDFDownloads) {
+        delete (window as any).activePDFDownloads[downloadKey];
+        console.log(`[Client Debug] Completed result PDF download: ${resultId}, Remaining downloads:`, Object.keys((window as any).activePDFDownloads));
+      }
     }
   };
 
+  const [downloadingReport, setDownloadingReport] = useState(false);
+  const [reportDownloadStatus, setReportDownloadStatus] = useState<string>("");
+
   const handleDownloadReport = async () => {
     if (!id) {
-      alert("ID laporan tidak valid");
+      setReportDownloadStatus("ID laporan tidak valid");
+      setTimeout(() => setReportDownloadStatus(""), 3000);
       return;
     }
     const reportId = Array.isArray(id) ? id[0] : id;
+
+    // Track concurrent downloads
+    const downloadKey = `report-${reportId}`;
+    const existingDownload = (window as any).activePDFDownloads?.[downloadKey];
+    if (existingDownload) {
+      setReportDownloadStatus("Download sudah berjalan, mohon tunggu...");
+      setTimeout(() => setReportDownloadStatus(""), 3000);
+      return;
+    }
+
+    // Initialize download tracking
+    if (!(window as any).activePDFDownloads) {
+      (window as any).activePDFDownloads = {};
+    }
+    (window as any).activePDFDownloads[downloadKey] = {
+      startTime: Date.now(),
+      type: 'report-pdf'
+    };
+    
+    console.log(`[Client Debug] Starting report PDF download: ${reportId}, Active downloads:`, Object.keys((window as any).activePDFDownloads));
+
+    setDownloadingReport(true);
+    setReportDownloadStatus("Mengunduh laporan...");
 
     try {
       const response = await fetch(`/api/reports/${reportId}/download`);
       
       if (!response.ok) {
-        if (response.status === 401) {
-          alert("Anda tidak memiliki akses untuk mengunduh file ini");
-        } else if (response.status === 404) {
-          alert("File laporan tidak ditemukan");
-        } else {
-          alert(`Gagal mengunduh laporan (Status: ${response.status})`);
+        let errorMessage = "Gagal mengunduh laporan";
+        
+        try {
+          if (response.headers.get('content-type')?.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error?.message || errorMessage;
+          }
+        } catch (parseError) {
+          console.warn("Could not parse error response as JSON:", parseError);
         }
+        
+        // Enhanced status-based error messages
+        if (response.status === 401) {
+          errorMessage = "Anda tidak memiliki akses untuk mengunduh file ini. Silakan hubungi administrator.";
+        } else if (response.status === 403) {
+          errorMessage = "Akses ditolak. Anda tidak memiliki izin untuk mengunduh file ini.";
+        } else if (response.status === 404) {
+          errorMessage = "File laporan tidak ditemukan. Laporan mungkin telah dihapus atau belum tersedia.";
+        } else if (response.status === 429) {
+          errorMessage = "Terlalu banyak permintaan. Silakan tunggu beberapa saat sebelum mencoba lagi.";
+        } else if (response.status === 500) {
+          errorMessage = "Terjadi kesalahan server saat membuat PDF laporan. Silakan coba beberapa saat lagi.";
+        } else if (response.status === 503) {
+          errorMessage = "Layanan tidak tersedia sementara. Silakan coba lagi nanti.";
+        } else if (response.status >= 400 && response.status < 500) {
+          errorMessage = `Gagal mengunduh laporan (Kode: ${response.status}). Silakan coba lagi atau hubungi administrator.`;
+        } else if (response.status >= 500) {
+          errorMessage = "Terjadi kesalahan server. Tim teknis telah diberitahukan. Silakan coba lagi nanti.";
+        }
+        
+        setReportDownloadStatus(errorMessage);
+        setTimeout(() => setReportDownloadStatus(""), 5000);
         return;
       }
 
+      // Enhanced content type validation
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/pdf')) {
-        alert("File yang diterima bukan PDF yang valid");
+        const errorMessage = "File yang diterima bukan PDF yang valid. Silakan coba lagi atau hubungi administrator.";
+        setReportDownloadStatus(errorMessage);
+        setTimeout(() => setReportDownloadStatus(""), 5000);
         return;
       }
 
       const blob = await response.blob();
       
-      // Check if blob is valid
+      // Enhanced blob validation
       if (blob.size === 0) {
-        alert("File laporan kosong");
+        const errorMessage = "File laporan kosong. Data laporan mungkin belum lengkap atau terjadi kesalahan saat membuat file.";
+        setReportDownloadStatus(errorMessage);
+        setTimeout(() => setReportDownloadStatus(""), 5000);
+        return;
+      }
+
+      // Enhanced file size validation
+      const maxSize = 100 * 1024 * 1024; // 100MB for reports
+      const minSize = 1024; // 1KB minimum
+      if (blob.size > maxSize) {
+        const errorMessage = `File laporan terlalu besar (${(blob.size / 1024 / 1024).toFixed(1)}MB). Maksimal yang diizinkan adalah 100MB.`;
+        setReportDownloadStatus(errorMessage);
+        setTimeout(() => setReportDownloadStatus(""), 5000);
+        return;
+      }
+      
+      if (blob.size < minSize) {
+        const errorMessage = `File laporan terlalu kecil (${blob.size} bytes). File mungkin rusak atau tidak valid.`;
+        setReportDownloadStatus(errorMessage);
+        setTimeout(() => setReportDownloadStatus(""), 5000);
         return;
       }
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `laporan-${report?.reportNumber || reportId}.pdf`;
+      
+      // Enhanced filename generation
+      const reportNumber = (report?.reportNumber || reportId).replace(/[^a-zA-Z0-9]/g, '-');
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '');
+      a.download = `laporan-${reportNumber}-${dateStr}-${timeStr}.pdf`;
       
       // Ensure element is in DOM before clicking
       document.body.appendChild(a);
       a.click();
       
-      // Cleanup
+      setReportDownloadStatus("Laporan berhasil diunduh!");
+      setTimeout(() => setReportDownloadStatus(""), 3000);
+      
+      // Enhanced cleanup
       setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
+        try {
+          window.URL.revokeObjectURL(url);
+          if (document.body.contains(a)) {
+            document.body.removeChild(a);
+          }
+        } catch (cleanupError) {
+          console.warn("Error during cleanup:", cleanupError);
+        }
+      }, 200);
       
     } catch (error) {
       console.error("Download error:", error);
-      alert("Terjadi kesalahan saat mengunduh laporan. Silakan coba lagi.");
+      
+      let errorMessage = "Terjadi kesalahan saat mengunduh laporan.";
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        errorMessage = "Gagal terhubung ke server. Periksa koneksi internet Anda dan coba lagi.";
+      } else if (error instanceof Error) {
+        if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+          errorMessage = "Terjadi masalah jaringan. Periksa koneksi internet Anda dan coba lagi.";
+        } else if (error.message.includes('timeout')) {
+          errorMessage = "Permintaan waktu habis. File mungkin terlalu besar atau koneksi lambat. Coba lagi.";
+        }
+      }
+      
+      setReportDownloadStatus(errorMessage);
+      setTimeout(() => setReportDownloadStatus(""), 5000);
+    } finally {
+      setDownloadingReport(false);
+      
+      // Cleanup download tracking
+      if ((window as any).activePDFDownloads) {
+        delete (window as any).activePDFDownloads[downloadKey];
+        console.log(`[Client Debug] Completed report PDF download: ${reportId}, Remaining downloads:`, Object.keys((window as any).activePDFDownloads));
+      }
     }
   };
 
@@ -713,10 +909,35 @@ export default function InvestigationRekapanPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleDownloadReport}>
-              <Download className="w-4 h-4 mr-2" />
-              Unduh Laporan
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleDownloadReport}
+                disabled={downloadingReport}
+                title="Unduh PDF laporan lengkap"
+              >
+                {downloadingReport ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 mr-2" />
+                    Unduh Laporan
+                  </>
+                )}
+              </Button>
+              {reportDownloadStatus && (
+                <div className={`text-xs px-2 py-1 rounded text-center ${
+                  reportDownloadStatus.includes('berhasil') || reportDownloadStatus.includes('sukses')
+                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                }`}>
+                  {reportDownloadStatus}
+                </div>
+              )}
+            </div>
             <Button asChild>
               <Link href={`/satgas/dashboard/investigasi/${report.id || id}/proses`}>
                 <FileText className="w-4 h-4 mr-2" />
@@ -1085,26 +1306,37 @@ export default function InvestigationRekapanPage() {
                                 Detail
                               </Link>
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 px-2 text-xs"
-                              onClick={() => handleDownloadResultPdf(result.id)}
-                              disabled={downloadingPdf === result.id}
-                              title="Unduh PDF berita acara"
-                            >
-                              {downloadingPdf === result.id ? (
-                                <>
-                                  <div className="w-3 h-3 mr-1 border border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                  Mengunduh...
-                                </>
-                              ) : (
-                                <>
-                                  <Download className="w-3 h-3 mr-1" />
-                                  PDF
-                                </>
+                            <div className="flex flex-col gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                onClick={() => handleDownloadResultPdf(result.id)}
+                                disabled={downloadingPdf === result.id}
+                                title="Unduh PDF berita acara"
+                              >
+                                {downloadingPdf === result.id ? (
+                                  <>
+                                    <div className="w-3 h-3 mr-1 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                    Download
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download className="w-3 h-3 mr-1" />
+                                    PDF
+                                  </>
+                                )}
+                              </Button>
+                              {downloadStatus[result.id] && (
+                                <div className={`text-xs px-1 py-0.5 rounded ${
+                                  downloadStatus[result.id].includes('berhasil') || downloadStatus[result.id].includes('sukses')
+                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>
+                                  {downloadStatus[result.id]}
+                                </div>
                               )}
-                            </Button>
+                            </div>
                           </div>
                         </td>
                       </tr>
@@ -1663,23 +1895,34 @@ export default function InvestigationRekapanPage() {
               <Separator className="my-6" />
 
               <div className="flex justify-end gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => handleDownloadResultPdf(selectedResult.id)}
-                  disabled={downloadingPdf === selectedResult.id}
-                >
-                  {downloadingPdf === selectedResult.id ? (
-                    <>
-                      <div className="w-4 h-4 mr-2 border border-gray-400 border-t-transparent rounded-full animate-spin" />
-                      Mengunduh...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Unduh PDF
-                    </>
+                <div className="flex flex-col gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDownloadResultPdf(selectedResult.id)}
+                    disabled={downloadingPdf === selectedResult.id}
+                  >
+                    {downloadingPdf === selectedResult.id ? (
+                      <>
+                        <div className="w-4 h-4 mr-2 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Unduh PDF
+                      </>
+                    )}
+                  </Button>
+                  {downloadStatus[selectedResult.id] && (
+                    <div className={`text-xs px-2 py-1 rounded text-center ${
+                      downloadStatus[selectedResult.id].includes('berhasil') || downloadStatus[selectedResult.id].includes('sukses')
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {downloadStatus[selectedResult.id]}
+                    </div>
                   )}
-                </Button>
+                </div>
                 <Button
                   onClick={() => {
                     setShowResultDetailModal(false);

@@ -2,37 +2,94 @@ import { NextRequest } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth/server-session";
 import { isRoleAllowed } from "@/lib/auth/auth-utils";
 import { db } from "@/db";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { pdfService } from "@/lib/services/pdf/unified-pdf-service";
+import { PDFErrorHandler, PDFErrorContext } from "@/lib/utils/pdf-error-handler";
 
 export const runtime = "nodejs";
+
+// Add concurrent request tracking for PDF conflicts
+const activePDFRequests = new Map<string, { timestamp: number; type: string; heapUsed: number }>();
+
+function trackPDFRequest(requestId: string, type: string) {
+  const mem = process.memoryUsage();
+  activePDFRequests.set(requestId, { 
+    timestamp: Date.now(), 
+    type, 
+    heapUsed: mem.heapUsed 
+  });
+  
+  console.log(`[PDF Conflict Debug] Active PDF requests: ${activePDFRequests.size}`);
+  console.log(`[PDF Conflict Debug] Request ${requestId} (${type}) - Heap: ${Math.round(mem.heapUsed / 1024 / 1024)}MB`);
+  
+  // Clean up old entries (older than 5 minutes)
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  for (const [key, value] of activePDFRequests.entries()) {
+    if (value.timestamp < fiveMinutesAgo) {
+      activePDFRequests.delete(key);
+    }
+  }
+}
+
+function untrackPDFRequest(requestId: string) {
+  if (activePDFRequests.has(requestId)) {
+    const request = activePDFRequests.get(requestId)!;
+    const duration = Date.now() - request.timestamp;
+    console.log(`[PDF Conflict Debug] Completed ${requestId} (${request.type}) - Duration: ${duration}ms`);
+    activePDFRequests.delete(requestId);
+  }
+}
 
 // GET /api/reports/[id]/results/[resultId]/pdf - Generate PDF for investigation result
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; resultId: string }> }
 ) {
+  const startTime = Date.now();
+  let reportId: string | undefined;
+  let resultId: string | undefined;
+  const requestId = `result-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  let investigationResult: any = null;
+  
   try {
+    console.log(`[PDF Generation] Starting PDF generation for result: ${params}, RequestID: ${requestId}`);
+    trackPDFRequest(requestId, 'investigation-result');
+    
     // Get current user session
     const session = await getSessionFromRequest(request);
 
     if (!session || !isRoleAllowed(session, ['SATGAS', 'REKTOR'])) {
+      console.warn(`[PDF Generation] Unauthorized access attempt for result PDF`);
       return Response.json(
-        { success: false, message: "Unauthorized" },
+        { success: false, message: "Anda tidak memiliki akses untuk mengunduh file ini. Silakan hubungi administrator." },
         { status: 401 }
       );
     }
 
-    const { id: reportId, resultId } = await params;
+    const paramsData = await params;
+    reportId = paramsData.id;
+    resultId = paramsData.resultId;
 
     if (!reportId || !resultId) {
+      console.error(`[PDF Generation] Missing required parameters: reportId=${reportId}, resultId=${resultId}`);
       return Response.json(
-        { success: false, message: "Report ID and Result ID are required" },
+        { success: false, message: "ID laporan dan ID hasil investigasi diperlukan untuk mengunduh PDF." },
+        { status: 400 }
+      );
+    }
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reportId) || !uuidRegex.test(resultId)) {
+      console.error(`[PDF Generation] Invalid UUID format: reportId=${reportId}, resultId=${resultId}`);
+      return Response.json(
+        { success: false, message: "Format ID tidak valid. Silakan gunakan ID yang benar." },
         { status: 400 }
       );
     }
 
     // Get investigation result with related data
-    const investigationResult = await db.investigationResult.findFirst({
+    console.log(`[PDF Generation] Fetching investigation result for reportId=${reportId}, resultId=${resultId}`);
+    investigationResult = await db.investigationResult.findFirst({
       where: {
         id: resultId,
         reportId: reportId
@@ -76,231 +133,92 @@ export async function GET(
     });
 
     if (!investigationResult) {
+      console.warn(`[PDF Generation] Investigation result not found: reportId=${reportId}, resultId=${resultId}`);
       return Response.json(
-        { success: false, message: "Investigation result not found" },
+        { success: false, message: "File PDF berita acara tidak ditemukan. File mungkin telah dihapus atau belum tersedia." },
         { status: 404 }
       );
     }
+    
+    console.log(`[PDF Generation] Investigation result found: ${investigationResult.id}`);
 
-    // Generate PDF content
-    const pdfBuffer = await generateInvestigationResultPDF(investigationResult);
+    // Generate PDF content using unified service
+    console.log(`[PDF Generation] Starting unified PDF generation process for result: ${resultId}`);
+    const pdfBuffer = await pdfService.generatePDF('result', investigationResult, {
+      title: "BERITA ACARA HASIL INVESTIGASI",
+      subtitle: "SISTEM INFORMASI PENANGANAN KASUS PENGANIAYAAN SEKSUAL",
+      author: "Sistem Informasi Penanganan Kasus Penganiayaan Seksual",
+      subject: "Berita Acara Hasil Investigasi",
+      margins: { top: 60, bottom: 60, left: 50, right: 50 }
+    });
+    
+    if (!pdfBuffer || pdfBuffer.byteLength === 0) {
+      console.error(`[PDF Generation] Generated PDF buffer is empty or invalid`);
+      return Response.json(
+        { success: false, message: "Gagal membuat file PDF. Data berita acara mungkin tidak lengkap atau rusak." },
+        { status: 500 }
+      );
+    }
+    
+    // Validate PDF size
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (pdfBuffer.byteLength > maxSize) {
+      console.error(`[PDF Generation] Generated PDF too large: ${pdfBuffer.byteLength} bytes`);
+      return Response.json(
+        { success: false, message: "File PDF yang dihasilkan terlalu besar. Silakan hubungi administrator." },
+        { status: 500 }
+      );
+    }
+    
+    const processingTime = Date.now() - startTime;
+    console.log(`[PDF Generation] PDF generated successfully in ${processingTime}ms, size: ${pdfBuffer.byteLength} bytes, RequestID: ${requestId}`);
 
     // Return PDF as response
-    return new Response(pdfBuffer, {
+    const resultIdShort = resultId ? resultId.substring(0, 8) : 'unknown';
+    const fileName = `berita-acara-${(investigationResult?.reportNumber || 'unknown').replace(/[^a-zA-Z0-9]/g, '-')}-${resultIdShort}.pdf`;
+    
+    const response = new Response(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="berita-acara-${investigationResult?.reportNumber || 'unknown'}-${resultId}.pdf"`,
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': pdfBuffer.byteLength.toString(),
+        'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
+    
+    console.log(`[PDF Conflict Debug] Successfully completed ${requestId} - Active requests: ${activePDFRequests.size - 1}`);
+    return response;
 
   } catch (error) {
-    console.error("Error generating investigation result PDF:", error);
-    return Response.json(
-      { success: false, message: "Terjadi kesalahan saat membuat PDF berita acara. Silakan coba lagi atau hubungi administrator." },
-      { status: 500 }
-    );
+    const processingTime = Date.now() - startTime;
+    console.error(`[PDF Generation] Error after ${processingTime}ms: ${requestId}`, error);
+    
+    // Use standardized error handling
+    const errorContext: PDFErrorContext = {
+      operation: 'generate',
+      type: 'result',
+      requestId,
+      fileSize: investigationResult ? undefined : 0
+    };
+    
+    const errorInfo = PDFErrorHandler.handleError(error, errorContext);
+    
+    if (errorInfo.shouldFallback && investigationResult) {
+      console.log(`[PDF Generation] Creating fallback response for ${requestId}`);
+      const resultIdShort = resultId ? resultId.substring(0, 8) : 'unknown';
+      const fileName = `berita-acara-${(investigationResult?.reportNumber || 'unknown').replace(/[^a-zA-Z0-9]/g, '-')}-${resultIdShort}.txt`;
+      return PDFErrorHandler.createFallbackResponse(investigationResult, 'result', fileName);
+    }
+    
+    return PDFErrorHandler.createErrorResponse(errorInfo, errorContext);
+  } finally {
+    // Always cleanup tracking
+    untrackPDFRequest(requestId);
+    const memAfter = process.memoryUsage();
+    console.log(`[PDF Conflict Debug] Memory after request ${requestId}: ${Math.round(memAfter.heapUsed / 1024 / 1024)}MB`);
   }
 }
 
-async function generateInvestigationResultPDF(result: any): Promise<ArrayBuffer> {
-  // Create a new PDF document
-  const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([595.28, 841.89]); // A4 size
-  const { width, height } = page.getSize();
-  
-  // Load fonts
-  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  
-  let yPosition = height - 50;
-  
-  const formatDate = (date: Date | string | null) => {
-    if (!date) return "-";
-    const d = new Date(date);
-    return d.toLocaleDateString("id-ID");
-  };
 
-  const formatDateTime = (date: Date | string | null) => {
-    if (!date) return "-";
-    const d = new Date(date);
-    return d.toLocaleString("id-ID");
-  };
-
-  const formatStatus = (status: string) => {
-    const statusMap: Record<string, string> = {
-      'UNDER_INVESTIGATION': 'Dalam Investigasi',
-      'EVIDENCE_COLLECTION': 'Pengumpulan Bukti',
-      'STATEMENT_ANALYSIS': 'Analisis Keterangan',
-      'PENDING_EXTERNAL_INPUT': 'Menunggu Input Eksternal',
-      'READY_FOR_RECOMMENDATION': 'Siap untuk Rekomendasi',
-      'CLOSED_TERMINATED': 'Ditutup/Dihentikan',
-      'FORWARDED_TO_REKTORAT': 'Diteruskan ke Rektorat'
-    };
-    return statusMap[status] || status;
-  };
-
-  const formatPriority = (priority: string) => {
-    const priorityMap: Record<string, string> = {
-      'HIGH': 'Tinggi',
-      'MEDIUM': 'Sedang',
-      'LOW': 'Rendah'
-    };
-    return priorityMap[priority] || priority || 'N/A';
-  };
-
-  const formatRecommendedActions = (actions: any[]) => {
-    if (!actions || actions.length === 0) return "-";
-    return actions.map((action: any, index: number) => {
-      const actionMap: Record<string, string> = {
-        'SCHEDULE_NEXT_SESSION': 'Jadwalkan Sesi Berikutnya',
-        'CALL_OTHER_PARTY': 'Panggil Pihak Lain',
-        'REQUIRE_PSYCHOLOGICAL_SUPPORT': 'Perlu Pendampingan Psikologis',
-        'REQUIRE_LEGAL_SUPPORT': 'Perlu Pendampingan Hukum',
-        'CASE_TERMINATED': 'Kasus Dihentikan',
-        'FORWARD_TO_REKTORAT': 'Diteruskan ke Rektorat',
-        'MEDIATION_SESSION': 'Sesi Mediasi',
-        'EVIDENCE_ANALYSIS': 'Analisis Bukti',
-        'WITNESS_REINTERVIEW': 'Wawancara Ulang Saksi',
-        'OTHER': 'Lainnya'
-      };
-      const notes = action.notes ? ` - Catatan: ${action.notes}` : '';
-      return `${index + 1}. ${actionMap[action.action] || action.action} (Prioritas: ${formatPriority(action.priority)})${notes}`;
-    }).join('\n');
-  };
-
-  const formatPartiesPresent = (parties: any[]) => {
-    if (!parties || parties.length === 0) return "-";
-    return parties.map((party: any, index: number) => {
-      const statusMap: Record<string, string> = {
-        'PRESENT': '✓ Hadir',
-        'ABSENT_NO_REASON': '✗ Tidak Hadir Tanpa Keterangan',
-        'ABSENT_WITH_REASON': '✗ Tidak Hadir dengan Alasan'
-      };
-      return `${index + 1}. ${party.name || 'N/A'} - ${party.role || 'N/A'} (${statusMap[party.status] || party.status})`;
-    }).join('\n');
-  };
-
-  const formatSatgasMembers = (members: any[]) => {
-    if (!members || members.length === 0) return "-";
-    return members.map((member: any, index: number) => {
-      return `${index + 1}. ${member.name || 'N/A'} - ${member.role || 'N/A'}`;
-    }).join('\n');
-  };
-
-  const formatEvidenceFiles = (files: any[]) => {
-    if (!files || files.length === 0) return "-";
-    return files.map((file: any, index: number) => {
-      const sizeKB = file.size ? (file.size / 1024).toFixed(1) : 'N/A';
-      return `${index + 1}. ${file.name || 'N/A'} (${sizeKB} KB - ${file.type || 'N/A'})`;
-    }).join('\n');
-  };
-
-  const addText = (text: string, fontSize: number = 10, isBold: boolean = false, color: any = rgb(0, 0, 0)) => {
-    const currentFont = isBold ? fontBold : font;
-    const lines = text.split('\n');
-    
-    for (const line of lines) {
-      if (yPosition < 50) {
-        // Add new page if needed
-        const newPage = pdfDoc.addPage([595.28, 841.89]);
-        yPosition = newPage.getSize().height - 50;
-        // Switch to new page
-        (page as any) = newPage;
-      }
-      
-      page.drawText(line, {
-        x: 50,
-        y: yPosition,
-        size: fontSize,
-        font: currentFont,
-        color: color,
-      });
-      yPosition -= fontSize + 5;
-    }
-    yPosition -= 5; // Extra space after text block
-  };
-
-  // Title
-  addText('BERITA ACARA HASIL INVESTIGASI', 16, true);
-  addText('SISTEM INFORMASI PENANGANAN KASUS PENGANIAYAAN SEKSUAL', 10, false, rgb(0.3, 0.3, 0.3));
-  addText('================================================================================', 8);
-  yPosition -= 10;
-
-  // Basic Information
-  addText('INFORMASI DASAR KEGIATAN:', 12, true);
-  addText(`ID Kegiatan Penjadwalan: ${result.schedulingId || '-'}`);
-  addText(`Judul Kegiatan: ${result.schedulingTitle || '-'}`);
-  addText(`Tanggal & Waktu Pelaksanaan: ${formatDateTime(result.schedulingDateTime)}`);
-  addText(`Lokasi Pelaksanaan: ${result.schedulingLocation || '-'}`);
-  addText(`Judul Kasus: ${result.caseTitle || '-'}`);
-  addText(`Nomor Laporan: ${result.reportNumber || '-'}`);
-  addText(`Tanggal Pembuatan BA: ${formatDateTime(result.createdAt)}`);
-  yPosition -= 10;
-
-  // Attendance
-  addText('KEHADIRAN PIHAK TERLIBAT:', 12, true);
-  addText('Satgas yang Hadir:');
-  addText(formatSatgasMembers(result.satgasMembersPresent));
-  addText('Status Kehadiran Pihak:');
-  addText(formatPartiesPresent(result.partiesPresent));
-  addText(`Verifikasi Identitas: ${result.identityVerified ? 'Ya' : 'Tidak'}`);
-  addText(`Catatan Kehadiran: ${result.attendanceNotes || '-'}`);
-  yPosition -= 10;
-
-  // Investigation Notes
-  addText('CATATAN INTI INVESTIGASI:', 12, true);
-  addText('Ringkasan Keterangan Pihak:');
-  addText(result.partiesStatementSummary || '-');
-  addText('Temuan Bukti Fisik/Digital Baru:');
-  addText(result.newPhysicalEvidence || '-');
-  addText('Bukti yang Diupload:');
-  addText(formatEvidenceFiles(result.evidenceFiles));
-  addText('Konsistensi Keterangan:');
-  addText(result.statementConsistency || '-');
-  yPosition -= 10;
-
-  // Conclusions and Recommendations
-  addText('KESIMPULAN SEMENTARA & REKOMENDASI:', 12, true);
-  addText('Kesimpulan Sementara dari Sesi Ini:');
-  addText(result.sessionInterimConclusion || '-');
-  addText('Rekomendasi Tindak Lanjut Segera:');
-  addText(formatRecommendedActions(result.recommendedImmediateActions));
-  addText(`Perubahan Status Kasus: ${formatStatus(result.caseStatusAfterResult)}`);
-  addText(`Alasan Perubahan Status: ${result.statusChangeReason || '-'}`);
-  yPosition -= 10;
-
-  // Authentication
-  addText('OTENTIKASI BERITA ACARA:', 12, true);
-  addText(`Verifikasi Data: ${result.dataVerificationConfirmed ? 'Ya' : 'Tidak'}`);
-  addText(`Tanda Tangan Digital Pembuat BA: ${result.creatorDigitalSignature ? 'Ya' : 'Tidak'}`);
-  addText(`Nama Pembuat: ${result.creatorSignerName || '-'}`);
-  addText(`Tanggal TTD Pembuat: ${formatDateTime(result.creatorSignatureDate)}`);
-  addText(`Tanda Tangan Digital Ketua: ${result.chairpersonDigitalSignature ? 'Ya' : 'Tidak'}`);
-  addText(`Nama Ketua: ${result.chairpersonSignerName || '-'}`);
-  addText(`Tanggal TTD Ketua: ${formatDateTime(result.chairpersonSignatureDate)}`);
-  yPosition -= 10;
-
-  // Document Integrity
-  addText('INTEGRITAS DOKUMEN:', 12, true);
-  addText(`Hash Dokumen: ${result.documentHash || '-'}`);
-  addText(`Tanggal Pembuatan: ${formatDateTime(result.createdAt)}`);
-  addText(`Terakhir Diperbarui: ${formatDateTime(result.updatedAt)}`);
-  yPosition -= 10;
-
-  // Internal Notes
-  addText('CATATAN INTERNAL:', 12, true);
-  addText(result.internalSatgasNotes || '-');
-  yPosition -= 20;
-
-  // Footer
-  addText('================================================================================', 8);
-  addText('DOKUMEN RESMI - BERITA ACARA HASIL INVESTIGASI', 10, true);
-  addText('Dokumen ini dibuat secara digital dan memiliki hash untuk memastikan integritas.');
-  addText(`Dibuat pada: ${formatDateTime(new Date())}`);
-  addText('Dibuat oleh: Sistem Informasi Penanganan Kasus Penganiayaan Seksual');
-  addText('================================================================================', 8);
-
-  // Save the PDF
-  const pdfBytes = await pdfDoc.save();
-  return Buffer.from(pdfBytes).buffer;
-}

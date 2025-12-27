@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -18,13 +18,308 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import DigitalSignature from "@/components/ui/digital-signature";
+// EvidenceDisplay component inline untuk mengatasi masalah import
+interface EvidenceFile {
+  id: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  storagePath?: string;
+  path?: string;
+  isLegacy?: boolean;
+  uploadedAt?: string;
+  uploadedBy?: { name: string };
+  originalFile?: any;
+}
+
+interface EvidenceDisplayProps {
+  evidenceDocuments: EvidenceFile[];
+  onDownload?: (document: EvidenceFile) => void;
+  className?: string;
+}
+
+const EvidenceDisplay = ({ evidenceDocuments, onDownload, className = "" }: EvidenceDisplayProps) => {
+  const [imageModalOpen, setImageModalOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<EvidenceFile | null>(null);
+  const [playingAudio, setPlayingAudio] = useState<string | null>(null);
+
+  const isImageFile = (fileName: string, fileType: string) => {
+    const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml'];
+    return imageTypes.includes(fileType.toLowerCase()) || 
+           /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileName);
+  };
+
+  const isAudioFile = (fileName: string, fileType: string) => {
+    const audioTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/ogg', 'audio/m4a', 'audio/webm', 'audio/flac', 'audio/aac'];
+    return audioTypes.includes(fileType.toLowerCase()) || 
+           /\.(mp3|wav|ogg|m4a|webm|flac|aac)$/i.test(fileName);
+  };
+
+  const getFileUrl = (document: EvidenceFile) => {
+    if (document.id && document.fileName) {
+      if (document.storagePath && document.storagePath.startsWith('http')) {
+        return document.storagePath;
+      } else {
+        return `/api/documents/${document.id}/download`;
+      }
+    } else if (document.path) {
+      return document.path.startsWith('http') ? document.path : document.path;
+    }
+    return '#';
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const openImageModal = (document: EvidenceFile) => {
+    setSelectedImage(document);
+    setImageModalOpen(true);
+  };
+
+  const closeImageModal = () => {
+    setImageModalOpen(false);
+    setSelectedImage(null);
+  };
+
+  const toggleAudioPlayback = (fileId: string, audioUrl: string) => {
+    // Access audioRefs from the main component scope
+    const currentAudioRefs = (window as any).audioRefs || {};
+    
+    if (playingAudio && currentAudioRefs[playingAudio]) {
+      currentAudioRefs[playingAudio].pause();
+      currentAudioRefs[playingAudio].currentTime = 0;
+    }
+
+    if (playingAudio === fileId) {
+      setPlayingAudio(null);
+    } else {
+      setPlayingAudio(fileId);
+      
+      if (!currentAudioRefs[fileId]) {
+        currentAudioRefs[fileId] = new Audio(audioUrl);
+        currentAudioRefs[fileId].addEventListener('ended', () => {
+          setPlayingAudio(null);
+        });
+        currentAudioRefs[fileId].addEventListener('error', () => {
+          console.error('Audio playback error for:', fileId);
+          setPlayingAudio(null);
+        });
+        (window as any).audioRefs = currentAudioRefs;
+      }
+
+      currentAudioRefs[fileId].play().catch((error: any) => {
+        console.error('Audio play error:', error);
+        setPlayingAudio(null);
+      });
+    }
+  };
+
+  if (evidenceDocuments.length === 0) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <div className="text-center py-8">
+            <File className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">Belum ada bukti yang dilampirkan</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Card className={className}>
+        <CardContent className="pt-6">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Bukti yang Diupload</h3>
+              <Badge variant="secondary">
+                {evidenceDocuments.length} file
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {evidenceDocuments.map((document) => (
+                <div 
+                  key={document.id} 
+                  className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
+                >
+                  <div className="space-y-3">
+                    <div>
+                      <div className="font-medium text-gray-900 dark:text-white text-sm truncate" 
+                           title={document.fileName}>
+                        {document.fileName}
+                      </div>
+                      <div className="text-gray-500 dark:text-gray-400 text-xs">
+                        {formatFileSize(document.fileSize)} • {document.fileType}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <div className="text-gray-500 dark:text-gray-400">
+                          {document.isLegacy ? 'File Legacy' : 
+                           `Diupload: ${document.uploadedBy?.name || 'Unknown'}`}
+                        </div>
+                        {document.isLegacy && (
+                          <Badge variant="outline" className="text-xs">
+                            Legacy
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
+                      {isImageFile(document.fileName, document.fileType) ? (
+                        <div className="relative group">
+                          <img 
+                            src={getFileUrl(document)}
+                            alt={document.fileName}
+                            className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => openImageModal(document)}
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => openImageModal(document)}
+                                className="backdrop-blur-sm"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => onDownload?.(document)}
+                                className="backdrop-blur-sm"
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="absolute top-2 right-2">
+                            <Badge variant="secondary" className="text-xs bg-black/50 text-white">
+                              <ImageIcon className="w-3 h-3 mr-1" />
+                              Image
+                            </Badge>
+                          </div>
+                        </div>
+                      ) : isAudioFile(document.fileName, document.fileType) ? (
+                        <div className="p-4">
+                          <div className="flex items-center gap-3 mb-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toggleAudioPlayback(document.id, getFileUrl(document))}
+                              className="hover:bg-blue-50 hover:border-blue-300"
+                            >
+                              {playingAudio === document.id ? (
+                                <Pause className="w-4 h-4" />
+                              ) : (
+                                <Play className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <Volume2 className="w-4 h-4 text-gray-500" />
+                            <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                              Voice Note
+                            </span>
+                          </div>
+                          
+                          {playingAudio === document.id && (
+                            <audio 
+                              controls 
+                              className="w-full"
+                              autoPlay
+                              onEnded={() => setPlayingAudio(null)}
+                            >
+                              <source src={getFileUrl(document)} type={document.fileType} />
+                              Browser Anda tidak mendukung audio player.
+                            </audio>
+                          )}
+                          
+                          <div className="flex justify-end items-center mt-3">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onDownload?.(document)}
+                              className="hover:bg-green-50 hover:border-green-300"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <File className="w-8 h-8 text-gray-500" />
+                            <div>
+                              <span className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                File Dokumen
+                              </span>
+                              <div className="text-xs text-gray-500">
+                                {document.fileType}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => onDownload?.(document)}
+                            className="hover:bg-blue-50 hover:border-blue-300"
+                          >
+                            <Download className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {imageModalOpen && selectedImage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+          <div className="relative max-w-4xl max-h-full">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={closeImageModal}
+              className="absolute top-2 right-2 z-10 backdrop-blur-sm"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+            <img
+              src={getFileUrl(selectedImage)}
+              alt={selectedImage.fileName}
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={closeImageModal}
+            />
+            <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-50 text-white p-2 rounded backdrop-blur-sm">
+              <div className="text-sm font-medium truncate">{selectedImage.fileName}</div>
+              <div className="text-xs opacity-75">
+                {formatFileSize(selectedImage.fileSize)} • {selectedImage.fileType}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
 import {
   FileText,
   ArrowLeft,
   Download,
   Calendar,
   Users,
-  Image,
   Play,
   Pause,
   Volume2,
@@ -39,7 +334,9 @@ import {
   Eye,
   FileCheck,
   CheckCircle,
-  UserPlus
+  UserPlus,
+  Image as ImageIcon,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -125,6 +422,7 @@ export default function InvestigationResultDetailPage() {
   // Upload states
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
 
   // Memoized constants to prevent unnecessary re-renders
   const investigationMethods = useMemo(() => [
@@ -259,6 +557,24 @@ export default function InvestigationResultDetailPage() {
               allEvidenceFiles.push(...legacyFiles);
             }
             
+            // Add investigation documents from report documents (new format)
+            if (foundResult.report?.documents && Array.isArray(foundResult.report.documents)) {
+              const investigationDocuments = foundResult.report.documents
+                .filter((doc: any) => doc.documentType === 'EVIDENCE')
+                .map((doc: any) => ({
+                  id: doc.id,
+                  fileName: doc.fileName,
+                  fileType: doc.fileType,
+                  fileSize: doc.fileSize,
+                  storagePath: doc.storagePath,
+                  uploadedAt: doc.createdAt,
+                  uploadedBy: doc.uploadedBy,
+                  isLegacy: false // Flag to identify new format files
+                }));
+              allEvidenceFiles.push(...investigationDocuments);
+            }
+            
+            console.log('Processed evidence files:', allEvidenceFiles);
             setEvidenceDocuments(allEvidenceFiles);
           } else {
             setError("Hasil investigasi tidak ditemukan");
@@ -280,6 +596,18 @@ export default function InvestigationResultDetailPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Cleanup audio elements when component unmounts
+  useEffect(() => {
+    return () => {
+      // Cleanup any playing audio
+      const audioElements = document.querySelectorAll('audio');
+      audioElements.forEach(audio => {
+        audio.pause();
+        audio.currentTime = 0;
+      });
+    };
+  }, []);
 
   const formatDate = (value?: string) => {
     if (!value) return "-";
@@ -1196,6 +1524,16 @@ export default function InvestigationResultDetailPage() {
                     rows={3}
                   />
                 </div>
+                
+                {/* Evidence Display in Edit Mode */}
+                <div className="space-y-3">
+                  <Label>Bukti yang Telah Diupload Sebelumnya</Label>
+                  <EvidenceDisplay 
+                    evidenceDocuments={evidenceDocuments}
+                    onDownload={handleDownloadEvidenceFile}
+                    className=""
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -1717,6 +2055,13 @@ export default function InvestigationResultDetailPage() {
               </CardContent>
             </Card>
 
+            {/* Evidence Display */}
+            <EvidenceDisplay 
+              evidenceDocuments={evidenceDocuments}
+              onDownload={handleDownloadEvidenceFile}
+              className=""
+            />
+
             {/* Kesimpulan & Rekomendasi */}
             <Card>
               <CardHeader>
@@ -1778,180 +2123,7 @@ export default function InvestigationResultDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Bukti yang Diupload - NEW IMPLEMENTATION */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Image className="w-5 h-5" />
-                  Bukti yang Diupload
-                </CardTitle>
-                <CardDescription>
-                  {evidenceDocuments.length > 0
-                    ? `${evidenceDocuments.length} file bukti yang dilampirkan`
-                    : 'Bukti yang diupload pada fase hasil investigasi'
-                  }
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {evidenceDocuments.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {evidenceDocuments.map((document: any) => (
-                      <div key={document.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                        <div className="space-y-3">
-                          {/* File info */}
-                          <div>
-                            <div className="font-medium text-gray-900 dark:text-white text-sm">
-                              {document.fileName}
-                            </div>
-                            <div className="text-gray-500 dark:text-gray-400 text-xs">
-                              {(document.fileSize / 1024).toFixed(1)} KB • {document.fileType}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <div className="text-gray-500 dark:text-gray-400">
-                                {document.isLegacy ? 'File Legacy' : `Diupload oleh: ${document.uploadedBy?.name || 'Unknown'}`}
-                              </div>
-                              {document.isLegacy && (
-                                <Badge variant="outline" className="text-xs">
-                                  Legacy
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
 
-                          {/* File preview/content */}
-                          <div className="border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden">
-                            {isImageFile(document.fileName, document.fileType) ? (
-                              // Image preview
-                              <div className="relative">
-                                <img
-                                  src={getFileUrl(document)}
-                                  alt={document.fileName}
-                                  className="w-full h-48 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                  onClick={() => window.open(getFileUrl(document), '_blank')}
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const parent = target.parentElement;
-                                    if (parent) {
-                                      parent.innerHTML = `<div class="flex items-center justify-center h-48 bg-gray-100 dark:bg-gray-700 text-gray-500">
-                                        <div class="text-center">
-                                          <svg class="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"></path>
-                                          </svg>
-                                          <p class="text-sm">Gagal memuat gambar</p>
-                                          <p class="text-xs mt-1">${document.fileName || 'File tidak ditemukan'}</p>
-                                        </div>
-                                      </div>`;
-                                    }
-                                  }}
-                                />
-                                <div className="absolute top-2 right-2">
-                                  {!document.isLegacy ? (
-                                    <Button
-                                      size="sm"
-                                      variant="secondary"
-                                      onClick={() => handleDownloadEvidenceFile(document)}
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </Button>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      Legacy
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            ) : isAudioFile(document.fileName, document.fileType) ? (
-                              // Audio player
-                              <div className="p-4">
-                                <div className="flex items-center gap-3 mb-3">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => toggleAudioPlayback(document.id)}
-                                  >
-                                    {playingAudio === document.id ? (
-                                      <Pause className="w-4 h-4" />
-                                    ) : (
-                                      <Play className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                  <Volume2 className="w-4 h-4 text-gray-500" />
-                                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                                    Voice Note
-                                  </span>
-                                </div>
-                                {playingAudio === document.id && (
-                                  <audio
-                                    controls
-                                    className="w-full"
-                                    autoPlay
-                                    onEnded={() => setPlayingAudio(null)}
-                                  >
-                                    <source src={getFileUrl(document)} type={document.fileType} />
-                                    Browser Anda tidak mendukung audio player.
-                                  </audio>
-                                )}
-                                <div className="flex justify-between items-center mt-3">
-                                  <span className="text-xs text-gray-500">Klik play untuk mendengar</span>
-                                  {!document.isLegacy ? (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleDownloadEvidenceFile(document)}
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </Button>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      Legacy
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              // Other file types
-                              <div className="p-4 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <File className="w-8 h-8 text-gray-500" />
-                                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                                    File dokumen
-                                  </span>
-                                </div>
-                                {!document.isLegacy ? (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDownloadEvidenceFile(document)}
-                                  >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Unduh
-                                  </Button>
-                                ) : (
-                                  <Badge variant="outline" className="text-xs">
-                                    Legacy
-                                  </Badge>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Image className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-500 dark:text-gray-400">
-                      Belum ada bukti yang diupload pada fase hasil investigasi
-                    </p>
-                    <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
-                      Bukti dapat diupload melalui form hasil investigasi
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* Tanda Tangan Digital */}
             <Card>
