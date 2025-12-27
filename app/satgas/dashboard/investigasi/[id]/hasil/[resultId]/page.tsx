@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import DigitalSignature from "@/components/ui/digital-signature";
 // EvidenceDisplay component inline untuk mengatasi masalah import
 interface EvidenceFile {
@@ -35,10 +36,11 @@ interface EvidenceFile {
 interface EvidenceDisplayProps {
   evidenceDocuments: EvidenceFile[];
   onDownload?: (document: EvidenceFile) => void;
+  onView?: (document: EvidenceFile) => void;
   className?: string;
 }
 
-const EvidenceDisplay = ({ evidenceDocuments, onDownload, className = "" }: EvidenceDisplayProps) => {
+const EvidenceDisplay = ({ evidenceDocuments, onDownload, onView, className = "" }: EvidenceDisplayProps) => {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<EvidenceFile | null>(null);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
@@ -192,6 +194,16 @@ const EvidenceDisplay = ({ evidenceDocuments, onDownload, className = "" }: Evid
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
+                              {onView && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => onView(document)}
+                                  className="backdrop-blur-sm"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="secondary"
@@ -242,7 +254,17 @@ const EvidenceDisplay = ({ evidenceDocuments, onDownload, className = "" }: Evid
                             </audio>
                           )}
                           
-                          <div className="flex justify-end items-center mt-3">
+                          <div className="flex justify-end items-center mt-3 gap-2">
+                            {onView && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onView(document)}
+                                className="hover:bg-blue-50 hover:border-blue-300"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"
@@ -266,14 +288,26 @@ const EvidenceDisplay = ({ evidenceDocuments, onDownload, className = "" }: Evid
                               </div>
                             </div>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => onDownload?.(document)}
-                            className="hover:bg-blue-50 hover:border-blue-300"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-2">
+                            {onView && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => onView(document)}
+                                className="hover:bg-blue-50 hover:border-blue-300"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onDownload?.(document)}
+                              className="hover:bg-blue-50 hover:border-blue-300"
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -418,6 +452,11 @@ export default function InvestigationResultDetailPage() {
   const [partiesDetailedAttendance, setPartiesDetailedAttendance] = useState<any>({});
   const [recommendedActionsDetails, setRecommendedActionsDetails] = useState<any>({});
   const [internalSatgasNotes, setInternalSatgasNotes] = useState("");
+
+  // View evidence modal states
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [currentViewEvidence, setCurrentViewEvidence] = useState<{ url: string; fileName: string } | null>(null);
+  const [viewError, setViewError] = useState<string | null>(null);
 
   // Upload states
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
@@ -875,12 +914,12 @@ export default function InvestigationResultDetailPage() {
   };
 
   // Enhanced document download handler with better error handling
-  const handleDownloadEvidenceFile = async (document: any) => {
+  const handleDownloadEvidenceFile = async (evidenceFile: any) => {
     try {
       // Handle legacy files differently
-      if (document.isLegacy || (document.id && document.id.startsWith('legacy-'))) {
+      if (evidenceFile.isLegacy || (evidenceFile.id && evidenceFile.id.startsWith('legacy-'))) {
         // For legacy files, get the original file data
-        const legacyFile = document.originalFile || document;
+        const legacyFile = evidenceFile.originalFile || evidenceFile;
         
         if (!legacyFile) {
           alert("File legacy tidak ditemukan dalam data hasil investigasi");
@@ -940,9 +979,9 @@ export default function InvestigationResultDetailPage() {
       }
       
       // Handle new format documents (from InvestigationDocument table)
-      if (document.id && document.fileName && !document.id.startsWith('legacy-')) {
-        const downloadUrl = `/api/documents/${document.id}/download`;
-        const fileName = document.fileName;
+      if (evidenceFile.id && evidenceFile.fileName && !evidenceFile.id.startsWith('legacy-')) {
+        const downloadUrl = `/api/documents/${evidenceFile.id}/download`;
+        const fileName = evidenceFile.fileName;
         
         try {
           const response = await fetch(downloadUrl);
@@ -975,6 +1014,97 @@ export default function InvestigationResultDetailPage() {
     } catch (error) {
       console.error("Download error:", error);
       alert("Terjadi kesalahan saat mengunduh file. Silakan coba lagi.");
+    }
+  };
+
+  const handleViewEvidenceFile = async (evidenceFile: any) => {
+    try {
+      let viewUrl: string;
+      let fileName: string;
+
+      // Handle legacy files differently
+      if (evidenceFile.isLegacy || (evidenceFile.id && evidenceFile.id.startsWith('legacy-'))) {
+        const legacyFile = evidenceFile.originalFile || evidenceFile;
+        
+        if (!legacyFile) {
+          alert("File legacy tidak ditemukan dalam data hasil investigasi");
+          return;
+        }
+        
+        fileName = legacyFile.name || 'evidence-file';
+        
+        if (legacyFile.path && legacyFile.path.startsWith('http')) {
+          // External URL - use directly
+          viewUrl = legacyFile.path;
+        } else if (legacyFile.path) {
+          // Try multiple approaches for legacy files
+          try {
+            const baseUrl = window.location.origin;
+            const pathParts = legacyFile.path.split('/');
+            const pathFileName = pathParts[pathParts.length - 1];
+            
+            // Approach 1: Try direct file access in uploads directory
+            viewUrl = `${baseUrl}/uploads/${legacyFile.path.replace(/^\/+/, '')}`;
+            
+            // Test if the URL is accessible
+            const testResponse = await fetch(viewUrl, { method: 'HEAD' });
+            if (!testResponse.ok) {
+              // Approach 2: Try with just the filename
+              viewUrl = `${baseUrl}/uploads/evidence/${pathFileName}`;
+              const testResponse2 = await fetch(viewUrl, { method: 'HEAD' });
+              if (!testResponse2.ok) {
+                console.warn('All view attempts failed for legacy file:', legacyFile.path);
+                alert(`File "${fileName}" tidak dapat ditampilkan. File mungkin telah dihapus atau dipindahkan.`);
+                return;
+              }
+            }
+          } catch (fetchError) {
+            console.error('Legacy file view failed:', fetchError);
+            alert(`Gagal menampilkan file legacy: ${fileName}. Silakan hubungi administrator.`);
+            return;
+          }
+        } else {
+          alert("Path file legacy tidak valid");
+          return;
+        }
+      } else {
+        // Handle new format documents (from InvestigationDocument table)
+        if (evidenceFile.id && evidenceFile.fileName && !evidenceFile.id.startsWith('legacy-')) {
+          const downloadUrl = `/api/documents/${evidenceFile.id}/download`;
+          fileName = evidenceFile.fileName;
+          
+          try {
+            const response = await fetch(downloadUrl);
+            
+            if (!response.ok) {
+              if (response.status === 404) {
+                alert(`File "${fileName}" tidak ditemukan di database. File mungkin telah dihapus.`);
+              } else {
+                alert(`Gagal mengakses file "${fileName}". Status: ${response.status}. Silakan hubungi administrator.`);
+              }
+              return;
+            }
+
+            // For viewing, we can use the same download URL
+            viewUrl = downloadUrl;
+          } catch (fetchError) {
+            console.error('Document view failed:', fetchError);
+            alert(`Gagal menampilkan file "${fileName}". Silakan coba lagi atau hubungi administrator.`);
+            return;
+          }
+        } else {
+          alert("Format file tidak valid untuk ditampilkan");
+          return;
+        }
+      }
+
+      // Set up the view modal
+      setCurrentViewEvidence({ url: viewUrl, fileName });
+      setViewError(null);
+      setIsViewModalOpen(true);
+    } catch (error) {
+      console.error("View error:", error);
+      alert("Terjadi kesalahan saat menampilkan file. Silakan coba lagi.");
     }
   };
 
@@ -1107,14 +1237,6 @@ export default function InvestigationResultDetailPage() {
                   <Eye className="w-4 h-4 mr-2" />
                   Lihat Rekapan
                 </Button>
-                <Button
-                  onClick={handleDownloadResultPdf}
-                  variant="outline"
-                  disabled={isSubmitting}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Unduh PDF
-                </Button>
               </>
             ) : (
               <>
@@ -1124,13 +1246,6 @@ export default function InvestigationResultDetailPage() {
                 >
                   <FileCheck className="w-4 h-4 mr-2" />
                   Edit Hasil
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleDownloadResultPdf}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Unduh PDF
                 </Button>
               </>
             )}
@@ -1161,76 +1276,6 @@ export default function InvestigationResultDetailPage() {
                   />
                 </div>
                 
-                <div className="space-y-3">
-                  <Label>Metode Investigasi *</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {investigationMethods.map((method) => (
-                      <div key={method.value} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`method-${method.value}`}
-                          checked={methods.includes(method.value)}
-                          onCheckedChange={(checked) => handleMethodChange(method.value, checked as boolean)}
-                        />
-                        <Label htmlFor={`method-${method.value}`} className="text-sm">
-                          {method.label}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  <Label>Pihak yang Terlibat *</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {investigationParties.map((party) => (
-                      <div key={party.value} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`party-${party.value}`}
-                          checked={partiesInvolved.includes(party.value)}
-                          onCheckedChange={(checked) => handlePartyChange(party.value, checked as boolean)}
-                        />
-                        <Label htmlFor={`party-${party.value}`} className="text-sm">
-                          {party.label}
-                        </Label>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  {(partiesInvolved.includes('OTHER_PARTY') || otherPartiesDetails) && (
-                    <div className="space-y-2">
-                      <Label htmlFor="otherPartiesDetails">Detail Pihak Lain</Label>
-                      <Textarea
-                        id="otherPartiesDetails"
-                        value={otherPartiesDetails}
-                        onChange={(e) => setOtherPartiesDetails(e.target.value)}
-                        placeholder="Jelaskan secara detail pihak lain yang terlibat..."
-                        rows={3}
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="riskNotes">Catatan Risiko</Label>
-                  <Textarea
-                    id="riskNotes"
-                    value={riskNotes}
-                    onChange={(e) => setRiskNotes(e.target.value)}
-                    placeholder="Identifikasi potensi risiko dan mitigasinya..."
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="planSummary">Ringkasan Rencana Investigasi</Label>
-                  <Textarea
-                    id="planSummary"
-                    value={planSummary}
-                    onChange={(e) => setPlanSummary(e.target.value)}
-                    placeholder="Ringkasan singkat tentang tujuan dan langkah investigasi..."
-                    rows={3}
-                  />
-                </div>
               </CardContent>
             </Card>
 
@@ -1531,6 +1576,7 @@ export default function InvestigationResultDetailPage() {
                   <EvidenceDisplay 
                     evidenceDocuments={evidenceDocuments}
                     onDownload={handleDownloadEvidenceFile}
+                    onView={handleViewEvidenceFile}
                     className=""
                   />
                 </div>
@@ -1780,153 +1826,7 @@ export default function InvestigationResultDetailPage() {
               </CardContent>
             </Card>
 
-            {/* Informasi Jadwal Referensi */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5" />
-                  Informasi Jadwal Referensi
-                </CardTitle>
-                <CardDescription>
-                  Data ini diambil dari jadwal investigasi yang telah direncanakan sebelumnya (dapat diubah jika pelaksanaan berbeda)
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Judul Kegiatan
-                      </h4>
-                      <p className="text-gray-900 dark:text-white">
-                        {result.schedulingTitle || 'Sesi Investigasi'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-900 dark:text-white">
-                        {result.schedulingLocation || result.location || '-'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Nomor Laporan
-                      </h4>
-                      <p className="text-gray-900 dark:text-white">
-                        {result.reportNumber || report?.reportNumber || '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Judul Kasus
-                      </h4>
-                      <p className="text-gray-900 dark:text-white">
-                        {result.caseTitle || report?.caseTitle || '-'}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Tanggal Pembuatan BA
-                      </h4>
-                      <p className="text-gray-900 dark:text-white">
-                        {formatDateTime(result.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Metode Investigasi */}
-                {result.methods && Array.isArray(result.methods) && result.methods.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-gray-700 dark:text-gray-300">
-                      Metode Investigasi
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {result.methods.map((method: string, idx: number) => {
-                        const methodLabels: { [key: string]: string } = {
-                          'INTERVIEW': 'Wawancara',
-                          'WRITTEN_CLARIFICATION': 'Klarifikasi Tertulis',
-                          'LOCATION_OBSERVATION': 'Observasi Lokasi',
-                          'DIGITAL_EVIDENCE_COLLECTION': 'Pengumpulan Bukti Digital',
-                          'MEDIATION': 'Mediasi',
-                          'OTHER': 'Lainnya'
-                        };
-                        return (
-                          <div key={idx} className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <span className="text-sm text-gray-900 dark:text-white">
-                              {methodLabels[method] || method}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Pihak yang Terlibat */}
-                {result.partiesInvolved && Array.isArray(result.partiesInvolved) && result.partiesInvolved.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-gray-700 dark:text-gray-300">
-                      Pihak yang Terlibat
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      {result.partiesInvolved.map((party: string, idx: number) => {
-                        const partyLabels: { [key: string]: string } = {
-                          'VICTIM_SURVIVOR': 'Korban/Penyintas',
-                          'REPORTED_PERSON': 'Terlapor',
-                          'WITNESS': 'Saksi',
-                          'OTHER_PARTY': ' Pihak Lain'
-                        };
-                        return (
-                          <div key={idx} className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-sm text-gray-900 dark:text-white">
-                              {partyLabels[party] || party}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Additional Form Fields */}
-                {result.otherPartiesDetails && (
-                  <div>
-                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Detail Pihak Lain
-                    </h4>
-                    <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 whitespace-pre-wrap">
-                      {result.otherPartiesDetails}
-                    </p>
-                  </div>
-                )}
-
-                {result.riskNotes && (
-                  <div>
-                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Catatan Risiko
-                    </h4>
-                    <p className="text-gray-900 dark:text-white bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800 whitespace-pre-wrap">
-                      {result.riskNotes}
-                    </p>
-                  </div>
-                )}
-
-                {result.planSummary && (
-                  <div>
-                    <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Ringkasan Rencana Investigasi
-                    </h4>
-                    <p className="text-gray-900 dark:text-white bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800 whitespace-pre-wrap">
-                      {result.planSummary}
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* Data Kehadiran */}
             {(result.satgasMembersPresent || result.partiesPresent) && (
@@ -2059,6 +1959,7 @@ export default function InvestigationResultDetailPage() {
             <EvidenceDisplay 
               evidenceDocuments={evidenceDocuments}
               onDownload={handleDownloadEvidenceFile}
+              onView={handleViewEvidenceFile}
               className=""
             />
 
@@ -2222,13 +2123,39 @@ export default function InvestigationResultDetailPage() {
                   Kembali ke Rekapan
                 </Link>
               </Button>
-              <Button onClick={handleDownloadResultPdf}>
-                <Download className="w-4 h-4 mr-2" />
-                Unduh PDF
-              </Button>
             </div>
           </div>
         )}
+
+        {/* VIEW EVIDENCE MODAL */}
+        <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>{currentViewEvidence?.fileName}</DialogTitle>
+              <DialogDescription>
+                Preview bukti investigasi. File akan ditampilkan dalam format aslinya.
+              </DialogDescription>
+            </DialogHeader>
+            {currentViewEvidence && (
+              <div className="w-full h-[60vh]">
+                {viewError ? (
+                  <div className="flex items-center justify-center h-full text-red-500">
+                    {viewError}
+                  </div>
+                ) : (
+                  <iframe
+                    src={currentViewEvidence.url}
+                    className="w-full h-full border rounded"
+                    title={currentViewEvidence.fileName}
+                    onError={() =>
+                      setViewError("File tidak ditemukan atau tidak dapat ditampilkan")
+                    }
+                  />
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
