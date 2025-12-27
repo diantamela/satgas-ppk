@@ -61,9 +61,14 @@ const staticData = {
       icon: IconCalendar,
     },
     {
-      title: "Rekomendasi",
+      title: "Rekomendasi ke Rektor",
       url: "/satgas/dashboard/rekomendasi",
       icon: IconFileDescription,
+    },
+    {
+      title: "Rekomendasi User",
+      url: "/satgas/dashboard/rekomendasi-user",
+      icon: IconMessageCircle,
     },
     {
       title: "Berita Kegiatan",
@@ -123,6 +128,11 @@ const staticData = {
       title: "Cek Status",
       url: "/user/cek-status",
       icon: IconSearch,
+    },
+    {
+      title: "Rekomendasi",
+      url: "/user/rekomendasi",
+      icon: IconFileDescription,
     },
     {
       title: "Pengaturan",
