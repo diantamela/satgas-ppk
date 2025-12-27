@@ -14,6 +14,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { id } = await params;
     const body = await request.json();
+    
+    console.log('📝 Incoming final report data:', {
+      actionTaken: body.actionTaken,
+      recommendations: body.recommendations,
+      actionTakenType: typeof body.actionTaken,
+      recommendationsType: typeof body.recommendations,
+      actionTakenIsArray: Array.isArray(body.actionTaken),
+      recommendationsIsArray: Array.isArray(body.recommendations)
+    });
 
     // Validate that investigation progress is 100%
     const report = await db.report.findUnique({
@@ -66,6 +75,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       select: { name: true, email: true }
     });
 
+    // Process arrays to ensure they're properly formatted
+    const processedActionTaken = Array.isArray(body.actionTaken) ? body.actionTaken : 
+                               (body.actionTaken ? [body.actionTaken] : []);
+    const processedRecommendations = Array.isArray(body.recommendations) ? body.recommendations : 
+                                   (body.recommendations ? [body.recommendations] : []);
+    
+    // Ensure JSON is properly formatted for PostgreSQL
+    const formattedActionTaken = JSON.stringify(processedActionTaken);
+    const formattedRecommendations = JSON.stringify(processedRecommendations);
+    
+    console.log('🔧 Processed data before saving:', {
+      actionTaken: processedActionTaken,
+      recommendations: processedRecommendations,
+      actionTakenLength: processedActionTaken.length,
+      recommendationsLength: processedRecommendations.length,
+      formattedActionTaken,
+      formattedRecommendations
+    });
+    
     // Create final report
     const finalReport = await db.finalReport.create({
       data: {
@@ -76,10 +104,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         completedDate: new Date(),
         investigator: investigatorInfo?.name || 'Unknown Investigator',
         caseSummary: body.caseSummary || "",
-        actionTaken: Array.isArray(body.actionTaken) ? body.actionTaken : 
-                   (body.actionTaken ? [body.actionTaken] : []),
-        recommendations: Array.isArray(body.recommendations) ? body.recommendations : 
-                        (body.recommendations ? [body.recommendations] : []),
+        actionTaken: processedActionTaken as any,
+        recommendations: processedRecommendations as any,
         fileUrl: body.fileUrl || null,
         fileSize: body.fileSize || null,
         createdBy: session.user.id,
@@ -95,6 +121,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             Math.ceil((new Date().getTime() - new Date(report.investigationStartedAt).getTime()) / (1000 * 60 * 60 * 24)) : 0
         }
       }
+    });
+    
+    console.log('✅ Final report created successfully:', {
+      id: finalReport.id,
+      actionTaken: finalReport.actionTaken,
+      recommendations: finalReport.recommendations,
+      actionTakenLength: Array.isArray(finalReport.actionTaken) ? finalReport.actionTaken.length : 'not an array',
+      recommendationsLength: Array.isArray(finalReport.recommendations) ? finalReport.recommendations.length : 'not an array'
+    });
+    
+    // Double-check by querying the database directly
+    const savedReport = await db.finalReport.findUnique({
+      where: { id: finalReport.id },
+      select: {
+        actionTaken: true,
+        recommendations: true
+      }
+    });
+    
+    console.log('🔍 Direct database query result:', {
+      savedActionTaken: savedReport?.actionTaken,
+      savedRecommendations: savedReport?.recommendations,
+      savedActionTakenType: typeof savedReport?.actionTaken,
+      savedRecommendationsType: typeof savedReport?.recommendations,
+      savedActionTakenIsArray: Array.isArray(savedReport?.actionTaken),
+      savedRecommendationsIsArray: Array.isArray(savedReport?.recommendations)
     });
 
     // Update report status to indicate final report is created
@@ -197,15 +249,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
+    const responseData = {
+      ...finalReport,
+      actionTaken: Array.isArray(finalReport.actionTaken) ? finalReport.actionTaken :
+                  (finalReport.actionTaken ? [finalReport.actionTaken] : []),
+      recommendations: Array.isArray(finalReport.recommendations) ? finalReport.recommendations :
+                      (finalReport.recommendations ? [finalReport.recommendations] : [])
+    };
+    
+    console.log('📤 Sending final report data:', {
+      actionTaken: responseData.actionTaken,
+      recommendations: responseData.recommendations,
+      actionTakenLength: Array.isArray(responseData.actionTaken) ? responseData.actionTaken.length : 'not an array',
+      recommendationsLength: Array.isArray(responseData.recommendations) ? responseData.recommendations.length : 'not an array'
+    });
+    
     return Response.json({
       success: true,
-      finalReport: {
-        ...finalReport,
-        actionTaken: Array.isArray(finalReport.actionTaken) ? finalReport.actionTaken :
-                    (finalReport.actionTaken ? [finalReport.actionTaken] : []),
-        recommendations: Array.isArray(finalReport.recommendations) ? finalReport.recommendations :
-                        (finalReport.recommendations ? [finalReport.recommendations] : [])
-      },
+      finalReport: responseData,
     });
   } catch (error) {
     console.error("Error fetching final report:", error);

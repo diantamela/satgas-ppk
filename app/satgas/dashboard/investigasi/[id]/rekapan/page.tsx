@@ -337,12 +337,27 @@ export default function InvestigationRekapanPage() {
     setSavingFinalReport(true);
     try {
       const reportId = Array.isArray(id) ? id[0] : id;
+      
+      // Ensure arrays are properly structured
+      const submissionData = {
+        ...finalReport,
+        actionTaken: Array.isArray(finalReport.actionTaken) ? finalReport.actionTaken : [],
+        recommendations: Array.isArray(finalReport.recommendations) ? finalReport.recommendations : []
+      };
+      
+      console.log('📤 Frontend submission data:', {
+        actionTaken: submissionData.actionTaken,
+        recommendations: submissionData.recommendations,
+        actionTakenLength: submissionData.actionTaken.length,
+        recommendationsLength: submissionData.recommendations.length
+      });
+      
       const response = await fetch(`/api/reports/${reportId}/final-report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(finalReport),
+        body: JSON.stringify(submissionData),
       });
 
       const data = await response.json();
