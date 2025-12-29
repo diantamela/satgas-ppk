@@ -2,7 +2,7 @@
 
 import { useSession } from '@/lib/auth/auth-client';
 import { getNormalizedRoleFromSession } from '@/lib/auth/auth-utils';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface RoleGuardProps {
@@ -14,36 +14,24 @@ export function RoleGuard({ children, requiredRoles = [] }: RoleGuardProps) {
   const { data: session, isPending } = useSession();
   const router = useRouter();
 
+  // Memoize expensive calculations
+  const userRole = useMemo(() => getNormalizedRoleFromSession(session), [session]);
+  const normalizedRequiredRoles = useMemo(() => requiredRoles.map(r => r.toUpperCase()), [requiredRoles]);
+  const hasRequiredRole = useMemo(() => 
+    requiredRoles.length === 0 || normalizedRequiredRoles.includes(userRole || ''), 
+    [requiredRoles, normalizedRequiredRoles, userRole]
+  );
+
   useEffect(() => {
-    const userRole = getNormalizedRoleFromSession(session);
-    const normalizedRequiredRoles = requiredRoles.map(r => r.toUpperCase());
-    const hasRequiredRole = requiredRoles.length === 0 || normalizedRequiredRoles.includes(userRole || '');
-
-    console.log('RoleGuard Debug:', {
-      pathname: window.location.pathname,
-      hasSession: !!session,
-      isPending,
-      userRole,
-      requiredRoles,
-      normalizedRequiredRoles,
-      hasRequiredRole,
-      sessionUser: session?.user?.role
-    });
-
     if (!isPending && !session) {
-      console.log('RoleGuard - Redirecting to sign-in: no session');
       router.push('/sign-in');
     } else if (!isPending && session && !hasRequiredRole) {
-      console.log('RoleGuard - Redirecting to home: insufficient role', { userRole, requiredRoles, normalizedRequiredRoles });
       router.push('/');
-    } else if (!isPending && session && hasRequiredRole) {
-      console.log('RoleGuard - Access granted');
     }
-  }, [session, isPending, router, requiredRoles]);
+  }, [session, isPending, router, hasRequiredRole]); // Remove requiredRoles from dependencies
 
   // Show loading state while checking session
   if (isPending) {
-    console.log('RoleGuard - Showing loading state: session check in progress');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -55,7 +43,6 @@ export function RoleGuard({ children, requiredRoles = [] }: RoleGuardProps) {
   }
 
   if (!session) {
-    console.log('RoleGuard - Showing loading state: no session');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -66,9 +53,7 @@ export function RoleGuard({ children, requiredRoles = [] }: RoleGuardProps) {
     );
   }
 
-  const userRole = getNormalizedRoleFromSession(session) || '';
-  if (requiredRoles.length > 0 && !requiredRoles.map(r => r.toUpperCase()).includes(userRole)) {
-    console.log('RoleGuard - Showing loading state: insufficient role');
+  if (requiredRoles.length > 0 && !hasRequiredRole) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -80,6 +65,5 @@ export function RoleGuard({ children, requiredRoles = [] }: RoleGuardProps) {
   }
 
   // Render children if user has required role
-  console.log('RoleGuard - Rendering children');
   return <>{children}</>;
 }

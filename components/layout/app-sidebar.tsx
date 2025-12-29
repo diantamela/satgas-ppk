@@ -60,16 +60,8 @@ const staticData = {
       url: "/satgas/dashboard/penjadwalan",
       icon: IconCalendar,
     },
-    {
-      title: "Rekomendasi ke Rektor",
-      url: "/satgas/dashboard/rekomendasi",
-      icon: IconFileDescription,
-    },
-    {
-      title: "Rekomendasi User",
-      url: "/satgas/dashboard/rekomendasi-user",
-      icon: IconMessageCircle,
-    },
+
+
     {
       title: "Berita Kegiatan",
       url: "/satgas/dashboard/gallery",
@@ -86,6 +78,11 @@ const staticData = {
       icon: IconDatabase,
     },
     {
+      title: "Rekomendasi",
+      url: "/satgas/dashboard/rekomendasi",
+      icon: IconMessageCircle,
+    },
+    {
       title: "Konsultasi",
       url: "/satgas/dashboard/konsultasi",
       icon: IconMessageCircle,
@@ -98,19 +95,19 @@ const staticData = {
   ],
   navRektor: [
     {
-      title: "Dashboard Rektor",
+      title: "Dashboard Rector",
       url: "/rektor/dashboard",
       icon: IconDashboard,
+    },
+    {
+      title: "Rekomendasi",
+      url: "/rektor/dashboard/rekomendasi",
+      icon: IconMessageCircle,
     },
     {
       title: "Laporan Akhir",
       url: "/rektor/dashboard/laporan-akhir",
       icon: IconReport,
-    },
-    {
-      title: "Rekomendasi",
-      url: "/rektor/dashboard/rekomendasi",
-      icon: IconFileDescription,
     },
   ],
   navUser: [
@@ -134,6 +131,7 @@ const staticData = {
       url: "/user/rekomendasi",
       icon: IconFileDescription,
     },
+
     {
       title: "Pengaturan",
       url: "/user/settings",

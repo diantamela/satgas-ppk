@@ -18,8 +18,9 @@ import {
   Users,
   Phone,
   BookOpen,
+  Eye,
+  MessageSquare,
 } from "lucide-react";
-import { RoleGuard } from "@/components/auth/role-guard";
 import { useSession } from "@/lib/auth/auth-client";
 
 interface UserRecommendation {
@@ -33,6 +34,12 @@ interface UserRecommendation {
   updatedAt: string;
   response?: string;
   respondedAt?: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  respondedBy?: string;
   report?: {
     id: string;
     reportNumber: string;
@@ -41,7 +48,14 @@ interface UserRecommendation {
   };
 }
 
-export default function UserRekomendasiPage() {
+interface UserReport {
+  id: string;
+  reportNumber: string;
+  title: string;
+  status: string;
+}
+
+export default function UserRecommendationsPage() {
   const { data: session } = useSession();
   const [recommendations, setRecommendations] = useState<UserRecommendation[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -51,17 +65,20 @@ export default function UserRekomendasiPage() {
     title: "",
     description: "",
     content: "",
-    type: "psikolog" as UserRecommendation['type'],
-    reportId: null as string | null
+    type: "",
+    reportId: "none"
   });
-  const [userReports, setUserReports] = useState<any[]>([]);
+  const [userReports, setUserReports] = useState<UserReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
 
   useEffect(() => {
-    fetchUserRecommendations();
-    fetchUserAcceptedReports();
-  }, []);
+    fetchRecommendations();
+    if (session?.user?.id) {
+      fetchUserReports();
+    }
+  }, [session]);
 
-  const fetchUserRecommendations = async () => {
+  const fetchRecommendations = async () => {
     try {
       const response = await fetch('/api/user/recommendations');
       if (response.ok) {
@@ -75,27 +92,29 @@ export default function UserRekomendasiPage() {
     }
   };
 
-  const fetchUserAcceptedReports = async () => {
+  const fetchUserReports = async () => {
+    if (!session?.user?.id) return;
+    
+    setLoadingReports(true);
     try {
-      // Get user's accepted reports (not rejected)
-      const response = await fetch('/api/reports');
+      const response = await fetch(`/api/reports?reporterId=${session.user.id}`);
       if (response.ok) {
         const data = await response.json();
-        // Filter reports that belong to current user and are not rejected
-        const acceptedReports = data.reports?.filter((report: any) => 
-          report.reporterId === session?.user?.id && 
-          report.status !== 'REJECTED'
-        ) || [];
-        setUserReports(acceptedReports);
+        setUserReports(data.reports || []);
       }
     } catch (error) {
       console.error('Error fetching user reports:', error);
+    } finally {
+      setLoadingReports(false);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!session?.user?.id) return;
+    if (!formData.title || !formData.description || !formData.content || !formData.type) {
+      alert('Harap lengkapi semua field yang diperlukan');
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -104,10 +123,7 @@ export default function UserRekomendasiPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          userId: session.user.id,
-        })
+        body: JSON.stringify(formData)
       });
 
       if (response.ok) {
@@ -116,10 +132,10 @@ export default function UserRekomendasiPage() {
           title: "",
           description: "",
           content: "",
-          type: "psikolog",
-          reportId: null
+          type: "",
+          reportId: "none"
         });
-        fetchUserRecommendations();
+        fetchRecommendations();
         alert('Rekomendasi berhasil dikirim ke SATGAS');
       } else {
         const error = await response.json();
@@ -200,251 +216,257 @@ export default function UserRekomendasiPage() {
   };
 
   return (
-    <RoleGuard requiredRoles={['USER']}>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Rekomendasi ke SATGAS</h1>
-            <p className="text-gray-600 dark:text-gray-400">Ajukan rekomendasi untuk mendapatkan pendampingan dari SATGAS PPKS</p>
-          </div>
-          <Button onClick={() => setShowCreateForm(!showCreateForm)} className="mt-4 md:mt-0">
-            <Plus className="w-4 h-4 mr-2" />
-            {showCreateForm ? 'Batal' : 'Buat Rekomendasi'}
-          </Button>
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Rekomendasi ke SATGAS</h1>
+          <p className="text-gray-600 dark:text-gray-400">Ajukan rekomendasi untuk mendapatkan pendampingan dari SATGAS PPKS</p>
         </div>
+        <Button 
+          onClick={() => setShowCreateForm(!showCreateForm)}
+          className="mt-4 md:mt-0"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Ajukan Rekomendasi
+        </Button>
+      </div>
 
-        {showCreateForm && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Buat Rekomendasi Baru</CardTitle>
-              <CardDescription>
-                Ajukan rekomendasi untuk mendapatkan pendampingan atau layanan dari SATGAS PPKS
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Pilih Laporan (Opsional)
-                  </label>
-                  <Select value={formData.reportId || undefined} onValueChange={(value) => setFormData({...formData, reportId: value || null})}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Pilih laporan yang sudah diterima (opsional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {userReports.map((report) => (
-                        <SelectItem key={report.id} value={report.id}>
-                          {report.reportNumber} - {report.title} ({report.status})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Pilih salah satu laporan yang sudah diterima (opsional)
-                  </p>
-                </div>
+      {/* Create Form */}
+      {showCreateForm && (
+        <Card className="mb-6 border-2 border-green-200 dark:border-green-800">
+          <CardHeader>
+            <CardTitle>Ajukan Rekomendasi Baru</CardTitle>
+            <CardDescription>
+              Ajukan rekomendasi untuk mendapatkan pendampingan atau layanan dari SATGAS PPKS
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Judul Rekomendasi *
+                </label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  placeholder="Contoh: Memerlukan Pendampingan Psikolog"
+                  required
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Jenis Rekomendasi
-                  </label>
-                  <Select value={formData.type} onValueChange={(value: UserRecommendation['type']) => setFormData({...formData, type: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="psikolog">Pendampingan Psikolog</SelectItem>
-                      <SelectItem value="konseling">Konseling</SelectItem>
-                      <SelectItem value="pendampingan">Pendampingan Umum</SelectItem>
-                      <SelectItem value="dukungan">Dukungan Emosional</SelectItem>
-                      <SelectItem value="konsultasi">Konsultasi</SelectItem>
-                      <SelectItem value="lainnya">Lainnya</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Pilih Laporan (Opsional)
+                </label>
+                <Select value={formData.reportId} onValueChange={(value) => setFormData({...formData, reportId: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingReports ? "Memuat laporan..." : "Pilih laporan yang berkaitan (opsional)"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Tidak ada laporan spesifik</SelectItem>
+                    {userReports.map((report) => (
+                      <SelectItem key={report.id} value={report.id}>
+                        {report.reportNumber} - {report.title} ({report.status})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Pilih laporan spesifik yang berkaitan dengan rekomendasi ini, atau biarkan kosong jika tidak ada laporan spesifik.
+                </p>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Judul Rekomendasi
-                  </label>
-                  <Input
-                    value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
-                    placeholder="Contoh: Permohonan Pendampingan Psikolog"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Deskripsi Singkat *
+                </label>
+                <Input
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Jelaskan secara singkat rekomendasi yang Anda butuhkan"
+                  required
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Deskripsi Singkat
-                  </label>
-                  <Textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    placeholder="Jelaskan secara singkat rekomendasi yang Anda butuhkan"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Jenis Rekomendasi *
+                </label>
+                <Select value={formData.type} onValueChange={(value) => setFormData({...formData, type: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih jenis rekomendasi" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="psikolog">Pendampingan Psikolog</SelectItem>
+                    <SelectItem value="konseling">Konseling</SelectItem>
+                    <SelectItem value="pendampingan">Pendampingan</SelectItem>
+                    <SelectItem value="dukungan">Dukungan</SelectItem>
+                    <SelectItem value="konsultasi">Konsultasi</SelectItem>
+                    <SelectItem value="lainnya">Lainnya</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Detail Permintaan
-                  </label>
-                  <Textarea
-                    value={formData.content}
-                    onChange={(e) => setFormData({...formData, content: e.target.value})}
-                    placeholder="Jelaskan secara detail bantuan atau pendampingan yang Anda butuhkan"
-                    rows={6}
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Detail Permintaan *
+                </label>
+                <Textarea
+                  value={formData.content}
+                  onChange={(e) => setFormData({...formData, content: e.target.value})}
+                  placeholder="Jelaskan secara detail rekomendasi yang Anda butuhkan"
+                  rows={6}
+                  required
+                />
+              </div>
 
+              <div className="flex gap-2">
                 <Button type="submit" disabled={submitting}>
                   <Send className="w-4 h-4 mr-2" />
-                  {submitting ? 'Mengirim...' : 'Kirim ke SATGAS'}
+                  {submitting ? 'Mengirim...' : 'Kirim Rekomendasi'}
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
+                <Button type="button" variant="outline" onClick={() => setShowCreateForm(false)}>
+                  Batal
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-4">
-                <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{recommendations.length}</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Total Rekomendasi</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg mr-4">
-                <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {recommendations.filter(r => r.status === 'pending').length}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Menunggu Respons</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-4">
-                <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {recommendations.filter(r => r.status === 'completed' || r.status === 'in_progress').length}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Diproses/Selesai</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="flex items-center p-6">
-              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg mr-4">
-                <Heart className="w-6 h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">
-                  {recommendations.filter(r => r.type === 'psikolog' || r.type === 'dukungan').length}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Psikologi/Dukungan</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recommendations List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">Memuat rekomendasi...</p>
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardContent className="flex items-center p-6">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-4">
+              <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
-          ) : recommendations.map((rec) => (
-            <Card key={rec.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {getTypeIcon(rec.type)}
-                      <CardTitle className="text-lg">{rec.title}</CardTitle>
-                    </div>
-                    <CardDescription className="mb-3">
-                      {rec.description}
-                    </CardDescription>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {getStatusBadge(rec.status)}
-                      {getTypeBadge(rec.type)}
-                    </div>
+            <div>
+              <p className="text-2xl font-bold">{recommendations.length}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Rekomendasi</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-center p-6">
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg mr-4">
+              <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {recommendations.filter(r => r.status === 'pending').length}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Menunggu Respons</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-center p-6">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg mr-4">
+              <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {recommendations.filter(r => r.status === 'completed' || r.status === 'in_progress').length}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Diproses/Selesai</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-center p-6">
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg mr-4">
+              <Heart className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold">
+                {recommendations.filter(r => r.type === 'psikolog' || r.type === 'dukungan').length}
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Psikologi/Dukungan</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* User Recommendations List */}
+      <div className="space-y-4">
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">Memuat rekomendasi...</p>
+          </div>
+        ) : recommendations.map((rec) => (
+          <Card key={rec.id} className="hover:shadow-md transition-shadow">
+            <CardHeader>
+              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    {getTypeIcon(rec.type)}
+                    <CardTitle className="text-lg">{rec.title}</CardTitle>
+                  </div>
+                  <CardDescription className="mb-3">
+                    {rec.description}
+                  </CardDescription>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {getStatusBadge(rec.status)}
+                    {getTypeBadge(rec.type)}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <p><strong>Dikirim pada:</strong> {formatDate(rec.createdAt)}</p>
+                    {rec.respondedBy && <p><strong>Direspon oleh:</strong> {rec.respondedBy}</p>}
                     {rec.report && (
-                      <div className="text-sm text-blue-600 dark:text-blue-400 mb-2">
-                        <strong>Terhadap Laporan:</strong> {rec.report.reportNumber} - {rec.report.title}
-                      </div>
+                      <p className="text-blue-600 dark:text-blue-400">
+                        <strong>Terhadap Laporan:</strong> {rec.report.reportNumber} - {rec.report.title} ({rec.report.status})
+                      </p>
                     )}
                   </div>
-                  <div className="flex flex-col gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      <span>{formatDate(rec.createdAt)}</span>
-                    </div>
-                  </div>
                 </div>
-              </CardHeader>
-              <CardContent>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <h4 className="font-semibold mb-2">Detail Permintaan:</h4>
+                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
+                    {rec.content}
+                  </pre>
+                </div>
+              </div>
+              
+              {rec.response && (
                 <div className="mb-4">
-                  <h4 className="font-semibold mb-2">Detail Permintaan:</h4>
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
-                      {rec.content}
+                  <h4 className="font-semibold mb-2">Respons SATGAS:</h4>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <pre className="whitespace-pre-wrap text-sm text-blue-800 dark:text-blue-200">
+                      {rec.response}
                     </pre>
+                    {rec.respondedAt && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                        Respons pada: {formatDate(rec.respondedAt)}
+                      </p>
+                    )}
                   </div>
                 </div>
-                
-                {rec.response && (
-                  <div className="mb-4">
-                    <h4 className="font-semibold mb-2">Respons SATGAS:</h4>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <pre className="whitespace-pre-wrap text-sm text-blue-800 dark:text-blue-200">
-                        {rec.response}
-                      </pre>
-                      {rec.respondedAt && (
-                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                          Respons pada: {formatDate(rec.respondedAt)}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {recommendations.length === 0 && !loading && (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Belum ada rekomendasi yang dikirim</p>
-              <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
-                Klik "Buat Rekomendasi" untuk meminta pendampingan dari SATGAS PPKS
-              </p>
+              )}
             </CardContent>
           </Card>
-        )}
+        ))}
       </div>
-    </RoleGuard>
+
+      {recommendations.length === 0 && !loading && (
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">Belum ada rekomendasi yang dikirim</p>
+            <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+              Klik tombol "Ajukan Rekomendasi" untuk memulai
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }

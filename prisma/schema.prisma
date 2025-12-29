@@ -24,6 +24,8 @@ model User {
   reportsAsAssignee Report[]                  @relation("ReportAssignee")
   reportsAsReporter Report[]                  @relation("ReportReporter")
   sessions          Session[]                 @relation("UserSessions")
+  userRecommendations Recommendation[]        @relation("UserRecommendations")
+  approvedRecommendations Recommendation[]    @relation("ApprovedRecommendations")
 
   @@index([email])
 }
@@ -215,19 +217,25 @@ model InvestigationResult {
 
 model Recommendation {
   id              String               @id @default(dbgenerated("gen_random_uuid()"))
-  reportId        String
+  reportId        String?
   title           String
   description     String
   content         String
+  type            String?
   status          RecommendationStatus @default(PENDING)
   priority        Priority             @default(MEDIUM)
   createdById     String
   approvedById    String?
   approvedAt      DateTime?            @db.Timestamptz(6)
   rejectionReason String?
+  response        String?
+  respondedAt     DateTime?            @db.Timestamptz(6)
+  respondedBy     String?
   createdAt       DateTime             @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
-  report          Report               @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  report          Report?              @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  createdBy       User                 @relation("UserRecommendations", fields: [createdById], references: [id], onDelete: Cascade)
+  approvedBy      User?                @relation("ApprovedRecommendations", fields: [approvedById], references: [id], onDelete: SetNull)
 
   @@index([reportId])
   @@index([status])

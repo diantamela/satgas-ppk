@@ -4,37 +4,62 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   FileText,
+  Plus,
   CheckCircle,
   Clock,
   AlertTriangle,
-  Shield,
-  Calendar,
+  Send,
+  Heart,
+  Users,
+  Phone,
+  BookOpen,
+  Eye,
+  MessageSquare,
+  Search,
+  Filter,
+  Download,
+  BarChart3,
+  TrendingUp,
   User,
 } from "lucide-react";
-import { RoleGuard } from "@/components/auth/role-guard";
+import { RoleGuard } from "../../../../components/auth/role-guard";
 
 interface Recommendation {
   id: string;
-  investigationId: string;
   title: string;
   description: string;
-  recommendation: string;
-  status: 'pending' | 'approved' | 'implemented';
+  content: string;
+  type: 'psikolog' | 'konseling' | 'pendampingan' | 'dukungan' | 'konsultasi' | 'lainnya';
+  status: 'PENDING' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'IMPLEMENTED';
   createdAt: string;
-  investigator: string;
-  priority: 'low' | 'medium' | 'high';
+  updatedAt: string;
+  response?: string;
+  respondedAt?: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  respondedBy?: string;
+  report?: {
+    id: string;
+    reportNumber: string;
+    title: string;
+    status: string;
+  };
 }
 
-export default function RektorRecommendationsPage() {
+export default function RectorRecommendationsPage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [showRejectDialog, setShowRejectDialog] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
   const [selectedRecommendation, setSelectedRecommendation] = useState<Recommendation | null>(null);
 
   useEffect(() => {
@@ -43,152 +68,40 @@ export default function RektorRecommendationsPage() {
 
   const fetchRecommendations = async () => {
     try {
-      console.log('🚀 Starting to fetch recommendations...');
-      const response = await fetch('/api/recommendations');
-      
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
-      
+      const response = await fetch('/api/satgas/recommendations');
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Successfully fetched recommendations:', data.length, 'items');
         setRecommendations(data);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('❌ Failed to fetch recommendations:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData
-        });
-        
-        // Show more specific error message to user
-        const errorMessage = errorData.details || errorData.error || `HTTP ${response.status}: ${response.statusText}`;
-        alert(`Gagal memuat rekomendasi: ${errorMessage}`);
-        
-        setRecommendations([]);
       }
     } catch (error) {
-      console.error('💥 Critical error fetching recommendations:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Terjadi kesalahan saat memuat rekomendasi: ${errorMessage}`);
-      setRecommendations([]);
+      console.error('Error fetching recommendations:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (recommendationId: string) => {
-    setProcessingId(recommendationId);
-    try {
-      const response = await fetch(`/api/recommendations/${recommendationId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'APPROVED' })
-      });
-
-      if (response.ok) {
-        fetchRecommendations(); // Refresh the list
-        alert('Rekomendasi berhasil disetujui');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Gagal menyetujui rekomendasi');
-      }
-    } catch (error) {
-      console.error('Error approving recommendation:', error);
-      alert('Gagal menyetujui rekomendasi');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleReject = async () => {
-    if (!selectedRecommendation || !rejectReason.trim()) return;
-
-    setProcessingId(selectedRecommendation.id);
-    try {
-      const response = await fetch(`/api/recommendations/${selectedRecommendation.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'REJECTED',
-          rejectionReason: rejectReason
-        })
-      });
-
-      if (response.ok) {
-        fetchRecommendations(); // Refresh the list
-        setShowRejectDialog(false);
-        setRejectReason("");
-        setSelectedRecommendation(null);
-        alert('Rekomendasi berhasil ditolak');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Gagal menolak rekomendasi');
-      }
-    } catch (error) {
-      console.error('Error rejecting recommendation:', error);
-      alert('Gagal menolak rekomendasi');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleMarkImplemented = async (recommendationId: string) => {
-    setProcessingId(recommendationId);
-    try {
-      const response = await fetch(`/api/recommendations/${recommendationId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'IMPLEMENTED' })
-      });
-
-      if (response.ok) {
-        fetchRecommendations(); // Refresh the list
-        alert('Rekomendasi berhasil ditandai sebagai diimplementasikan');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Gagal menandai implementasi');
-      }
-    } catch (error) {
-      console.error('Error marking as implemented:', error);
-      alert('Gagal menandai implementasi');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const openRejectDialog = (recommendation: Recommendation) => {
-    setSelectedRecommendation(recommendation);
-    setShowRejectDialog(true);
-  };
-
   const getStatusBadge = (status: Recommendation['status']) => {
-    switch (status) {
+    const statusMap: Record<string, string> = {
+      'PENDING': 'pending',
+      'SUBMITTED': 'responded',
+      'APPROVED': 'in_progress', 
+      'IMPLEMENTED': 'completed',
+      'REJECTED': 'rejected'
+    };
+    
+    const displayStatus = statusMap[status.toUpperCase()] || status.toLowerCase();
+    
+    switch (displayStatus) {
       case 'pending':
-        return <Badge variant="secondary">Menunggu Persetujuan</Badge>;
-      case 'approved':
-        return <Badge variant="default">Disetujui</Badge>;
-      case 'implemented':
-        return <Badge variant="success">Diimplementasikan</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  };
-
-  const getPriorityBadge = (priority: Recommendation['priority']) => {
-    switch (priority) {
-      case 'high':
-        return <Badge variant="destructive">Prioritas Tinggi</Badge>;
-      case 'medium':
-        return <Badge variant="default">Prioritas Sedang</Badge>;
-      case 'low':
-        return <Badge variant="secondary">Prioritas Rendah</Badge>;
+        return <Badge variant="secondary">Menunggu Respons</Badge>;
+      case 'responded':
+        return <Badge variant="default">Ada Respons</Badge>;
+      case 'in_progress':
+        return <Badge className="bg-blue-500 text-white">Sedang Diproses</Badge>;
+      case 'completed':
+        return <Badge className="bg-green-500 text-white">Selesai</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Ditolak</Badge>;
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }
@@ -197,63 +110,101 @@ export default function RektorRecommendationsPage() {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
     });
   };
 
-  if (loading) {
-    return (
-      <RoleGuard requiredRoles={["REKTOR"]}>
-        <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Shield className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                Rekomendasi
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Memuat rekomendasi dari investigasi...
-              </p>
-            </div>
-          </div>
-        </div>
-      </RoleGuard>
-    );
-  }
+  const filteredRecommendations = recommendations.filter(rec => {
+    const matchesSearch = rec.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         rec.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         rec.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         rec.user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesType = filterType === "all" || rec.type === filterType;
+    const matchesStatus = filterStatus === "all" || rec.status === filterStatus;
+    
+    return matchesSearch && matchesType && matchesStatus;
+  });
+
+  const exportToCSV = () => {
+    const headers = [
+      'Tanggal',
+      'User',
+      'Email',
+      'Judul',
+      'Jenis',
+      'Status',
+      'Deskripsi',
+      'Detail',
+      'Respons',
+      'Responded By',
+      'Report Number'
+    ];
+    
+    const csvData = filteredRecommendations.map(rec => [
+      formatDate(rec.createdAt),
+      rec.user.name,
+      rec.user.email,
+      rec.title,
+      rec.type,
+      rec.status,
+      rec.description,
+      rec.content,
+      rec.response || '',
+      rec.respondedBy || '',
+      rec.report?.reportNumber || ''
+    ]);
+    
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rekomendasi-laporan-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const statistics = {
+    total: recommendations.length,
+    pending: recommendations.filter(r => r.status === 'PENDING').length,
+    responded: recommendations.filter(r => r.status !== 'PENDING').length,
+    completed: recommendations.filter(r => r.status === 'IMPLEMENTED' || r.status === 'APPROVED').length,
+    rejected: recommendations.filter(r => r.status === 'REJECTED').length,
+  };
 
   return (
-    <RoleGuard requiredRoles={["REKTOR"]}>
-      <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        {/* Header */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Shield className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                Rekomendasi
-              </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Rekomendasi dari hasil investigasi Satgas PPK
-              </p>
-            </div>
+    <RoleGuard>
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Rekomendasi Keseluruhan</h1>
+            <p className="text-gray-600 dark:text-gray-400">Monitor semua rekomendasi dari user ke SATGAS PPKS</p>
           </div>
+          <Button onClick={exportToCSV} className="mt-4 md:mt-0">
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="flex items-center p-6">
               <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-4">
                 <FileText className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{recommendations.length}</p>
+                <p className="text-2xl font-bold">{statistics.total}</p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">Total Rekomendasi</p>
               </div>
             </CardContent>
@@ -265,10 +216,8 @@ export default function RektorRecommendationsPage() {
                 <Clock className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {recommendations.filter(r => r.status === 'pending').length}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Menunggu Persetujuan</p>
+                <p className="text-2xl font-bold">{statistics.pending}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Menunggu Respons</p>
               </div>
             </CardContent>
           </Card>
@@ -279,147 +228,196 @@ export default function RektorRecommendationsPage() {
                 <CheckCircle className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {recommendations.filter(r => r.status === 'implemented').length}
-                </p>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Diimplementasikan</p>
+                <p className="text-2xl font-bold">{statistics.completed}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Diproses/Selesai</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-center p-6">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg mr-4">
+                <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{statistics.responded}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Sudah Direspon</p>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Search and Filter Controls */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filter dan Pencarian
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                <Input
+                  placeholder="Cari judul, deskripsi, atau user..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter jenis" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Jenis</SelectItem>
+                  <SelectItem value="psikolog">Pendampingan Psikolog</SelectItem>
+                  <SelectItem value="konseling">Konseling</SelectItem>
+                  <SelectItem value="pendampingan">Pendampingan</SelectItem>
+                  <SelectItem value="dukungan">Dukungan</SelectItem>
+                  <SelectItem value="konsultasi">Konsultasi</SelectItem>
+                  <SelectItem value="lainnya">Lainnya</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Status</SelectItem>
+                  <SelectItem value="PENDING">Menunggu Respons</SelectItem>
+                  <SelectItem value="SUBMITTED">Ada Respons</SelectItem>
+                  <SelectItem value="APPROVED">Disetujui</SelectItem>
+                  <SelectItem value="IMPLEMENTED">Selesai</SelectItem>
+                  <SelectItem value="REJECTED">Ditolak</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setFilterType("all");
+                  setFilterStatus("all");
+                }}
+              >
+                Reset Filter
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Recommendations List */}
         <div className="space-y-4">
-          {recommendations.map((rec) => (
-            <Card key={rec.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg mb-2">{rec.title}</CardTitle>
-                    <CardDescription className="mb-3">
-                      {rec.description}
-                    </CardDescription>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {getStatusBadge(rec.status)}
-                      {getPriorityBadge(rec.priority)}
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">Memuat rekomendasi...</p>
+            </div>
+          ) : filteredRecommendations.length > 0 ? (
+            filteredRecommendations.map((rec) => (
+              <Card key={rec.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <CardTitle className="text-lg">{rec.title}</CardTitle>
+                      </div>
+                      <CardDescription className="mb-3">
+                        {rec.description}
+                      </CardDescription>
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {getStatusBadge(rec.status)}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="w-4 h-4" />
+                          <span><strong>User:</strong> {rec.user.name} ({rec.user.email})</span>
+                        </div>
+                        {rec.respondedBy && (
+                          <p><strong>Direspon oleh:</strong> {rec.respondedBy}</p>
+                        )}
+                        {rec.report && (
+                          <p className="text-blue-600 dark:text-blue-400">
+                            <strong>Terhadap Laporan:</strong> {rec.report.reportNumber} - {rec.report.title} ({rec.report.status})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 text-sm text-gray-600 dark:text-gray-400">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        <span>{formatDate(rec.createdAt)}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      <span>{rec.investigationId}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>{formatDate(rec.createdAt)}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4" />
-                      <span>{rec.investigator}</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <h4 className="font-semibold mb-2">Detail Permintaan:</h4>
+                    <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                      <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
+                        {rec.content}
+                      </pre>
                     </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <h4 className="font-semibold mb-2">Rekomendasi:</h4>
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <pre className="whitespace-pre-wrap text-sm text-gray-700 dark:text-gray-300">
-                      {rec.recommendation}
-                    </pre>
-                  </div>
-                </div>
+                  
+                  {rec.response && (
+                    <div className="mb-4">
+                      <h4 className="font-semibold mb-2">Respons SATGAS:</h4>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <pre className="whitespace-pre-wrap text-sm text-blue-800 dark:text-blue-200">
+                          {rec.response}
+                        </pre>
+                        {rec.respondedAt && (
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                            Respons pada: {formatDate(rec.respondedAt)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                <div className="flex gap-2">
-                  {rec.status === 'pending' && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleApprove(rec.id)}
-                        disabled={processingId === rec.id}
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        {processingId === rec.id ? 'Memproses...' : 'Setujui'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openRejectDialog(rec)}
-                        disabled={processingId === rec.id}
-                      >
-                        <AlertTriangle className="w-4 h-4 mr-2" />
-                        Tolak
-                      </Button>
-                    </>
-                  )}
-                  {rec.status === 'approved' && (
-                    <Button
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={() => setSelectedRecommendation(rec)}
+                      variant="outline"
                       size="sm"
-                      variant="default"
-                      onClick={() => handleMarkImplemented(rec.id)}
-                      disabled={processingId === rec.id}
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {processingId === rec.id ? 'Memproses...' : 'Tandai Implementasi'}
+                      <Eye className="w-4 h-4 mr-2" />
+                      Detail Lengkap
                     </Button>
-                  )}
-                  <Button size="sm" variant="ghost">
-                    Lihat Detail Investigasi
-                  </Button>
-                </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : (
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">Tidak ada rekomendasi yang ditemukan</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                  {searchTerm || filterType !== "all" || filterStatus !== "all" 
+                    ? "Coba ubah filter atau kata kunci pencarian" 
+                    : "Belum ada rekomendasi yang dikirim"}
+                </p>
               </CardContent>
             </Card>
-          ))}
+          )}
         </div>
 
-        {recommendations.length === 0 && (
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 dark:text-gray-400">Belum ada rekomendasi</p>
+        {filteredRecommendations.length > 0 && (
+          <Card className="mt-6">
+            <CardContent className="pt-6">
+              <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+                Menampilkan {filteredRecommendations.length} dari {recommendations.length} rekomendasi
+              </p>
             </CardContent>
           </Card>
         )}
-
-        {/* Reject Dialog */}
-        <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Tolak Rekomendasi</DialogTitle>
-              <DialogDescription>
-                Berikan alasan penolakan untuk rekomendasi ini.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <Textarea
-                placeholder="Jelaskan alasan penolakan..."
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                rows={4}
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowRejectDialog(false);
-                  setRejectReason("");
-                  setSelectedRecommendation(null);
-                }}
-              >
-                Batal
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleReject}
-                disabled={!rejectReason.trim() || processingId === selectedRecommendation?.id}
-              >
-                {processingId === selectedRecommendation?.id ? 'Memproses...' : 'Tolak Rekomendasi'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </RoleGuard>
   );

@@ -13,15 +13,15 @@ async function getCurrentUser() {
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get('session')?.value;
     
-    console.log('🔍 User API - Session token found:', sessionToken ? 'Yes' : 'No');
+    console.log('🔍 SATGAS API - Session token found:', sessionToken ? 'Yes' : 'No');
     
     if (!sessionToken) {
-      console.log('❌ User API - No session token in cookies');
+      console.log('❌ SATGAS API - No session token in cookies');
       return null;
     }
 
     const tokenHash = sha256(sessionToken);
-    console.log('🔍 User API - Token hash:', tokenHash.substring(0, 16) + '...');
+    console.log('🔍 SATGAS API - Token hash:', tokenHash.substring(0, 16) + '...');
 
     // Find valid session with user data
     const session = await db.session.findFirst({
@@ -45,7 +45,7 @@ async function getCurrentUser() {
 
     return session?.user || null;
   } catch (error) {
-    console.error('❌ User API - Error getting current user:', error);
+    console.error('❌ SATGAS API - Error getting current user:', error);
     if (error instanceof Error) {
       console.error('Error details:', {
         message: error.message,
@@ -64,7 +64,7 @@ async function getCurrentUser() {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("🔍 Fetching user recommendations - Request headers:", Object.fromEntries(request.headers.entries()));
+    console.log("🔍 Fetching recommendations for SATGAS - Request headers:", Object.fromEntries(request.headers.entries()));
 
     // Auth check - require session
     const auth = checkAuth(request);
@@ -75,25 +75,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    // Only USER can view their own recommendations
-    console.log("🔍 User role check:", user.role, "Required:", Role.USER);
-    if (user.role !== Role.USER) {
-      console.log("❌ Access denied - User role is", user.role, "but only", Role.USER, "role is allowed");
+    // Only SATGAS can view all recommendations
+    console.log("🔍 SATGAS role check:", user.role, "Required:", Role.SATGAS);
+    if (user.role !== Role.SATGAS) {
+      console.log("❌ Access denied - User role is", user.role, "but only", Role.SATGAS, "role is allowed");
       return NextResponse.json({ 
         error: "Forbidden", 
-        details: `Access denied. This endpoint is for ${Role.USER} role only. Your role: ${user.role}`,
+        details: `Access denied. This endpoint is for ${Role.SATGAS} role only. Your role: ${user.role}`,
         yourRole: user.role,
-        requiredRole: Role.USER
+        requiredRole: Role.SATGAS
       }, { status: 403 });
     }
 
-    console.log("✅ Authentication successful. Fetching user recommendations from database...");
+    console.log("✅ Authentication successful. Fetching all recommendations from database...");
 
-    // Get user recommendations
+    // Get all user recommendations (for SATGAS to respond to)
     const recommendations = await db.recommendation.findMany({
-      where: {
-        createdById: user.id,
-      },
       include: {
         createdBy: {
           select: {
@@ -116,19 +113,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    console.log(`📊 Found ${recommendations.length} user recommendations`);
-
-    // Transform database status to frontend status
-    const getFrontendStatus = (dbStatus: string): string => {
-      const statusMapping: Record<string, string> = {
-        'PENDING': 'pending',
-        'SUBMITTED': 'responded',
-        'APPROVED': 'in_progress',
-        'IMPLEMENTED': 'completed',
-        'REJECTED': 'rejected'
-      };
-      return statusMapping[dbStatus] || dbStatus.toLowerCase();
-    };
+    console.log(`📊 Found ${recommendations.length} total recommendations`);
 
     // Transform data to match the expected interface
     const transformedRecommendations = recommendations.map((rec) => ({
@@ -137,7 +122,7 @@ export async function GET(request: NextRequest) {
       description: rec.description,
       content: rec.content,
       type: rec.type || 'lainnya',
-      status: getFrontendStatus(rec.status) as any,
+      status: rec.status.toUpperCase() as any, // Keep database enum format for SATGAS
       createdAt: rec.createdAt.toISOString(),
       updatedAt: rec.updatedAt.toISOString(),
       response: rec.response, // Now available from database
@@ -152,8 +137,8 @@ export async function GET(request: NextRequest) {
       } : null,
     }));
 
-    console.log("✅ Successfully fetched and transformed user recommendations");
-    console.log("📤 User API returning data:", {
+    console.log("✅ Successfully fetched and transformed recommendations for SATGAS");
+    console.log("📤 SATGAS API returning data:", {
       count: transformedRecommendations.length,
       sampleStatus: transformedRecommendations[0]?.status,
       sampleResponse: transformedRecommendations[0]?.response ? 'Present' : 'None',
@@ -161,7 +146,7 @@ export async function GET(request: NextRequest) {
     });
     return NextResponse.json(transformedRecommendations);
   } catch (error) {
-    console.error("💥 Critical error in GET /api/user/recommendations:", error);
+    console.error("💥 Critical error in GET /api/satgas/recommendations:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error details:", errorMessage);
     
@@ -172,9 +157,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
-    console.log("🔍 Creating user recommendation - Request headers:", Object.fromEntries(request.headers.entries()));
+    console.log("🔍 Updating recommendation response - Request headers:", Object.fromEntries(request.headers.entries()));
 
     // Auth check - require session
     const auth = checkAuth(request);
@@ -185,70 +170,66 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
-    // Only USER can create recommendations
-    if (user.role !== Role.USER) {
+    // Only SATGAS can respond to recommendations
+    if (user.role !== Role.SATGAS) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { title, description, content, type, reportId } = body;
+    const { id, status, response } = body;
 
     // Validate required fields
-    if (!title || !description || !content || !type) {
+    if (!id || !status) {
       return NextResponse.json(
-        { error: "Missing required fields: title, description, content, type" },
+        { error: "Missing required fields: id, status" },
         { status: 400 }
       );
     }
 
-    // Validate type
-    const validTypes = ['psikolog', 'konseling', 'pendampingan', 'dukungan', 'konsultasi', 'lainnya'];
-    if (!validTypes.includes(type)) {
+    // Map frontend status to database status
+    const statusMapping: Record<string, string> = {
+      'responded': 'SUBMITTED',
+      'in_progress': 'APPROVED', 
+      'completed': 'IMPLEMENTED',
+      'rejected': 'REJECTED',
+      // Also support direct database values
+      'PENDING': 'PENDING',
+      'SUBMITTED': 'SUBMITTED',
+      'APPROVED': 'APPROVED',
+      'REJECTED': 'REJECTED',
+      'IMPLEMENTED': 'IMPLEMENTED'
+    };
+
+    const dbStatus = statusMapping[status] || status.toUpperCase();
+    
+    const validStatuses = ['PENDING', 'SUBMITTED', 'APPROVED', 'REJECTED', 'IMPLEMENTED'];
+    if (!validStatuses.includes(dbStatus)) {
       return NextResponse.json(
-        { error: "Invalid type. Must be one of: " + validTypes.join(', ') },
+        { error: "Invalid status. Must be one of: " + validStatuses.join(', ') },
         { status: 400 }
       );
     }
 
-    // If reportId is provided and not "none", verify the report exists and belongs to the current user
-    if (reportId && reportId !== "none") {
-      const report = await db.report.findUnique({
-        where: { id: reportId },
-      });
+    // Find the recommendation
+    const recommendation = await db.recommendation.findUnique({
+      where: { id },
+    });
 
-      if (!report) {
-        return NextResponse.json(
-          { error: "Report not found" },
-          { status: 404 }
-        );
-      }
-
-      // Ensure the report belongs to the current user
-      if (report.reporterId !== user.id) {
-        return NextResponse.json(
-          { error: "You can only create recommendations for your own reports" },
-          { status: 403 }
-        );
-      }
-
-      if (report.status === 'REJECTED') {
-        return NextResponse.json(
-          { error: "Cannot create recommendation for rejected report" },
-          { status: 400 }
-        );
-      }
+    if (!recommendation) {
+      return NextResponse.json(
+        { error: "Recommendation not found" },
+        { status: 404 }
+      );
     }
 
-    // Create a user recommendation
-    const recommendation = await db.recommendation.create({
+    // Update the recommendation with response
+    const updatedRecommendation = await db.recommendation.update({
+      where: { id },
       data: {
-        title,
-        description,
-        content,
-        type,
-        status: 'PENDING',
-        createdById: user.id,
-        reportId: (reportId && reportId !== "none") ? reportId : null,
+        status: dbStatus as any,
+        response: response || null,
+        respondedAt: new Date(),
+        respondedBy: user.name,
       },
       include: {
         createdBy: {
@@ -269,35 +250,22 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Notify SATGAS users about new recommendation
-    const satgasUsers = await db.user.findMany({
-      where: {
-        role: Role.SATGAS,
-        isActive: true,
+    // Notify the user about the response
+    await db.notification.create({
+      data: {
+        userId: recommendation.createdById,
+        type: "NEW_RECOMMENDATION",
+        title: "Respons Rekomendasi",
+        message: `SATGAS telah memberikan respons untuk rekomendasi Anda: ${recommendation.title}`,
+        relatedEntityId: recommendation.id,
+        relatedEntityType: "user_recommendation",
       },
     });
 
-    if (satgasUsers.length > 0) {
-      await Promise.all(
-        satgasUsers.map((satgasUser) =>
-          db.notification.create({
-            data: {
-              userId: satgasUser.id,
-              type: "NEW_RECOMMENDATION",
-              title: "Rekomendasi Baru dari User",
-              message: `User ${user.name} telah mengajukan rekomendasi: ${title}`,
-              relatedEntityId: recommendation.id,
-              relatedEntityType: "user_recommendation",
-            },
-          })
-        )
-      );
-    }
-
-    console.log("✅ Successfully created user recommendation");
-    return NextResponse.json(recommendation, { status: 201 });
+    console.log("✅ Successfully updated recommendation response");
+    return NextResponse.json(updatedRecommendation);
   } catch (error) {
-    console.error("Error creating user recommendation:", error);
+    console.error("Error updating recommendation response:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
